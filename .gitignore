@@ -1,0 +1,21 @@
+**/bin/
+**/obj/
+.vs/
+.dotnet-home/
+*.user
+*.db
+*.db-wal
+*.db-shm
+*.log
+signing/*.keystore
+signing/*.password
+signing/*.local.props
+offline-cache/
+tools/
+artifacts/
+builds/
+На публикацию/
+docs/*.docx
+TBK-Report-*-Setup.exe
+AGENTS.md
+ПЕРЕНОС ПРОЕКТА.md

@@ -1,0 +1,101 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:TbkReport.Mobile.ViewModels"
+             x:Class="TbkReport.Mobile.Views.SettingsView" x:DataType="vm:MainViewModel">
+  <UserControl.Styles>
+    <Style Selector="RadioButton.CalculationSegment">
+      <Setter Property="Background" Value="#252525" />
+      <Setter Property="BorderBrush" Value="#71808C" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Foreground" Value="White" />
+      <Setter Property="Padding" Value="10,10" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Border Name="SegmentBorder" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                  BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}">
+            <TextBlock Text="{TemplateBinding Content}" Foreground="{TemplateBinding Foreground}" TextWrapping="Wrap"
+                       TextAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Center" />
+          </Border>
+        </ControlTemplate>
+      </Setter>
+    </Style>
+    <Style Selector="RadioButton.CalculationSegment:checked">
+      <Setter Property="Background" Value="#0078D4" />
+    </Style>
+    <Style Selector="RadioButton.CalculationSegment.Left /template/ Border#SegmentBorder">
+      <Setter Property="CornerRadius" Value="7,0,0,7" />
+    </Style>
+    <Style Selector="RadioButton.CalculationSegment.Right /template/ Border#SegmentBorder">
+      <Setter Property="CornerRadius" Value="0,7,7,0" />
+    </Style>
+  </UserControl.Styles>
+  <ScrollViewer>
+    <StackPanel Margin="16" Spacing="16">
+      <Button Content="← Назад" Command="{Binding BackCommand}" MinHeight="48" />
+      <TextBlock Text="Параметры" FontSize="22" FontWeight="SemiBold" />
+      <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+        <TextBlock Text="Расчёт по" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" />
+        <Border Grid.Column="1" Background="#182D4055" CornerRadius="8" Padding="12,10">
+          <Grid ColumnDefinitions="*,*">
+            <RadioButton Classes="CalculationSegment Left" GroupName="CalculationMode" Content="Номерам стыков"
+                         IsChecked="{Binding Report.PendingCalculateByNumbers, Mode=TwoWay}" />
+            <RadioButton Grid.Column="1" Classes="CalculationSegment Right" GroupName="CalculationMode" Content="Количеству стыков"
+                         IsChecked="{Binding Report.PendingCalculateByCount, Mode=TwoWay}" />
+          </Grid>
+        </Border>
+      </Grid>
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+        <TextBlock Text="Экспорт Excel одновременно с сохранением отчёта" VerticalAlignment="Center" TextWrapping="Wrap" />
+        <ToggleSwitch Grid.Column="1" IsChecked="{Binding Report.PendingAutoExportExcel, Mode=TwoWay}" AutomationProperties.Name="Автоматический экспорт Excel" />
+      </Grid>
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+        <TextBlock Text="Экспорт PDF одновременно с сохранением отчёта" VerticalAlignment="Center" TextWrapping="Wrap" />
+        <ToggleSwitch Grid.Column="1" IsChecked="{Binding Report.PendingAutoExportPdf, Mode=TwoWay}" AutomationProperties.Name="Автоматический экспорт PDF" />
+      </Grid>
+      <TextBlock Text="Папка для сохранения отчётов и резервных копий." TextWrapping="Wrap" />
+      <Border Padding="12" BorderBrush="#808080" BorderThickness="1" CornerRadius="4">
+        <TextBlock Text="{Binding ExportLocationDisplay}" TextWrapping="Wrap" />
+      </Border>
+      <Button Content="Выбрать папку…" Command="{Binding ChooseExportFolderCommand}" MinHeight="56" HorizontalAlignment="Stretch" />
+      <Button Content="Вернуть папку по умолчанию" Command="{Binding ResetExportFolderCommand}" MinHeight="56" HorizontalAlignment="Stretch" />
+      <Button Content="Сохранить" Command="{Binding SaveExportFolderCommand}" MinHeight="56" HorizontalAlignment="Stretch" />
+      <Separator />
+      <Border Background="#182D4055" CornerRadius="8" Padding="12">
+        <StackPanel Spacing="10">
+          <TextBlock Text="Что включить в резервную копию" FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap" />
+          <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="10">
+            <CheckBox Content="История" IsChecked="{Binding Report.DataTransfer.ExportHistory, Mode=TwoWay}" />
+            <CheckBox Grid.Column="1" Content="Проблемы" IsChecked="{Binding Report.DataTransfer.ExportProblems, Mode=TwoWay}" />
+            <CheckBox Grid.Row="1" Content="Оборудование" IsChecked="{Binding Report.DataTransfer.ExportEquipment, Mode=TwoWay}" />
+            <CheckBox Grid.Row="1" Grid.Column="1" Content="Начальные данные" IsChecked="{Binding Report.DataTransfer.ExportOpenings, Mode=TwoWay}" />
+            <CheckBox Grid.Row="2" Content="Настройки" IsChecked="{Binding Report.DataTransfer.ExportSettings, Mode=TwoWay}" />
+            <CheckBox Grid.Row="2" Grid.Column="1" Content="Шапка" IsChecked="{Binding Report.DataTransfer.ExportHeader, Mode=TwoWay}" />
+            <CheckBox Grid.Row="3" Grid.ColumnSpan="2" Content="Техники и подписи" IsChecked="{Binding Report.DataTransfer.ExportTechnicians, Mode=TwoWay}" />
+          </Grid>
+          <TextBlock Text="Папка экспорта остаётся своей на каждом устройстве." Opacity="0.7" TextWrapping="Wrap" />
+        </StackPanel>
+      </Border>
+      <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+        <Button Click="ExportDataClick" MinHeight="48" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center">
+          <TextBlock Text="Экспорт данных" TextWrapping="Wrap" TextAlignment="Center" />
+        </Button>
+        <Button Grid.Column="1" Click="ImportDataClick" MinHeight="48" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center">
+          <TextBlock Text="Импорт данных" TextWrapping="Wrap" TextAlignment="Center" />
+        </Button>
+      </Grid>
+      <Border IsVisible="{Binding Report.DataTransfer.IsConfirmationVisible}" Padding="12" BorderBrush="Orange" BorderThickness="1">
+        <StackPanel Spacing="8">
+          <TextBlock Text="{Binding Report.DataTransfer.Confirmation}" TextWrapping="Wrap" />
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button Content="Импортировать" Command="{Binding Report.DataTransfer.ConfirmImportCommand}" MinHeight="48" />
+            <Button Content="Отмена" Command="{Binding Report.DataTransfer.CancelImportCommand}" MinHeight="48" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+      <Border Background="Black" CornerRadius="18" Padding="16,10" IsVisible="{Binding Report.DataTransfer.HasStatus}">
+        <TextBlock Text="{Binding Report.DataTransfer.Status}" Foreground="{Binding Report.DataTransfer.StatusForeground}" TextWrapping="Wrap" TextAlignment="Center" />
+      </Border>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

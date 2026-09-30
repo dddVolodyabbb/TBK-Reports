@@ -1,0 +1,18 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:TbkReport.ViewModels" x:Class="TbkReport.Mobile.Views.MonthlyOpeningView" x:DataType="vm:ReportViewModel"
+             GotFocus="FormGotFocus" LostFocus="FormLostFocus">
+  <ScrollViewer Name="FormScrollViewer" Focusable="True">
+    <StackPanel Margin="16" Spacing="8">
+      <TextBlock Text="Начальные данные месяца" FontSize="20" FontWeight="SemiBold" TextWrapping="Wrap" />
+      <TextBlock Text="{Binding MonthlyOpeningScope}" FontWeight="SemiBold" Foreground="#FF42A5F5" TextWrapping="Wrap" />
+      <TextBlock Text="Накопленные значения для выбранного месяца и указанной в шапке ГК. Последний номер продолжит нумерацию стыков." TextWrapping="Wrap" />
+      <TextBlock Text="Последний номер стыка" />
+      <TextBox Text="{Binding MonthlyOpeningLastJoint, Mode=TwoWay}" PlaceholderText="Например, 274" />
+      <TextBlock Text="Сварено стыков за месяц" />
+      <TextBox Text="{Binding MonthlyOpeningWelded, Mode=TwoWay}" PlaceholderText="Например, 21" />
+      <TextBlock Text="Ремонтов за месяц" />
+      <TextBox Text="{Binding MonthlyOpeningRepairs, Mode=TwoWay}" PlaceholderText="Например, 3" />
+      <TextBlock Text="Начальные количества учитываются нарастающим итогом: сначала в первой смене, затем во второй. Если первой смены нет, подсчёт продолжается во второй. Оставьте поле пустым, если значение неизвестно. Чтобы удалить начальные данные, очистите все три поля и сохраните." TextWrapping="Wrap" Opacity="0.7" />
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

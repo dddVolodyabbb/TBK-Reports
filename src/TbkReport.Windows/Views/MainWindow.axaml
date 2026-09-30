@@ -1,0 +1,161 @@
+<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:vm="using:TbkReport.ViewModels" xmlns:views="using:TbkReport.Views" xmlns:controls="using:TbkReport.Controls" x:Class="TbkReport.Views.MainWindow" x:DataType="vm:MainViewModel" Title="ТБК Отчёт v1.3" Icon="/Assets/tbk-app-icon.png" Width="800" Height="650" MinWidth="620" MinHeight="540">
+  <DockPanel>
+    <Menu DockPanel.Dock="Top">
+      <MenuItem Header="_Файл"><MenuItem Header="Экспорт в Excel" Command="{Binding ExportCurrentToExcelCommand}" /><MenuItem Header="Экспорт в PDF" Command="{Binding ExportCurrentToPdfCommand}" /><Separator /><MenuItem Header="Выход" Click="ExitClick" /></MenuItem>
+      <MenuItem Header="История отчётов" Command="{Binding OpenHistoryCommand}" />
+      <MenuItem Header="_Параметры" Command="{Binding OpenSettingsCommand}" />
+      <MenuItem Header="_Справка">
+        <MenuItem Header="ТБК Отчёт · v1.3" IsEnabled="False" />
+        <MenuItem Header="Разработчик: Логно Владимир В." IsEnabled="False" />
+      </MenuItem>
+    </Menu>
+    <Border DockPanel.Dock="Top" IsVisible="{Binding IsExportReplacePromptVisible}" Padding="12,8" Background="#FFFFC107">
+      <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+        <TextBlock Text="Такой файл уже есть. Заменить?" VerticalAlignment="Center" />
+        <Button Grid.Column="1" Content="Заменить" Command="{Binding ConfirmExportReplacementCommand}" />
+        <Button Grid.Column="2" Content="Отмена" Command="{Binding CancelExportReplacementCommand}" />
+      </Grid>
+    </Border>
+    <Border DockPanel.Dock="Top" IsVisible="{Binding IsNewReportConfirmPromptVisible}" Padding="12,8" Background="#FFFFC107">
+      <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+        <TextBlock Text="Текущий отчёт не сохранён. Создать новый и удалить несохранённые изменения?" VerticalAlignment="Center" TextWrapping="Wrap" />
+        <Button Grid.Column="1" Content="Создать новый" Command="{Binding ConfirmNewReportCommand}" />
+        <Button Grid.Column="2" Content="Отмена" Command="{Binding CancelNewReportCommand}" />
+      </Grid>
+    </Border>
+    <Grid>
+    <DockPanel IsVisible="{Binding IsReportViewVisible}">
+    <Border DockPanel.Dock="Top" Padding="12,8" Background="#142D4055">
+      <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+        <TextBlock Text="Ежедневный отчёт" FontSize="18" VerticalAlignment="Center" />
+        <Button Grid.Column="1" Content="Экспорт в Excel" Command="{Binding ExportCurrentToExcelCommand}" />
+        <Button Grid.Column="2" Content="Экспорт в PDF" Command="{Binding ExportCurrentToPdfCommand}" />
+      </Grid>
+    </Border>
+    <Border DockPanel.Dock="Top" IsVisible="{Binding IsEditingHistoryReport}" Background="#FFFFC107" Padding="12,8">
+      <TextBlock Text="{Binding EditingHistoryNotice}" Foreground="Black" FontWeight="SemiBold" TextWrapping="Wrap" />
+    </Border>
+    <WrapPanel DockPanel.Dock="Top" Margin="12,4,12,8">
+      <TextBlock Text="Дата отчёта" VerticalAlignment="Center" Margin="0,0,8,0" />
+      <DatePicker SelectedDate="{Binding ReportDate, Mode=TwoWay}" IsEnabled="{Binding IsReportDateEditable}" DayFormat="dd" MonthFormat="MMMM" YearFormat="yyyy" Margin="0,0,8,4" />
+      <Button Content="Сохранить" Command="{Binding SaveHistoryCommand}" Margin="0,0,8,4" />
+      <Button Content="Отмена" Command="{Binding CancelHistoryEditCommand}" IsVisible="{Binding IsEditingHistoryReport}" Margin="0,0,8,4" />
+      <Button Content="Новый отчёт" Command="{Binding NewReportCommand}" IsVisible="{Binding !IsEditingHistoryReport}" Margin="0,0,0,4" />
+    </WrapPanel>
+    <TabControl x:Name="MainTabs" Margin="12,8,12,0">
+      <TabItem Header="Первая смена"><views:ShiftView DataContext="{Binding First}" /></TabItem>
+      <TabItem Header="Вторая смена"><views:ShiftView DataContext="{Binding Second}" /></TabItem>
+      <TabItem x:Name="ReportDataTab" Header="Данные отчёта">
+        <DockPanel Margin="0,4">
+        <StackPanel DockPanel.Dock="Top" Margin="8,4" Spacing="6">
+          <StackPanel Orientation="Horizontal">
+            <Button Content="Сохранить данные" Command="{Binding SaveReportDataCommand}" IsVisible="{Binding !IsMonthlyOpeningSectionSelected}" />
+            <Button Content="Сохранить начальные данные" Command="{Binding SaveMonthlyOpeningCommand}" IsVisible="{Binding IsMonthlyOpeningSectionSelected}" />
+          </StackPanel>
+          <TextBlock Text="Эта кнопка сохраняет только начальные данные. Данные вкладок «Шапка отчёта», «Проблемы» и «Оборудование» она не сохраняет."
+                     IsVisible="{Binding IsMonthlyOpeningSectionSelected}" TextWrapping="Wrap" Opacity="0.75" />
+        </StackPanel>
+        <TabControl x:Name="ReportSections" SelectedIndex="{Binding SelectedReportDataSectionIndex, Mode=TwoWay}">
+          <TabItem Header="Проблемы"><views:ProblemsView DataContext="{Binding Problems}" /></TabItem>
+          <TabItem Header="Оборудование"><views:EquipmentView DataContext="{Binding Equipment}" /></TabItem>
+          <TabItem x:Name="HeaderTab" Header="Шапка отчёта">
+            <ScrollViewer x:Name="HeaderScrollViewer">
+              <StackPanel Margin="16" Spacing="10">
+                <TextBlock Text="Шапка этого отчёта" FontSize="18" FontWeight="Bold" />
+                <TextBlock Text="Заполните данные, которые будут напечатаны в верхней части Excel-отчёта." TextWrapping="Wrap" Opacity="0.75" />
+                <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" ColumnSpacing="14" RowSpacing="8" Width="600" HorizontalAlignment="Left">
+                  <TextBlock Grid.Row="0" Text="Заказчик" VerticalAlignment="Center" /><TextBox Grid.Row="0" Grid.Column="1" Text="{Binding Header.Customer}" PlaceholderText="Например, АО «СТНГ»" />
+                  <TextBlock Grid.Row="1" Text="Проект" VerticalAlignment="Center" /><TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Header.Project}" PlaceholderText="Название проекта" />
+                  <TextBlock Grid.Row="2" Text="Участок" VerticalAlignment="Center" /><TextBox Grid.Row="2" Grid.Column="1" Text="{Binding Header.Site}" PlaceholderText="Участок или цех" />
+                  <TextBlock Grid.Row="3" Text="Комплекс" VerticalAlignment="Center" /><TextBox Grid.Row="3" Grid.Column="1" Text="{Binding Header.Complex}" PlaceholderText="Альфа, PCW-300+XG-95" />
+                  <TextBlock Grid.Row="4" Text="Труба" VerticalAlignment="Center" /><TextBox Grid.Row="4" Grid.Column="1" Text="{Binding Header.Pipe}" PlaceholderText="Например, 426х12" />
+                  <TextBlock Grid.Row="5" Text="№ трубы" VerticalAlignment="Center" />
+                  <StackPanel Grid.Row="5" Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                    <TextBlock Text="ГК" VerticalAlignment="Center" />
+                    <TextBox Width="120"
+                             Text="{Binding Header.CollectorNumberText, Mode=TwoWay}"
+                             MaxLength="3"
+                             AutomationProperties.Name="Номер коллектора" />
+                  </StackPanel>
+                </Grid>
+                <TextBlock Text="Техники по сменам" FontSize="15" FontWeight="Bold" Margin="0,8,0,0" />
+                <Grid ColumnDefinitions="Auto,*,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="8" MaxWidth="900" HorizontalAlignment="Left">
+                  <TextBlock Grid.Row="0" Grid.Column="1" Text="Первая смена" FontWeight="Bold" />
+                  <TextBlock Grid.Row="0" Grid.Column="2" Text="Вторая смена" FontWeight="Bold" />
+                  <Button Grid.Row="1" Grid.Column="1" Content="{Binding Header.FirstShiftSignatureActionText}" Command="{Binding Header.ShowFirstShiftSignatureEditorCommand}" Click="OpenFirstSignatureClick" IsVisible="{Binding Header.HasFirstShiftTechnician1}" HorizontalAlignment="Left" />
+                  <Button Grid.Row="1" Grid.Column="2" Content="{Binding Header.SecondShiftSignatureActionText}" Command="{Binding Header.ShowSecondShiftSignatureEditorCommand}" Click="OpenSecondSignatureClick" IsVisible="{Binding Header.HasSecondShiftTechnician1}" HorizontalAlignment="Left" />
+                  <Border x:Name="FirstSignatureEditor" Grid.Row="2" Grid.Column="1" IsVisible="{Binding Header.IsFirstShiftSignatureEditorVisible}" Padding="8" CornerRadius="8" BorderBrush="#606060" BorderThickness="1">
+                    <StackPanel Spacing="8" HorizontalAlignment="Center">
+                      <TextBlock Text="Нарисуйте подпись мышью" />
+                      <TextBlock Text="Удерживайте левую кнопку мыши или Shift для работы пера." Foreground="#FFFF5C5C" TextWrapping="Wrap" MaxWidth="360" />
+                      <controls:SignaturePad x:Name="FirstSignaturePad" Signature="{Binding Header.FirstShiftSignature, Mode=TwoWay}" Width="240" Height="180" HorizontalAlignment="Center" />
+                      <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                        <Button Content="Очистить" Command="{Binding Header.ClearFirstShiftSignatureCommand}" />
+                        <Button Content="Сохранить" Command="{Binding Header.CloseFirstShiftSignatureEditorCommand}" Click="CloseSignatureClick" />
+                        <Button Content="Отмена" Command="{Binding Header.CancelFirstShiftSignatureEditCommand}" Click="CloseSignatureClick" />
+                      </StackPanel>
+                    </StackPanel>
+                  </Border>
+                  <Border x:Name="SecondSignatureEditor" Grid.Row="2" Grid.Column="2" IsVisible="{Binding Header.IsSecondShiftSignatureEditorVisible}" Padding="8" CornerRadius="8" BorderBrush="#606060" BorderThickness="1">
+                    <StackPanel Spacing="8" HorizontalAlignment="Center">
+                      <TextBlock Text="Нарисуйте подпись мышью" />
+                      <TextBlock Text="Удерживайте левую кнопку мыши или Shift для работы пера." Foreground="#FFFF5C5C" TextWrapping="Wrap" MaxWidth="360" />
+                      <controls:SignaturePad x:Name="SecondSignaturePad" Signature="{Binding Header.SecondShiftSignature, Mode=TwoWay}" Width="240" Height="180" HorizontalAlignment="Center" />
+                      <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                        <Button Content="Очистить" Command="{Binding Header.ClearSecondShiftSignatureCommand}" />
+                        <Button Content="Сохранить" Command="{Binding Header.CloseSecondShiftSignatureEditorCommand}" Click="CloseSignatureClick" />
+                        <Button Content="Отмена" Command="{Binding Header.CancelSecondShiftSignatureEditCommand}" Click="CloseSignatureClick" />
+                      </StackPanel>
+                    </StackPanel>
+                  </Border>
+                  <TextBlock Grid.Row="3" Text="Техник 1" VerticalAlignment="Center" />
+                  <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding Header.FirstShiftTechnician1}" PlaceholderText="Фамилия и инициалы" />
+                  <TextBox Grid.Row="3" Grid.Column="2" Text="{Binding Header.SecondShiftTechnician1}" PlaceholderText="Фамилия и инициалы" />
+                  <TextBlock Grid.Row="4" Text="Техник 2" VerticalAlignment="Center" />
+                  <TextBox Grid.Row="4" Grid.Column="1" Text="{Binding Header.FirstShiftTechnician2}" PlaceholderText="Фамилия и инициалы" />
+                  <TextBox Grid.Row="4" Grid.Column="2" Text="{Binding Header.SecondShiftTechnician2}" PlaceholderText="Фамилия и инициалы" />
+                </Grid>
+              </StackPanel>
+            </ScrollViewer>
+          </TabItem>
+          <TabItem Header="Начальные данные месяца">
+            <ScrollViewer>
+              <StackPanel Margin="16" Spacing="10" MaxWidth="760" HorizontalAlignment="Left">
+                <TextBlock Text="Начальные данные месяца" FontSize="18" FontWeight="Bold" />
+                <TextBlock Text="{Binding MonthlyOpeningScope}" FontWeight="SemiBold" Foreground="#FF42A5F5" />
+                <TextBlock Text="Для выбранного месяца и указанной в шапке ГК можно записать накопленные значения без создания ежедневного отчёта. Последний номер продолжит нумерацию стыков, а количество стыков и ремонтов войдёт в месячный итог этой ГК." TextWrapping="Wrap" Opacity="0.75" />
+                <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="14" RowSpacing="8">
+                  <TextBlock Grid.Row="0" Text="Последний номер стыка" VerticalAlignment="Center" />
+                  <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding MonthlyOpeningLastJoint, Mode=TwoWay}" PlaceholderText="Например, 274" />
+                  <TextBlock Grid.Row="1" Text="Сварено стыков за месяц" VerticalAlignment="Center" />
+                  <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding MonthlyOpeningWelded, Mode=TwoWay}" PlaceholderText="Например, 21" />
+                  <TextBlock Grid.Row="2" Text="Ремонтов за месяц" VerticalAlignment="Center" />
+                  <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding MonthlyOpeningRepairs, Mode=TwoWay}" PlaceholderText="Например, 3" />
+                </Grid>
+                <TextBlock Text="Начальные количества учитываются нарастающим итогом: сначала в первой смене, затем во второй. Если первой смены нет, подсчёт продолжается во второй. Оставьте поле пустым, если значение неизвестно; очистите все три поля и сохраните, чтобы удалить начальные данные." TextWrapping="Wrap" Opacity="0.75" />
+              </StackPanel>
+            </ScrollViewer>
+          </TabItem>
+        </TabControl>
+        </DockPanel>
+      </TabItem>
+    </TabControl>
+    </DockPanel>
+    <views:HistoryView IsVisible="{Binding IsHistoryViewVisible}" />
+    <views:SettingsView IsVisible="{Binding IsSettingsViewVisible}" />
+    <Border Background="Black" CornerRadius="18" Padding="16,10" Margin="16"
+            MaxWidth="720" HorizontalAlignment="Center" VerticalAlignment="Bottom"
+            IsVisible="{Binding HasExportStatus}" Opacity="{Binding ExportStatusOpacity}"
+            IsHitTestVisible="False" ZIndex="100">
+      <Border.Transitions>
+        <Transitions>
+          <DoubleTransition Property="Opacity" Duration="0:0:0.8" />
+        </Transitions>
+      </Border.Transitions>
+      <TextBlock Text="{Binding ExportStatus}" TextWrapping="Wrap"
+                 TextAlignment="Center" Foreground="{Binding StatusForeground}" />
+    </Border>
+    </Grid>
+  </DockPanel>
+</Window>
+

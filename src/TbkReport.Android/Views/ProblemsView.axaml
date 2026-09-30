@@ -1,0 +1,31 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:vm="using:TbkReport.ViewModels"
+             x:Class="TbkReport.Mobile.Views.ProblemsView" x:DataType="vm:ProblemsViewModel"
+             GotFocus="FormGotFocus" LostFocus="FormLostFocus">
+  <ScrollViewer Name="FormScrollViewer" Focusable="True">
+    <StackPanel Margin="16" Spacing="12">
+      <TextBlock Text="Проблемные вопросы" FontSize="20" FontWeight="SemiBold" />
+      <ItemsControl ItemsSource="{Binding Items}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="vm:ProblemItem">
+            <Border BorderBrush="#40808080" BorderThickness="0,0,0,1" Padding="4,8">
+              <StackPanel Spacing="8">
+                <TextBlock TextWrapping="Wrap">
+                  <Run Text="{Binding Label}" /><Run Text=" " /><Run Text="{Binding Text}" />
+                </TextBlock>
+                <WrapPanel HorizontalAlignment="Left">
+                  <Button Margin="0,0,8,0" Content="Изменить" Click="EditClick" Padding="8,4" />
+                  <Button Content="Удалить" Click="RemoveClick" Padding="8,4" />
+                </WrapPanel>
+              </StackPanel>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+      <TextBox Text="{Binding DraftText, Mode=TwoWay}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="110" VerticalContentAlignment="Top" PlaceholderText="Опишите проблему" />
+      <WrapPanel>
+        <Button Content="{Binding ActionText}" Command="{Binding AddOrSaveCommand}" Margin="0,0,8,8" />
+        <Button Content="Отмена" Command="{Binding CancelEditCommand}" IsVisible="{Binding IsEditing}" />
+      </WrapPanel>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

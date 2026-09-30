@@ -1,0 +1,158 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:TbkReport.Mobile.ViewModels"
+             xmlns:views="using:TbkReport.Mobile.Views"
+             x:Class="TbkReport.Mobile.Views.MainView"
+             x:DataType="vm:MainViewModel">
+  <UserControl.Styles>
+    <Style Selector="Ellipse.section-indicator">
+      <Setter Property="Width" Value="24" />
+      <Setter Property="Height" Value="7" />
+      <Setter Property="Fill" Value="Transparent" />
+      <Setter Property="Stroke" Value="#FF808080" />
+      <Setter Property="StrokeThickness" Value="1" />
+    </Style>
+    <Style Selector="Ellipse.section-indicator.active">
+      <Setter Property="Fill" Value="#FF0078D4" />
+      <Setter Property="Stroke" Value="#FF0078D4" />
+    </Style>
+  </UserControl.Styles>
+  <Grid RowDefinitions="Auto,*">
+    <Border Background="White" Padding="4" BorderBrush="#E2E5E9" BorderThickness="0,0,0,1">
+      <Grid ColumnDefinitions="48,*,48" MinHeight="48">
+        <Button Width="48" Height="48" Background="Transparent" BorderThickness="0"
+                HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                AutomationProperties.Name="Открыть меню разделов"
+                Command="{Binding ToggleNavigationCommand}">
+          <Path Width="24" Height="24" Stroke="Black" StrokeThickness="2"
+                Data="M 2,5 L 22,5 M 2,12 L 22,12 M 2,19 L 22,19" />
+        </Button>
+        <TextBlock Grid.Column="1" Text="{Binding CurrentSection}" Foreground="Black" FontSize="18" TextTrimming="CharacterEllipsis"
+                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+        <Button Grid.Column="2" Width="48" Height="48" Background="Transparent" BorderThickness="0"
+                HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                AutomationProperties.Name="Действия с отчётом">
+          <StackPanel Spacing="4">
+            <Ellipse Width="4" Height="4" Fill="Black" />
+            <Ellipse Width="4" Height="4" Fill="Black" />
+            <Ellipse Width="4" Height="4" Fill="Black" />
+          </StackPanel>
+          <Button.Flyout>
+            <MenuFlyout Placement="BottomEdgeAlignedRight">
+              <MenuItem Header="Сохранить отчёт" Command="{Binding SaveReportCommand}" MinHeight="56" MinWidth="260" FontSize="18" Padding="16,12" />
+              <MenuItem Header="Новый отчёт" Command="{Binding Report.NewReportCommand}" IsVisible="{Binding !Report.IsEditingHistoryReport}" MinHeight="56" MinWidth="260" FontSize="18" Padding="16,12" />
+              <MenuItem Header="Отменить редактирование" Command="{Binding CancelHistoryEditCommand}" IsVisible="{Binding Report.IsEditingHistoryReport}" MinHeight="56" MinWidth="260" FontSize="18" Padding="16,12" />
+              <MenuItem Header="Экспортировать Excel" Command="{Binding ExportReportCommand}" MinHeight="56" MinWidth="260" FontSize="18" Padding="16,12" />
+              <MenuItem Header="Экспортировать PDF" Command="{Binding ExportPdfReportCommand}" MinHeight="56" MinWidth="260" FontSize="18" Padding="16,12" />
+              <Separator />
+              <MenuItem Header="Настройки" Command="{Binding OpenSettingsCommand}" MinHeight="56" MinWidth="260" FontSize="18" Padding="16,12" />
+            </MenuFlyout>
+          </Button.Flyout>
+        </Button>
+      </Grid>
+    </Border>
+    <SplitView Grid.Row="1" IsPaneOpen="{Binding IsNavigationOpen, Mode=TwoWay}"
+               DisplayMode="Overlay" PanePlacement="Left" OpenPaneLength="280"
+               PaneBackground="{DynamicResource SystemControlBackgroundAltHighBrush}">
+      <SplitView.Pane>
+        <ScrollViewer>
+          <StackPanel Margin="12" Spacing="8">
+            <TextBlock Text="Разделы" FontSize="20" FontWeight="SemiBold" Margin="8,12" />
+            <Button Content="Первая смена" Command="{Binding NavigateCommand}" CommandParameter="Первая смена" HorizontalAlignment="Stretch" MinHeight="48" />
+            <Button Content="Вторая смена" Command="{Binding NavigateCommand}" CommandParameter="Вторая смена" HorizontalAlignment="Stretch" MinHeight="48" />
+            <Button Content="Данные отчёта ▾" Command="{Binding ToggleDataMenuCommand}" HorizontalAlignment="Stretch" MinHeight="48" />
+            <StackPanel IsVisible="{Binding IsDataMenuOpen}" Margin="12,0,0,0" Spacing="8">
+              <Button Content="Проблемы" Command="{Binding NavigateCommand}" CommandParameter="Проблемы" HorizontalAlignment="Stretch" MinHeight="48" />
+              <Button Content="Оборудование" Command="{Binding NavigateCommand}" CommandParameter="Оборудование" HorizontalAlignment="Stretch" MinHeight="48" />
+              <Button Content="Шапка отчёта" Command="{Binding NavigateCommand}" CommandParameter="Шапка отчёта" HorizontalAlignment="Stretch" MinHeight="48" />
+              <Button Command="{Binding NavigateCommand}" CommandParameter="Начальные данные месяца" HorizontalAlignment="Stretch" MinHeight="48">
+                <TextBlock Text="Начальные данные месяца" TextWrapping="Wrap" />
+              </Button>
+            </StackPanel>
+            <Button Content="История отчётов" Command="{Binding NavigateCommand}" CommandParameter="История отчётов" HorizontalAlignment="Stretch" MinHeight="48" />
+          </StackPanel>
+        </ScrollViewer>
+      </SplitView.Pane>
+      <Grid RowDefinitions="Auto,Auto,Auto,Auto,*">
+        <Border Grid.Row="0" IsVisible="{Binding IsExportReplacePromptVisible}" Background="#FFFFC107" Padding="12" Margin="12,4">
+          <StackPanel Spacing="8">
+            <TextBlock Foreground="Black" Text="Такой файл уже есть. Заменить?" TextWrapping="Wrap" />
+            <WrapPanel>
+              <Button Content="Заменить" Command="{Binding ConfirmExportReplacementCommand}" Margin="0,0,8,0" />
+              <Button Content="Отмена" Command="{Binding CancelExportReplacementCommand}" />
+            </WrapPanel>
+          </StackPanel>
+        </Border>
+        <Border Grid.Row="1" Padding="12,4,12,8" IsVisible="{Binding IsReportVisible}">
+          <StackPanel Spacing="6">
+            <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+              <Ellipse Classes="section-indicator" Classes.active="{Binding IsFirstShiftVisible}" />
+              <Ellipse Classes="section-indicator" Classes.active="{Binding IsSecondShiftVisible}" />
+              <Ellipse Classes="section-indicator" Classes.active="{Binding IsProblemsVisible}" />
+              <Ellipse Classes="section-indicator" Classes.active="{Binding IsEquipmentVisible}" />
+              <Ellipse Classes="section-indicator" Classes.active="{Binding IsHeaderVisible}" />
+              <Ellipse Classes="section-indicator" Classes.active="{Binding IsMonthlyOpeningVisible}" />
+              <Ellipse Classes="section-indicator" Classes.active="{Binding IsHistoryVisible}" />
+            </StackPanel>
+            <TextBlock Text="Дата отчёта" />
+            <DatePicker SelectedDate="{Binding Report.ReportDate, Mode=TwoWay}" IsEnabled="{Binding Report.IsReportDateEditable}" DayFormat="dd" MonthFormat="MMMM" YearFormat="yyyy" HorizontalAlignment="Left" />
+          </StackPanel>
+        </Border>
+        <Border Grid.Row="2" IsVisible="{Binding Report.IsEditingHistoryReport}" Background="#FFFFC107" Padding="12" Margin="12,0,12,8">
+          <StackPanel Spacing="8">
+            <TextBlock Text="{Binding Report.EditingHistoryNotice}" Foreground="Black" FontWeight="SemiBold" TextWrapping="Wrap" />
+            <Button Content="Отмена" Command="{Binding CancelHistoryEditCommand}" HorizontalAlignment="Left" MinHeight="48" />
+          </StackPanel>
+        </Border>
+        <Border Grid.Row="3" IsVisible="{Binding Report.IsNewReportConfirmPromptVisible}" Background="#FFFFC107" Padding="12">
+          <StackPanel Spacing="8">
+            <TextBlock Foreground="Black" Text="Создать новый отчёт и удалить несохранённые изменения?" TextWrapping="Wrap" />
+            <WrapPanel>
+              <Button Content="Создать новый" Command="{Binding Report.ConfirmNewReportCommand}" Margin="0,0,8,0" />
+              <Button Content="Отмена" Command="{Binding Report.CancelNewReportCommand}" />
+            </WrapPanel>
+          </StackPanel>
+        </Border>
+        <Grid Name="SectionContent" Grid.Row="4" Focusable="True">
+          <Grid IsVisible="{Binding IsFirstShiftVisible}"><views:ShiftView DataContext="{Binding Report.First}" /></Grid>
+          <Grid IsVisible="{Binding IsSecondShiftVisible}"><views:ShiftView DataContext="{Binding Report.Second}" /></Grid>
+          <Grid IsVisible="{Binding IsDataSectionVisible}" RowDefinitions="Auto,*">
+            <StackPanel Margin="16,0,16,8" Spacing="6">
+              <Button Content="Сохранить данные" Command="{Binding Report.SaveReportDataCommand}" IsVisible="{Binding IsRegularDataSectionVisible}" HorizontalAlignment="Stretch" />
+              <Button Content="Сохранить начальные данные" Command="{Binding Report.SaveMonthlyOpeningCommand}" IsVisible="{Binding IsMonthlyOpeningVisible}" HorizontalAlignment="Stretch" />
+              <TextBlock Text="Эта кнопка сохраняет только начальные данные. Данные вкладок «Шапка отчёта», «Проблемы» и «Оборудование» она не сохраняет."
+                         IsVisible="{Binding IsMonthlyOpeningVisible}" TextWrapping="Wrap" Opacity="0.75" />
+            </StackPanel>
+            <Grid Grid.Row="1">
+              <Grid IsVisible="{Binding IsProblemsVisible}"><views:ProblemsView DataContext="{Binding Report.Problems}" /></Grid>
+              <Grid IsVisible="{Binding IsEquipmentVisible}"><views:EquipmentView DataContext="{Binding Report.Equipment}" /></Grid>
+              <Grid IsVisible="{Binding IsHeaderVisible}"><views:HeaderView DataContext="{Binding Report.Header}" /></Grid>
+              <Grid IsVisible="{Binding IsMonthlyOpeningVisible}"><views:MonthlyOpeningView DataContext="{Binding Report}" /></Grid>
+            </Grid>
+          </Grid>
+          <views:HistoryView IsVisible="{Binding IsHistoryVisible}" />
+          <views:SettingsView IsVisible="{Binding IsSettingsVisible}" />
+          <Border Name="SwipeInputBlocker" IsVisible="False" Background="Transparent" ZIndex="100" />
+        </Grid>
+        <StackPanel Grid.Row="4" Margin="12,4,12,16" Spacing="8" VerticalAlignment="Bottom" Panel.ZIndex="10" IsHitTestVisible="False">
+          <Border Background="Black" CornerRadius="18" Padding="16,10" IsVisible="{Binding Report.HasExportStatus}" Opacity="{Binding Report.ExportStatusOpacity}">
+            <Border.Transitions>
+              <Transitions>
+                <DoubleTransition Property="Opacity" Duration="0:0:0.8" />
+              </Transitions>
+            </Border.Transitions>
+            <TextBlock Text="{Binding Report.ExportStatus}" Foreground="{Binding Report.StatusForeground}" TextWrapping="Wrap" TextAlignment="Center" />
+          </Border>
+          <Border Background="Black" CornerRadius="18" Padding="16,10" IsVisible="{Binding HasStatus}" Opacity="{Binding StatusOpacity}">
+            <Border.Transitions>
+              <Transitions>
+                <DoubleTransition Property="Opacity" Duration="0:0:0.8" />
+              </Transitions>
+            </Border.Transitions>
+            <TextBlock Text="{Binding Status}" Foreground="{Binding StatusForeground}" TextWrapping="Wrap" TextAlignment="Center" />
+          </Border>
+        </StackPanel>
+      </Grid>
+    </SplitView>
+  </Grid>
+</UserControl>

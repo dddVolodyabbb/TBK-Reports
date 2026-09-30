@@ -1,0 +1,86 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:vm="using:TbkReport.ViewModels" xmlns:models="using:TbkReport.Models" xmlns:views="using:TbkReport.Mobile.Views" x:Class="TbkReport.Mobile.Views.ShiftView" x:DataType="vm:ShiftViewModel"
+             GotFocus="FormGotFocus" LostFocus="FormLostFocus">
+  <ScrollViewer Name="ReportScrollViewer" Focusable="True">
+    <StackPanel Margin="16" Spacing="12">
+      <TextBlock Text="Сварочно-монтажные работы" TextWrapping="Wrap" FontSize="20" FontWeight="SemiBold" />
+      <Grid RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="8">
+        <TextBlock Text="Время старта" />
+        <TextBlock Grid.Row="2" Text="Время остановки" />
+        <views:ClockTimePicker Grid.Row="1" SelectedTime="{Binding StartTime, Mode=TwoWay}" />
+        <Border Grid.Row="1" IsVisible="{Binding IsStartTimeInvalid}" BorderBrush="Red" BorderThickness="2" CornerRadius="4" Background="Transparent" IsHitTestVisible="False" />
+        <views:ClockTimePicker Grid.Row="3" SelectedTime="{Binding StopTime, Mode=TwoWay}" />
+        <Border Grid.Row="3" IsVisible="{Binding IsStopTimeInvalid}" BorderBrush="Red" BorderThickness="2" CornerRadius="4" Background="Transparent" IsHitTestVisible="False" />
+      </Grid>
+      <StackPanel IsVisible="{Binding IsCountMode}" Spacing="8">
+        <TextBlock Text="Сварено за смену" />
+        <Grid>
+          <TextBox Text="{Binding WeldedCountText, Mode=TwoWay}" PlaceholderText="Например, 10" MinWidth="0" TextInputOptions.ContentType="Digits" />
+          <Border IsVisible="{Binding IsWeldedCountInvalid}" BorderBrush="Red" BorderThickness="2" CornerRadius="4" IsHitTestVisible="False" />
+        </Grid>
+        <TextBlock IsVisible="{Binding HasCountValidation}" Text="{Binding CountValidation}" Foreground="OrangeRed" TextWrapping="Wrap" />
+      </StackPanel>
+      <Grid IsVisible="{Binding IsNumberMode}" ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="8" RowSpacing="8">
+        <TextBlock Text="Первый стык №" />
+        <TextBlock Grid.Column="1" Text="Последний стык №" TextWrapping="Wrap" />
+        <TextBox Grid.Row="1" MinWidth="0" Text="{Binding FirstJoint, Mode=TwoWay}" PlaceholderText="Например, 21" TextInputOptions.ContentType="Digits" />
+        <Border Grid.Row="1" IsVisible="{Binding IsFirstJointInvalid}" BorderBrush="Red" BorderThickness="2" CornerRadius="4" Background="Transparent" IsHitTestVisible="False" />
+        <TextBox Grid.Row="1" Grid.Column="1" MinWidth="0" Text="{Binding LastJoint, Mode=TwoWay}" PlaceholderText="Например, 22" TextInputOptions.ContentType="Digits" />
+        <Border Grid.Row="1" Grid.Column="1" IsVisible="{Binding IsLastJointInvalid}" BorderBrush="Red" BorderThickness="2" CornerRadius="4" Background="Transparent" IsHitTestVisible="False" />
+      </Grid>
+      <TextBlock IsVisible="{Binding HasJointValidation}" Text="{Binding JointValidation}" Foreground="OrangeRed" TextWrapping="Wrap" />
+      <Grid ColumnDefinitions="*,*" ColumnSpacing="8" RowSpacing="8">
+        <TextBlock Text="Ремонтов за смену" VerticalAlignment="Center" TextWrapping="Wrap" />
+        <TextBox Grid.Column="1" MinWidth="0" Text="{Binding Repairs, Mode=TwoWay}" PlaceholderText="Например, 0" TextInputOptions.ContentType="Digits" />
+      </Grid>
+      <TextBlock IsVisible="{Binding HasRepairsValidation}" Text="{Binding RepairsValidation}" Foreground="OrangeRed" TextWrapping="Wrap" />
+      <Border IsVisible="{Binding IsNumberMode}" Padding="20" Background="#182D4055" CornerRadius="6">
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBlock Text="Сварено за смену" FontSize="18" VerticalAlignment="Center" TextWrapping="Wrap" />
+          <TextBlock Grid.Column="1" Text="{Binding Welded}" FontSize="32" FontWeight="SemiBold" />
+        </Grid>
+      </Border>
+      <Border IsVisible="{Binding IsCountMode}" Padding="16" Background="#182D4055" CornerRadius="6">
+        <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="12" RowSpacing="8">
+          <TextBlock Text="Первый стык №" TextWrapping="Wrap" />
+          <TextBlock Grid.Column="1" Text="Последний стык №" TextWrapping="Wrap" />
+          <TextBlock Grid.Row="1" Text="{Binding FirstJointDisplay}" FontSize="32" FontWeight="SemiBold" TextWrapping="Wrap" />
+          <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding LastJointDisplay}" FontSize="32" FontWeight="SemiBold" TextWrapping="Wrap" />
+        </Grid>
+      </Border>
+      <Separator />
+      <TextBlock Text="Комментарии смены" FontSize="20" FontWeight="SemiBold" />
+      <ItemsControl IsVisible="{Binding HasComments}" ItemsSource="{Binding Comments}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="models:ReportComment">
+            <Border BorderBrush="#40808080" BorderThickness="0,0,0,1" Padding="4,8">
+              <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                <TextBlock Text="{Binding TimeText}" VerticalAlignment="Top" FontWeight="SemiBold" />
+                <StackPanel Grid.Column="1" Spacing="8">
+                  <TextBlock Text="{Binding Text}" TextWrapping="Wrap" />
+                  <WrapPanel HorizontalAlignment="Left">
+                    <Button Content="Изменить" Margin="0,0,8,0" Padding="8,4" Click="EditCommentClick" />
+                    <Button Content="Удалить" Padding="8,4" Click="RemoveCommentClick" />
+                  </WrapPanel>
+                </StackPanel>
+              </Grid>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+      <TextBlock Text="Новый комментарий" FontSize="16" FontWeight="SemiBold" />
+      <StackPanel Spacing="8">
+        <CheckBox Content="Диапазон времени" IsChecked="{Binding IsCommentTimeRange, Mode=TwoWay}" />
+        <TextBlock Text="Время / начало" />
+        <views:ClockTimePicker SelectedTime="{Binding NewCommentTime, Mode=TwoWay}" />
+        <TextBlock Text="Окончание" IsVisible="{Binding IsCommentEndTimeVisible}" />
+        <views:ClockTimePicker SelectedTime="{Binding NewCommentEndTime, Mode=TwoWay}" IsVisible="{Binding IsCommentEndTimeVisible}" />
+        <TextBox Name="CommentTextBox" MinHeight="90" AcceptsReturn="True" TextWrapping="Wrap" VerticalContentAlignment="Top" Text="{Binding NewCommentText, Mode=TwoWay}" PlaceholderText="Опишите событие" GotFocus="CommentTextBoxGotFocus" />
+        <TextBlock Text="{Binding CommentValidation}" Foreground="Red" TextWrapping="Wrap" IsVisible="{Binding HasCommentValidation}" />
+        <WrapPanel>
+          <Button Content="{Binding CommentActionText}" Command="{Binding AddCommentCommand}" Margin="0,0,8,0" VerticalAlignment="Center" />
+          <Button Content="Отмена" Command="{Binding CancelCommentEditCommand}" IsVisible="{Binding IsEditingComment}" VerticalAlignment="Center" />
+        </WrapPanel>
+      </StackPanel>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

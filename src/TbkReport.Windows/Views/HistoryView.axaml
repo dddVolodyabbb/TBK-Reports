@@ -1,0 +1,118 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:TbkReport.ViewModels" xmlns:models="using:TbkReport.Models" xmlns:data="using:TbkReport.Services"
+        x:Class="TbkReport.Views.HistoryView" x:DataType="vm:MainViewModel">
+  <ScrollViewer Margin="16">
+                <StackPanel Spacing="8">
+                  <StackPanel IsVisible="{Binding IsHistoryMonthListVisible}" Spacing="8">
+                    <Button HorizontalAlignment="Left" Content="← Назад" Command="{Binding CloseHistoryCommand}" />
+                    <TextBlock Text="Выберите месяц и год" FontSize="17" />
+                    <ItemsControl ItemsSource="{Binding HistoryMonths}">
+                      <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:HistoryMonthItem">
+                          <Button Tag="{Binding .}" Click="HistoryMonthClick" Margin="0,0,8,8" Padding="14,10">
+                            <StackPanel><TextBlock Text="{Binding Label}" FontSize="16" /><TextBlock Text="{Binding Details}" Opacity="0.7" /></StackPanel>
+                          </Button>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <TextBlock Text="В истории пока нет отчётов." IsVisible="{Binding IsHistoryEmpty}" />
+                  </StackPanel>
+                  <StackPanel IsVisible="{Binding IsHistoryDayListVisible}" Spacing="8">
+                    <WrapPanel>
+                      <Button Content="← К месяцам" Command="{Binding BackToHistoryMonthsCommand}" Margin="0,0,8,0" />
+                      <Button Content="К текущему отчёту" Command="{Binding CloseHistoryCommand}" />
+                    </WrapPanel>
+                    <TextBlock Text="Выберите день" FontSize="17" />
+                    <ItemsControl ItemsSource="{Binding HistoryDays}">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:HistoryDayItem">
+                          <Button Tag="{Binding .}" Click="HistoryDayClick" HorizontalAlignment="Left" Margin="0,0,0,6" Padding="12,8">
+                            <TextBlock Text="{Binding Label}" />
+                          </Button>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </StackPanel>
+                  <StackPanel IsVisible="{Binding IsHistoryReportVisible}" Spacing="8">
+                    <TextBlock Text="{Binding SelectedHistoryReport.CollectorDisplay}" />
+                    <WrapPanel>
+                      <Button Content="← К дням" Command="{Binding BackToHistoryDaysCommand}" Margin="0,0,8,0" />
+                      <Button Content="К текущему отчёту" Command="{Binding CloseHistoryCommand}" />
+                    </WrapPanel>
+                    <WrapPanel>
+                      <Button Content="Редактировать отчёт" Command="{Binding EditHistoryReportCommand}" MinHeight="48" Margin="0,0,8,0"
+                              HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
+                      <Button Content="Удалить отчёт" Command="{Binding DeleteHistoryReportCommand}" MinHeight="48"
+                              HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
+                    </WrapPanel>
+                    <Border IsVisible="{Binding IsDeleteHistoryPromptVisible}" Background="#FFFFC107" Padding="12">
+                      <StackPanel Spacing="8">
+                        <TextBlock Text="{Binding DeleteHistoryPrompt}" Foreground="Black" TextWrapping="Wrap" />
+                        <WrapPanel>
+                          <Button Content="Удалить" Command="{Binding ConfirmHistoryDeletionCommand}" MinHeight="48" Margin="0,0,8,0" />
+                          <Button Content="Отмена" Command="{Binding CancelHistoryDeletionCommand}" MinHeight="48" />
+                        </WrapPanel>
+                      </StackPanel>
+                    </Border>
+                    <TextBlock Text="Отчёт за" FontSize="17" /><TextBlock Text="{Binding SelectedHistoryDay.Label}" FontSize="17" />
+                    <Grid ColumnDefinitions="Auto,*,*,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" ColumnSpacing="16" RowSpacing="5">
+                      <TextBlock Grid.Row="0" Grid.Column="1" Text="Первая смена" FontWeight="Bold" />
+                      <TextBlock Grid.Row="0" Grid.Column="2" Text="Вторая смена" FontWeight="Bold" />
+                      <TextBlock Grid.Column="3" Text="Всего" FontWeight="Bold" />
+                      <TextBlock Grid.Row="1" Text="Начало" /><TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding SelectedHistoryReport.FirstShift.StartTimeDisplay}" /><TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding SelectedHistoryReport.SecondShift.StartTimeDisplay}" />
+                      <TextBlock Grid.Row="2" Text="Остановка" /><TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SelectedHistoryReport.FirstShift.StopTimeDisplay}" /><TextBlock Grid.Row="2" Grid.Column="2" Text="{Binding SelectedHistoryReport.SecondShift.StopTimeDisplay}" />
+                      <TextBlock Grid.Row="3" Text="Первый стык" /><TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding SelectedHistoryReport.FirstShift.FirstJointDisplay}" /><TextBlock Grid.Row="3" Grid.Column="2" Text="{Binding SelectedHistoryReport.SecondShift.FirstJointDisplay}" />
+                      <TextBlock Grid.Row="4" Text="Последний стык" /><TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding SelectedHistoryReport.FirstShift.LastJointDisplay}" /><TextBlock Grid.Row="4" Grid.Column="2" Text="{Binding SelectedHistoryReport.SecondShift.LastJointDisplay}" />
+                      <TextBlock Grid.Row="5" Text="Сварено за смену" /><TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding SelectedHistoryReport.FirstShift.WeldedDisplay}" /><TextBlock Grid.Row="5" Grid.Column="2" Text="{Binding SelectedHistoryReport.SecondShift.WeldedDisplay}" /><TextBlock Grid.Row="5" Grid.Column="3" Text="{Binding SelectedHistoryReport.DailyTotals.WeldedDisplay}" />
+                      <TextBlock Grid.Row="6" Text="Ремонтов за смену" /><TextBlock Grid.Row="6" Grid.Column="1" Text="{Binding SelectedHistoryReport.FirstShift.RepairsDisplay}" /><TextBlock Grid.Row="6" Grid.Column="2" Text="{Binding SelectedHistoryReport.SecondShift.RepairsDisplay}" /><TextBlock Grid.Row="6" Grid.Column="3" Text="{Binding SelectedHistoryReport.DailyTotals.RepairsDisplay}" />
+                      <TextBlock Grid.Row="7" Text="Сварено стыков за месяц" Margin="0,8,0,0" /><TextBlock Grid.Row="7" Grid.Column="1" Text="{Binding SelectedHistoryReport.MonthlyTotals.First.WeldedDisplay}" Margin="0,8,0,0" /><TextBlock Grid.Row="7" Grid.Column="2" Text="{Binding SelectedHistoryReport.MonthlyTotals.Second.WeldedDisplay}" Margin="0,8,0,0" /><TextBlock Grid.Row="7" Grid.Column="3" Text="{Binding SelectedHistoryReport.MonthlyTotals.Total.WeldedDisplay}" Margin="0,8,0,0" />
+                      <TextBlock Grid.Row="8" Text="Ремонтов за месяц" /><TextBlock Grid.Row="8" Grid.Column="1" Text="{Binding SelectedHistoryReport.MonthlyTotals.First.RepairsDisplay}" /><TextBlock Grid.Row="8" Grid.Column="2" Text="{Binding SelectedHistoryReport.MonthlyTotals.Second.RepairsDisplay}" /><TextBlock Grid.Row="8" Grid.Column="3" Text="{Binding SelectedHistoryReport.MonthlyTotals.Total.RepairsDisplay}" />
+                      <TextBlock Grid.Row="9" Text="Ремонты / стыки за месяц" /><TextBlock Grid.Row="9" Grid.Column="1" Text="{Binding SelectedHistoryReport.MonthlyTotals.First.RepairPercentDisplay}" /><TextBlock Grid.Row="9" Grid.Column="2" Text="{Binding SelectedHistoryReport.MonthlyTotals.Second.RepairPercentDisplay}" /><TextBlock Grid.Row="9" Grid.Column="3" Text="{Binding SelectedHistoryReport.MonthlyTotals.Total.RepairPercentDisplay}" />
+                    </Grid>
+                    <TextBlock Text="Комментарии" FontSize="15" FontWeight="Bold" Margin="0,8,0,0" />
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="16" Grid.IsSharedSizeScope="True">
+                      <ItemsControl ItemsSource="{Binding SelectedHistoryReport.FirstShift.Comments}">
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate x:DataType="models:ReportComment">
+                            <Grid Margin="0,2">
+                              <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" SharedSizeGroup="CommentTime" />
+                                <ColumnDefinition Width="*" />
+                              </Grid.ColumnDefinitions>
+                              <TextBlock Text="{Binding TimeText}" Margin="0,0,8,0" />
+                              <TextBlock Grid.Column="1" Text="{Binding Text}" TextWrapping="Wrap" />
+                            </Grid>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                      <ItemsControl Grid.Column="1" ItemsSource="{Binding SelectedHistoryReport.SecondShift.Comments}">
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate x:DataType="models:ReportComment">
+                            <Grid Margin="0,2">
+                              <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" SharedSizeGroup="CommentTime" />
+                                <ColumnDefinition Width="*" />
+                              </Grid.ColumnDefinitions>
+                              <TextBlock Text="{Binding TimeText}" Margin="0,0,8,0" />
+                              <TextBlock Grid.Column="1" Text="{Binding Text}" TextWrapping="Wrap" />
+                            </Grid>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                    </Grid>
+                    <TextBlock Text="Проблемные вопросы" FontSize="15" FontWeight="Bold" />
+                    <ItemsControl ItemsSource="{Binding SelectedHistoryProblems}">
+                      <ItemsControl.ItemTemplate><DataTemplate x:DataType="x:String"><TextBlock Text="{Binding .}" TextWrapping="Wrap" Margin="0,2" /></DataTemplate></ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <TextBlock Text="Оборудование" FontSize="15" FontWeight="Bold" />
+                    <Grid ColumnDefinitions="*,100,100"><TextBlock Text="Название" /><TextBlock Grid.Column="1" Text="В работе" /><TextBlock Grid.Column="2" Text="В резерве" /></Grid>
+                    <ItemsControl ItemsSource="{Binding SelectedHistoryReport.Equipment}">
+                      <ItemsControl.ItemTemplate><DataTemplate x:DataType="data:EquipmentData">
+                        <Grid ColumnDefinitions="*,100,100" Margin="0,2"><TextBlock Text="{Binding Name}" TextWrapping="Wrap" /><TextBlock Grid.Column="1" Text="{Binding InWork}" /><TextBlock Grid.Column="2" Text="{Binding InReserve}" /></Grid>
+                      </DataTemplate></ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </StackPanel>
+                </StackPanel>
+              </ScrollViewer>
+</UserControl>

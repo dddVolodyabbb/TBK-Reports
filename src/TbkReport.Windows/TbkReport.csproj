@@ -1,0 +1,50 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <Version>1.3.0</Version>
+    <AssemblyVersion>1.3.0.0</AssemblyVersion>
+    <FileVersion>1.3.0.0</FileVersion>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\tbk-app-icon.ico</ApplicationIcon>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>false</SelfContained>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Folder Include="Models\" />
+    <AvaloniaResource Include="Assets\**" />
+    <Content Include="..\..\templates\legacy-report-2026-09-15-scaled.xlsx" Link="templates\legacy-report-2026-09-15-scaled.xlsx" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="12.1.2" />
+    <PackageReference Include="Avalonia.Win32" Version="12.1.2" />
+    <PackageReference Include="Avalonia.Skia" Version="12.1.2" />
+    <PackageReference Include="Avalonia.HarfBuzz" Version="12.1.2" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.2" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.2" />
+    <PackageReference Include="AvaloniaUI.DiagnosticsSupport" Version="2.2.3"
+                      Condition="'$(Configuration)' == 'Debug'" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../TbkReport.Core/TbkReport.Core.csproj" />
+  </ItemGroup>
+
+  <Target Name="RemoveNativeReleaseSymbols" AfterTargets="CopyFilesToOutputDirectory"
+          Condition="'$(Configuration)' == 'Release'">
+    <ItemGroup>
+      <NativeReleaseSymbols Include="$(OutDir)**\libSkiaSharp.pdb;$(OutDir)**\libHarfBuzzSharp.pdb" />
+    </ItemGroup>
+    <Delete Files="@(NativeReleaseSymbols)" />
+  </Target>
+</Project>
+

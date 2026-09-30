@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/TbkReport.Core/TbkReport.Core.csproj" />
+    <Project Path="src/TbkReport.Android/TbkReport.Android.csproj" />
+    <Project Path="src/TbkReport/TbkReport.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Checks/Checks.csproj" />
+  </Folder>
+</Solution>

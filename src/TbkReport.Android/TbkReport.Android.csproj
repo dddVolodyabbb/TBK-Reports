@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-android36.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <Nullable>enable</Nullable>
+    <ApplicationId>com.tbkreport.android</ApplicationId>
+    <ApplicationTitle>ТБК Отчёт</ApplicationTitle>
+    <ApplicationVersion>5</ApplicationVersion>
+    <ApplicationDisplayVersion>1.3</ApplicationDisplayVersion>
+    <SupportedOSPlatformVersion>23</SupportedOSPlatformVersion>
+    <AndroidPackageFormats>apk</AndroidPackageFormats>
+    <RuntimeIdentifiers>android-arm64</RuntimeIdentifiers>
+    <EmbedAssembliesIntoApk>true</EmbedAssembliesIntoApk>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+    <RunAOTCompilation>false</RunAOTCompilation>
+    <!-- Incremental Release builds can leave generated JNI marshal tables out of sync,
+         causing an UnsatisfiedLinkError before Avalonia starts. Use runtime registration. -->
+    <AndroidEnableMarshalMethods>false</AndroidEnableMarshalMethods>
+    <!-- Keep reflection-based JSON storage and document export intact. -->
+    <PublishTrimmed>false</PublishTrimmed>
+  </PropertyGroup>
+  <Import Project="../../signing/android-signing.props" Condition="Exists('../../signing/android-signing.props')" />
+  <Target Name="EnsureReleaseSigningIdentity" BeforeTargets="SignAndroidPackage"
+          Condition="'$(Configuration)' == 'Release' and (!Exists('../../signing/tbk-report-release.keystore') or !Exists('../../signing/tbk-report-release.password') or '$(TBK_ANDROID_SIGNING_PASSWORD)' == '')">
+    <Error Text="Не найдены постоянный Android Release-ключ или его пароль в папке signing." />
+  </Target>
+  <ItemGroup>
+    <ProjectReference Include="../TbkReport.Core/TbkReport.Core.csproj" GlobalPropertiesToRemove="RuntimeIdentifier;RuntimeIdentifiers" />
+    <AndroidAsset Include="../../templates/legacy-report-2026-09-15-scaled.xlsx" Link="templates/legacy-report-2026-09-15-scaled.xlsx" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Avalonia.Android" Version="12.1.2" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.2" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.2" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageReference Include="HarfBuzzSharp.NativeAssets.Android" Version="14.2.1.1" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Android" Version="4.151.0" />
+  </ItemGroup>
+</Project>

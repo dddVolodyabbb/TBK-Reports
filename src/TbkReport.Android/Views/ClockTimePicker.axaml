@@ -1,0 +1,24 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="TbkReport.Mobile.Views.ClockTimePicker">
+  <Grid ColumnDefinitions="*,Auto">
+    <TextBox Name="TimeTextBox" PlaceholderText="ЧЧ:ММ" MaxLength="5" VerticalContentAlignment="Center"
+             TextInputOptions.ContentType="Digits" TextInputOptions.ReturnKeyType="Done" />
+    <TimePicker Name="WheelPicker" Grid.Column="1" Width="48" MinWidth="48" MaxWidth="48"
+                MinHeight="48" Margin="6,0,0,0" ClockIdentifier="24HourClock" UseSeconds="False">
+      <TimePicker.Template>
+        <ControlTemplate>
+          <Grid>
+            <Button Name="PART_FlyoutButton" Content="◷" MinWidth="48" MinHeight="48"
+                    AutomationProperties.Name="Открыть выбор времени" />
+            <Popup Name="PART_Popup" PlacementTarget="{TemplateBinding}" Placement="Bottom"
+                   HorizontalOffset="-190"
+                   IsLightDismissEnabled="True">
+              <TimePickerPresenter Name="PART_PickerPresenter" />
+            </Popup>
+          </Grid>
+        </ControlTemplate>
+      </TimePicker.Template>
+    </TimePicker>
+  </Grid>
+</UserControl>

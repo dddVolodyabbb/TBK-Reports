@@ -1,0 +1,76 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:TbkReport.ViewModels" xmlns:controls="using:TbkReport.Mobile.Controls"
+             x:Class="TbkReport.Mobile.Views.HeaderView" x:DataType="vm:ReportHeaderViewModel"
+             GotFocus="FormGotFocus" LostFocus="FormLostFocus">
+  <UserControl.Styles>
+    <Style Selector="Button.signature-action">
+      <Setter Property="MinWidth" Value="0" />
+      <Setter Property="Height" Value="52" />
+      <Setter Property="Padding" Value="4" />
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="Background" Value="#3A3A3A" />
+      <Setter Property="BorderBrush" Value="#606060" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="7" />
+    </Style>
+  </UserControl.Styles>
+  <Grid>
+  <ScrollViewer Name="FormScrollViewer" Focusable="True">
+    <StackPanel Margin="16" Spacing="8">
+      <TextBlock Text="Шапка отчёта" FontSize="20" FontWeight="SemiBold" />
+      <TextBlock Text="Заказчик" /><TextBox Text="{Binding Customer, Mode=TwoWay}" PlaceholderText="Например, АО «СТНГ»" />
+      <TextBlock Text="Проект" /><TextBox Text="{Binding Project, Mode=TwoWay}" PlaceholderText="Название проекта" />
+      <TextBlock Text="Участок" /><TextBox Text="{Binding Site, Mode=TwoWay}" PlaceholderText="Участок или цех" />
+      <TextBlock Text="Комплекс" /><TextBox Text="{Binding Complex, Mode=TwoWay}" PlaceholderText="Альфа, PCW-300+XG-95" />
+      <TextBlock Text="Труба" /><TextBox Text="{Binding Pipe, Mode=TwoWay}" PlaceholderText="Например, 426х12" />
+      <TextBlock Text="№ трубы" />
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <TextBlock Text="ГК" VerticalAlignment="Center" />
+        <TextBox Text="{Binding CollectorNumberText, Mode=TwoWay}" MaxLength="3" Width="90" MinWidth="0" AutomationProperties.Name="Номер коллектора" TextInputOptions.ContentType="Digits" />
+      </StackPanel>
+      <TextBlock Text="Техники первой смены" FontWeight="SemiBold" Margin="0,12,0,0" />
+      <TextBlock Text="Техник 1" /><TextBox Text="{Binding FirstShiftTechnician1, Mode=TwoWay}" PlaceholderText="Фамилия и инициалы" />
+      <Button Content="{Binding FirstShiftSignatureActionText}" Command="{Binding ShowFirstShiftSignatureEditorCommand}" Click="OpenFirstSignatureClick"
+              IsVisible="{Binding HasFirstShiftTechnician1}" HorizontalAlignment="Stretch" MinHeight="48" />
+      <TextBlock Text="Техник 2" /><TextBox Text="{Binding FirstShiftTechnician2, Mode=TwoWay}" PlaceholderText="Фамилия и инициалы" />
+      <TextBlock Text="Техники второй смены" FontWeight="SemiBold" Margin="0,12,0,0" />
+      <TextBlock Text="Техник 1" /><TextBox Text="{Binding SecondShiftTechnician1, Mode=TwoWay}" PlaceholderText="Фамилия и инициалы" />
+      <Button Content="{Binding SecondShiftSignatureActionText}" Command="{Binding ShowSecondShiftSignatureEditorCommand}" Click="OpenSecondSignatureClick"
+              IsVisible="{Binding HasSecondShiftTechnician1}" HorizontalAlignment="Stretch" MinHeight="48" />
+      <TextBlock Text="Техник 2" /><TextBox Text="{Binding SecondShiftTechnician2, Mode=TwoWay}" PlaceholderText="Фамилия и инициалы" />
+    </StackPanel>
+  </ScrollViewer>
+  <Border x:Name="FirstSignatureEditor" IsVisible="{Binding IsFirstShiftSignatureEditorVisible}"
+          Background="#E6000000" Padding="16" ZIndex="10">
+    <Border Background="#202020" Padding="14" CornerRadius="12" BorderBrush="#606060" BorderThickness="1"
+            VerticalAlignment="Center" HorizontalAlignment="Stretch" MaxWidth="620">
+      <StackPanel Spacing="12">
+        <TextBlock Text="Нарисуйте подпись пальцем в поле ниже." TextWrapping="Wrap" FontSize="17" />
+        <controls:SignaturePad Signature="{Binding FirstShiftSignature, Mode=TwoWay}" Height="240" HorizontalAlignment="Stretch" />
+        <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8">
+          <Button Classes="signature-action" Content="Очистить" Command="{Binding ClearFirstShiftSignatureCommand}" />
+          <Button Classes="signature-action" Grid.Column="1" Content="Сохранить" Command="{Binding CloseFirstShiftSignatureEditorCommand}" />
+          <Button Classes="signature-action" Grid.Column="2" Content="Отмена" Command="{Binding CancelFirstShiftSignatureEditCommand}" />
+        </Grid>
+      </StackPanel>
+    </Border>
+  </Border>
+  <Border x:Name="SecondSignatureEditor" IsVisible="{Binding IsSecondShiftSignatureEditorVisible}"
+          Background="#E6000000" Padding="16" ZIndex="10">
+    <Border Background="#202020" Padding="14" CornerRadius="12" BorderBrush="#606060" BorderThickness="1"
+            VerticalAlignment="Center" HorizontalAlignment="Stretch" MaxWidth="620">
+      <StackPanel Spacing="12">
+        <TextBlock Text="Нарисуйте подпись пальцем в поле ниже." TextWrapping="Wrap" FontSize="17" />
+        <controls:SignaturePad Signature="{Binding SecondShiftSignature, Mode=TwoWay}" Height="240" HorizontalAlignment="Stretch" />
+        <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8">
+          <Button Classes="signature-action" Content="Очистить" Command="{Binding ClearSecondShiftSignatureCommand}" />
+          <Button Classes="signature-action" Grid.Column="1" Content="Сохранить" Command="{Binding CloseSecondShiftSignatureEditorCommand}" />
+          <Button Classes="signature-action" Grid.Column="2" Content="Отмена" Command="{Binding CancelSecondShiftSignatureEditCommand}" />
+        </Grid>
+      </StackPanel>
+    </Border>
+  </Border>
+  </Grid>
+</UserControl>

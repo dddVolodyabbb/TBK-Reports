@@ -1,0 +1,9 @@
+<Project>
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <AndroidKeyStore>true</AndroidKeyStore>
+    <AndroidSigningKeyStore>$(MSBuildThisFileDirectory)tbk-report-release.keystore</AndroidSigningKeyStore>
+    <AndroidSigningKeyAlias>tbk-report</AndroidSigningKeyAlias>
+    <AndroidSigningKeyPass>env:TBK_ANDROID_SIGNING_PASSWORD</AndroidSigningKeyPass>
+    <AndroidSigningStorePass>env:TBK_ANDROID_SIGNING_PASSWORD</AndroidSigningStorePass>
+  </PropertyGroup>
+</Project>

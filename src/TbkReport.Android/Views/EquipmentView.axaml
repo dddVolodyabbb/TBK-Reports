@@ -1,0 +1,37 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:TbkReport.ViewModels" xmlns:data="using:TbkReport.Services"
+             x:Class="TbkReport.Mobile.Views.EquipmentView" x:DataType="vm:EquipmentViewModel"
+             GotFocus="FormGotFocus" LostFocus="FormLostFocus">
+  <ScrollViewer Name="FormScrollViewer" Focusable="True">
+    <StackPanel Margin="16" Spacing="12">
+      <TextBlock Text="Наличие оборудования" FontSize="20" FontWeight="SemiBold" />
+      <ItemsControl ItemsSource="{Binding Items}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="data:EquipmentData">
+            <Grid ColumnDefinitions="*,Auto,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="8" Margin="0,4">
+              <TextBlock Text="{Binding Name}" TextWrapping="Wrap" />
+              <TextBlock Grid.Column="1" Text="{Binding InWork, StringFormat='Рб: {0}'}" />
+              <TextBlock Grid.Column="2" Text="{Binding InReserve, StringFormat='Рз: {0}'}" />
+              <WrapPanel Grid.Row="1" Grid.ColumnSpan="3" Margin="0,8,0,0" HorizontalAlignment="Left">
+                <Button Margin="0,0,8,0" Content="Изменить" Click="EditClick" Padding="8,4" />
+                <Button Content="Удалить" Click="RemoveClick" Padding="8,4" />
+              </WrapPanel>
+            </Grid>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+      <StackPanel Spacing="12">
+        <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" RowSpacing="8" ColumnSpacing="8">
+          <StackPanel Grid.ColumnSpan="2" Spacing="4"><TextBlock Text="Название оборудования" /><TextBox Name="EquipmentNameTextBox" Text="{Binding DraftName, Mode=TwoWay}" /></StackPanel>
+          <StackPanel Grid.Row="1" Spacing="4"><TextBlock Text="В работе (Рб)" /><TextBox Text="{Binding DraftInWork, Mode=TwoWay}" /></StackPanel>
+          <StackPanel Grid.Row="1" Grid.Column="1" Spacing="4"><TextBlock Text="В резерве (Рз)" /><TextBox Text="{Binding DraftInReserve, Mode=TwoWay}" /></StackPanel>
+        </Grid>
+        <Grid ColumnDefinitions="Auto,Auto" ColumnSpacing="8" HorizontalAlignment="Left">
+          <Button Content="{Binding ActionText}" Command="{Binding AddOrSaveCommand}" />
+          <Button Grid.Column="1" Content="Отмена" Command="{Binding CancelEditCommand}" IsVisible="{Binding IsEditing}" />
+        </Grid>
+        <TextBlock Text="{Binding Validation}" TextWrapping="Wrap" />
+      </StackPanel>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

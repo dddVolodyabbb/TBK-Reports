@@ -1,0 +1,25 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="TbkReport.App"
+             xmlns:local="using:TbkReport"
+             RequestedThemeVariant="Default">
+             <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
+
+    <Application.Resources>
+        <x:String x:Key="StringTimePickerHourText">часы</x:String>
+        <x:String x:Key="StringTimePickerMinuteText">минуты</x:String>
+    </Application.Resources>
+    <Application.DataTemplates>
+        <local:ViewLocator />
+    </Application.DataTemplates>
+
+    <Application.Styles>
+        <FluentTheme />
+        <Style Selector=":is(Button)">
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="MenuItem /template/ ContentPresenter">
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+    </Application.Styles>
+</Application>
