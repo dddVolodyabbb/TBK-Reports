@@ -1,5 +1,5 @@
 #define AppName "ТБК Отчёт"
-#define AppVersion "1.3.0"
+#define AppVersion "1.4.0"
 #define AppPublisher "ТБК"
 #define AppExeName "TbkReport.exe"
 
@@ -20,7 +20,7 @@ PrivilegesRequired=admin
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 OutputDir=..\artifacts\installer
-OutputBaseFilename=TBK-Report-v1.3-Setup
+OutputBaseFilename=TBK-Report-v1.4-Setup
 SetupIconFile=..\src\TbkReport.Windows\Assets\tbk-app-icon.ico
 UninstallDisplayIcon={app}\{#AppExeName}
 Compression=lzma2/ultra64

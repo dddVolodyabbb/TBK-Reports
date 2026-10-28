@@ -56,5 +56,5 @@ try {
     Pop-Location
 }
 
-Get-Item (Join-Path $projectRoot 'artifacts/installer/TBK-Report-v1.3-Setup.exe') |
+Get-Item (Join-Path $projectRoot 'artifacts/installer/TBK-Report-v1.4-Setup.exe') |
     Select-Object FullName, Length, LastWriteTime

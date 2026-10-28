@@ -1,11 +1,11 @@
-<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:vm="using:TbkReport.ViewModels" xmlns:views="using:TbkReport.Views" xmlns:controls="using:TbkReport.Controls" x:Class="TbkReport.Views.MainWindow" x:DataType="vm:MainViewModel" Title="ТБК Отчёт v1.3" Icon="/Assets/tbk-app-icon.png" Width="800" Height="650" MinWidth="620" MinHeight="540">
+<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:vm="using:TbkReport.ViewModels" xmlns:views="using:TbkReport.Views" xmlns:controls="using:TbkReport.Controls" x:Class="TbkReport.Views.MainWindow" x:DataType="vm:MainViewModel" Title="ТБК Отчёт v1.4" Icon="/Assets/tbk-app-icon.png" Width="800" Height="650" MinWidth="620" MinHeight="540">
   <DockPanel>
     <Menu DockPanel.Dock="Top">
       <MenuItem Header="_Файл"><MenuItem Header="Экспорт в Excel" Command="{Binding ExportCurrentToExcelCommand}" /><MenuItem Header="Экспорт в PDF" Command="{Binding ExportCurrentToPdfCommand}" /><Separator /><MenuItem Header="Выход" Click="ExitClick" /></MenuItem>
       <MenuItem Header="История отчётов" Command="{Binding OpenHistoryCommand}" />
       <MenuItem Header="_Параметры" Command="{Binding OpenSettingsCommand}" />
       <MenuItem Header="_Справка">
-        <MenuItem Header="ТБК Отчёт · v1.3" IsEnabled="False" />
+        <MenuItem Header="ТБК Отчёт · v1.4" IsEnabled="False" />
         <MenuItem Header="Разработчик: Логно Владимир В." IsEnabled="False" />
       </MenuItem>
     </Menu>

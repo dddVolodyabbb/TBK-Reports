@@ -1,7 +1,7 @@
-param(
+﻿param(
     [string]$Directory = $PSScriptRoot,
     [string]$DocumentName = 'ТБК Отчёт — руководство пользователя',
-    [string]$FooterLabel = 'ТБК Отчёт · v1.3'
+    [string]$FooterLabel = 'ТБК Отчёт · v1.4'
 )
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.IO.Compression
@@ -14,7 +14,7 @@ $bookmarkNumber = 1
 foreach ($headingLine in $lines) {
     if (-not $headingLine.StartsWith('## ')) { continue }
     $headingText = $headingLine.Substring(3)
-    if ($headingText -eq 'Руководство пользователя · версия 1.3 · Windows' -or $headingText -eq 'Содержание') { continue }
+    if ($headingText -eq 'Руководство пользователя · версия 1.4 · Windows' -or $headingText -eq 'Содержание') { continue }
     $headingBookmarks[$headingText] = "section$bookmarkNumber"
     $bookmarkNumber++
 }

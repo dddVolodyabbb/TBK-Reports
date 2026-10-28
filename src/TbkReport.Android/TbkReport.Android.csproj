@@ -5,8 +5,8 @@
     <Nullable>enable</Nullable>
     <ApplicationId>com.tbkreport.android</ApplicationId>
     <ApplicationTitle>ТБК Отчёт</ApplicationTitle>
-    <ApplicationVersion>5</ApplicationVersion>
-    <ApplicationDisplayVersion>1.3</ApplicationDisplayVersion>
+    <ApplicationVersion>6</ApplicationVersion>
+    <ApplicationDisplayVersion>1.4</ApplicationDisplayVersion>
     <SupportedOSPlatformVersion>23</SupportedOSPlatformVersion>
     <AndroidPackageFormats>apk</AndroidPackageFormats>
     <RuntimeIdentifiers>android-arm64</RuntimeIdentifiers>
