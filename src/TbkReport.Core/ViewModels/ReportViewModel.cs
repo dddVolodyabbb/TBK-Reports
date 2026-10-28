@@ -204,15 +204,19 @@ public partial class ReportViewModel : ViewModelBase
     private bool pendingExportIsPdf;
     private DateTime? editingHistoryDate;
     private readonly string rootDirectory;
+    private readonly string pdfFontDirectory;
     private readonly Func<string> findExcelTemplate;
     private readonly Func<string, string> resolveExportLocation;
     public Func<ReportExportData, bool, bool, System.Threading.Tasks.Task>? AutoExportSavedReport { get; set; }
 
     public ReportViewModel(ReportHistoryStore history, ReportDefaultsStore defaults, ReportDraftStore draft,
         string rootDirectory, string defaultExportDirectory, Func<string> findExcelTemplate,
-        Func<string, string> resolveExportLocation, bool calculateByCountByDefault = false)
+        Func<string, string> resolveExportLocation, bool calculateByCountByDefault = false,
+        string? pdfFontDirectory = null)
     {
         this.rootDirectory = rootDirectory;
+        // Extracted PDF fonts are application temporary files and must not land in the export folder.
+        this.pdfFontDirectory = pdfFontDirectory ?? Path.Combine(rootDirectory, "Temp", "PdfFonts");
         this.findExcelTemplate = findExcelTemplate;
         this.resolveExportLocation = resolveExportLocation;
         exportDirectory = defaultExportDirectory;
@@ -501,8 +505,8 @@ public partial class ReportViewModel : ViewModelBase
         SelectedHistoryReport = null;
         HistoryDays.Clear();
         if (month is null) return;
-        foreach (var day in history.GetDates().Where(date => date.Year == month.Year && date.Month == month.Month)
-                     .Select(date => new HistoryDayItem(date))) HistoryDays.Add(day);
+        foreach (var day in history.GetDates(month.Year, month.Month).Select(date => new HistoryDayItem(date)))
+            HistoryDays.Add(day);
     }
 
     [RelayCommand]
@@ -913,7 +917,7 @@ public partial class ReportViewModel : ViewModelBase
         exporter.Export(findExcelTemplate(), outputPath, data);
 
     public void ExportToPdf(string outputPath, ReportExportData data) =>
-        pdfExporter.Export(findExcelTemplate(), outputPath, data, Path.Combine(rootDirectory, "Temp", "PdfFonts"));
+        pdfExporter.Export(findExcelTemplate(), outputPath, data, pdfFontDirectory);
 
     private static ShiftReportData ToReportData(ShiftViewModel shift) =>
         new(shift.FirstJoint, shift.LastJoint, shift.StartTime, shift.StopTime, shift.RepairCount, shift.Comments.ToArray());
@@ -927,7 +931,20 @@ public sealed record HistoryReportItem(DateTime Date)
 public sealed record HistoryMonthItem(int Year, int Month, int ReportCount)
 {
     public string Label => $"{CultureInfo.GetCultureInfo("ru-RU").DateTimeFormat.GetMonthName(Month)} {Year}";
-    public string Details => $"{ReportCount} {ReportCount switch { 1 => "отчёт", >= 2 and <= 4 => "отчёта", _ => "отчётов" }}";
+    public string Details => $"{ReportCount} {ReportWord(ReportCount)}";
+
+    // Russian plural forms: 1, 21, 31 → «отчёт»; 2–4, 22–24 → «отчёта»; 0, 5–20, 25–30 → «отчётов».
+    private static string ReportWord(int count)
+    {
+        var lastTwo = Math.Abs(count) % 100;
+        if (lastTwo is >= 11 and <= 14) return "отчётов";
+        return (lastTwo % 10) switch
+        {
+            1 => "отчёт",
+            >= 2 and <= 4 => "отчёта",
+            _ => "отчётов"
+        };
+    }
 }
 
 public sealed record HistoryDayItem(DateTime Date)

@@ -18,7 +18,8 @@ public sealed class MainViewModel : ReportViewModel
     public MainViewModel(ReportHistoryStore history, ReportDefaultsStore defaults, ReportDraftStore draft,
         bool calculateByCountByDefault = false)
         : base(history, defaults, draft, Common.DefaultExportDirectory, Common.DefaultExportDirectory,
-            Common.FindExcelTemplate, Common.ResolveExportLocation, calculateByCountByDefault)
+            Common.FindExcelTemplate, Common.ResolveExportLocation, calculateByCountByDefault,
+            Path.Combine(Common.TemporaryDirectory, "PdfFonts"))
     {
         AutoExportSavedReport = ExportSavedReportAsync;
     }
