@@ -9,7 +9,7 @@
 | Устройство | Скачать |
 |---|---|
 | Компьютер с Windows (64-бит) | [**TBK-Report-v1.4-Setup.exe**](https://github.com/dddVolodyabbb/TBK-Reports/releases/download/v1.4/TBK-Report-v1.4-Setup.exe) — установщик, 41 МБ |
-| Телефон с Android 6.0 и новее | [**TBK-Report-v1.4-Android.apk**](https://github.com/dddVolodyabbb/TBK-Reports/releases/download/v1.4/TBK-Report-v1.4-Android.apk) — 44 МБ |
+| Смартфон с Android 6.0 и новее | [**TBK-Report-v1.4-Android.apk**](https://github.com/dddVolodyabbb/TBK-Reports/releases/download/v1.4/TBK-Report-v1.4-Android.apk) — 44 МБ |
 | Руководство пользователя | [PDF](https://github.com/dddVolodyabbb/TBK-Reports/releases/download/v1.4/TBK-Report-v1.4-User-Guide.pdf) · [Word](https://github.com/dddVolodyabbb/TBK-Reports/releases/download/v1.4/TBK-Report-v1.4-User-Guide.docx) |
 | Руководство по установке | [PDF](https://github.com/dddVolodyabbb/TBK-Reports/releases/download/v1.4/TBK-Report-v1.4-Installation-Guide.pdf) · [Word](https://github.com/dddVolodyabbb/TBK-Reports/releases/download/v1.4/TBK-Report-v1.4-Installation-Guide.docx) |
 
