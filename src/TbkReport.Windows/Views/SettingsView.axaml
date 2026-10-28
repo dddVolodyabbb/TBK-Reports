@@ -2,6 +2,10 @@
              xmlns:vm="using:TbkReport.ViewModels"
              x:Class="TbkReport.Views.SettingsView" x:DataType="vm:MainViewModel">
   <UserControl.Styles>
+    <Style Selector="ToggleSwitch">
+      <Setter Property="OnContent" Value="Вкл" />
+      <Setter Property="OffContent" Value="Выкл" />
+    </Style>
     <Style Selector="RadioButton.CalculationSegment">
       <Setter Property="Background" Value="#252525" />
       <Setter Property="BorderBrush" Value="#71808C" />
@@ -79,11 +83,22 @@
         </StackPanel>
       </Border>
       <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+        <!-- Export: arrow up out of the tray; import: arrow down into the tray. -->
         <Button Click="ExportDataClick" MinHeight="48" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center">
-          <TextBlock Text="Экспорт данных" TextWrapping="Wrap" TextAlignment="Center" />
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <Path Width="22" Height="22" Stretch="Uniform" StrokeThickness="2" StrokeLineCap="Round" StrokeJoin="Round"
+                  Stroke="{Binding $parent[Button].Foreground}" VerticalAlignment="Center"
+                  Data="M 4,15 L 4,20 L 20,20 L 20,15 M 12,15 L 12,3 M 7,8 L 12,3 L 17,8" />
+            <TextBlock Text="Экспорт данных" TextWrapping="Wrap" TextAlignment="Center" VerticalAlignment="Center" />
+          </StackPanel>
         </Button>
         <Button Grid.Column="1" Click="ImportDataClick" MinHeight="48" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center">
-          <TextBlock Text="Импорт данных" TextWrapping="Wrap" TextAlignment="Center" />
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <Path Width="22" Height="22" Stretch="Uniform" StrokeThickness="2" StrokeLineCap="Round" StrokeJoin="Round"
+                  Stroke="{Binding $parent[Button].Foreground}" VerticalAlignment="Center"
+                  Data="M 4,15 L 4,20 L 20,20 L 20,15 M 12,3 L 12,15 M 7,10 L 12,15 L 17,10" />
+            <TextBlock Text="Импорт данных" TextWrapping="Wrap" TextAlignment="Center" VerticalAlignment="Center" />
+          </StackPanel>
         </Button>
       </Grid>
       <Border IsVisible="{Binding DataTransfer.IsConfirmationVisible}" Padding="12" BorderBrush="Orange" BorderThickness="1">
