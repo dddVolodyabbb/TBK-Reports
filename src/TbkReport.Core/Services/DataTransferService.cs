@@ -247,6 +247,8 @@ public sealed class DataTransferService(ReportHistoryStore history, ReportDefaul
         }
         finally
         {
+            // History files were replaced directly on disk; make the store read them again.
+            history.InvalidateCache();
             if (!preserveRecovery)
             {
                 try { Directory.Delete(stage, recursive: true); }

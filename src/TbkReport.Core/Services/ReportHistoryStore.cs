@@ -23,45 +23,59 @@ public sealed class ReportHistoryStore
     };
     public string DirectoryPath { get; }
 
+    // Parsed month files kept in memory. A file is decompressed and parsed again only
+    // when its last write time or size changes, so repeated history lookups stay cheap.
+    private readonly object cacheLock = new();
+    private readonly Dictionary<string, CachedMonth> cache = new(StringComparer.OrdinalIgnoreCase);
+    private sealed record CachedMonth(DateTime LastWriteTimeUtc, long Length, HistoryFile File);
+
     public ReportHistoryStore(IAppStoragePaths paths) : this(paths.HistoryDirectory) { }
 
     public ReportHistoryStore(string directoryPath) => DirectoryPath =
         Path.GetFullPath(directoryPath ?? throw new ArgumentNullException(nameof(directoryPath)));
 
-    public IReadOnlyList<DateTime> GetDates()
+    /// <summary>Forgets all cached month files, e.g. after files were replaced outside this store.</summary>
+    public void InvalidateCache()
+    {
+        lock (cacheLock) cache.Clear();
+    }
+
+    // Months that have a history file, oldest first. Only file names are inspected.
+    private DateTime[] GetStoredMonthKeys()
     {
         if (!Directory.Exists(DirectoryPath)) return Array.Empty<DateTime>();
         return Directory.EnumerateFiles(DirectoryPath, "*.json.gz")
             .Select(path => Path.GetFileName(path)[..^8])
-            .Where(name => DateTime.TryParseExact(name, "yyyy-MM", CultureInfo.InvariantCulture, DateTimeStyles.None, out _))
-            .Select(name => DateTime.ParseExact(name, "yyyy-MM", CultureInfo.InvariantCulture))
-            .SelectMany(month => ReadMonth(month)).Select(report => report.Date.Date)
-            .OrderByDescending(date => date).ToArray();
+            .Select(name => DateTime.TryParseExact(name, "yyyy-MM", CultureInfo.InvariantCulture, DateTimeStyles.None, out var month)
+                ? month : (DateTime?)null)
+            .OfType<DateTime>()
+            .OrderBy(month => month).ToArray();
     }
 
-    public IReadOnlyList<HistoryMonthData> GetMonths() => GetDates()
-        .GroupBy(date => new { date.Year, date.Month })
-        .Select(group => new HistoryMonthData(group.Key.Year, group.Key.Month, group.Count()))
+    public IReadOnlyList<DateTime> GetDates() => GetStoredMonthKeys()
+        .SelectMany(month => ReadMonth(month)).Select(report => report.Date.Date)
+        .OrderByDescending(date => date).ToArray();
+
+    public IReadOnlyList<HistoryMonthData> GetMonths() => GetStoredMonthKeys()
+        .Select(month => new HistoryMonthData(month.Year, month.Month, ReadMonth(month).Length))
+        .Where(month => month.ReportCount > 0)
         .OrderByDescending(month => month.Year).ThenByDescending(month => month.Month).ToArray();
 
-    public HistoryMonthSnapshot[] ReadStoredMonths()
-    {
-        if (!Directory.Exists(DirectoryPath)) return Array.Empty<HistoryMonthSnapshot>();
-        return Directory.EnumerateFiles(DirectoryPath, "*.json.gz")
-            .Select(path => Path.GetFileName(path)[..^8])
-            .Where(name => DateTime.TryParseExact(name, "yyyy-MM", CultureInfo.InvariantCulture, DateTimeStyles.None, out _))
-            .OrderBy(name => name)
-            .Select(name =>
-            {
-                var date = DateTime.ParseExact(name, "yyyy-MM", CultureInfo.InvariantCulture);
-                var stored = ReadMonthFile(date);
-                return new HistoryMonthSnapshot(date, stored.Reports, stored.Openings);
-            }).ToArray();
-    }
+    /// <summary>Report dates of one month, newest first.</summary>
+    public IReadOnlyList<DateTime> GetDates(int year, int month) => ReadMonth(new DateTime(year, month, 1))
+        .Select(report => report.Date.Date).OrderByDescending(date => date).ToArray();
 
-    public ReportExportData? Load(DateTime date)
+    public HistoryMonthSnapshot[] ReadStoredMonths() => GetStoredMonthKeys()
+        .Select(month =>
+        {
+            var stored = ReadMonthFile(month);
+            return new HistoryMonthSnapshot(month, stored.Reports, stored.Openings);
+        }).ToArray();
+
+    public ReportExportData? Load(DateTime date) => LoadFromMonth(ReadMonthFile(date), date);
+
+    private static ReportExportData? LoadFromMonth(HistoryFile month, DateTime date)
     {
-        var month = ReadMonthFile(date);
         var report = month.Reports.SingleOrDefault(item => item.Date.Date == date.Date);
         var opening = report is null ? null : FindOpening(month, report.Header?.CollectorNumber);
         if (report is not null && opening?.LastJoint is > 0)
@@ -117,16 +131,23 @@ public sealed class ReportHistoryStore
             return next.ToString(CultureInfo.InvariantCulture);
         }
 
-        var previousReports = ReadStoredMonths().SelectMany(item => item.Reports)
-            .Where(report => report.Date.Date < reportDate.Date && report.Header?.CollectorNumber == collectorNumber)
-            .OrderByDescending(report => report.Date);
-        foreach (var report in previousReports)
+        // Walk back from the report month and stop at the first earlier report with welding,
+        // instead of reading the whole history.
+        var reportMonth = new DateTime(reportDate.Year, reportDate.Month, 1);
+        foreach (var monthKey in GetStoredMonthKeys().Where(item => item <= reportMonth).OrderByDescending(item => item))
         {
-            var effective = Load(report.Date) ?? report;
-            var last = TryGetLastJoint(effective.SecondShift) ?? TryGetLastJoint(effective.FirstShift);
-            if (last is null) continue;
-            if (last == int.MaxValue) throw new InvalidOperationException("Достигнут максимальный номер стыка.");
-            return (last.Value + 1).ToString(CultureInfo.InvariantCulture);
+            var stored = ReadMonthFile(monthKey);
+            var previousReports = stored.Reports
+                .Where(report => report.Date.Date < reportDate.Date && report.Header?.CollectorNumber == collectorNumber)
+                .OrderByDescending(report => report.Date);
+            foreach (var report in previousReports)
+            {
+                var effective = LoadFromMonth(stored, report.Date) ?? report;
+                var last = TryGetLastJoint(effective.SecondShift) ?? TryGetLastJoint(effective.FirstShift);
+                if (last is null) continue;
+                if (last == int.MaxValue) throw new InvalidOperationException("Достигнут максимальный номер стыка.");
+                return (last.Value + 1).ToString(CultureInfo.InvariantCulture);
+            }
         }
         return "1";
     }
@@ -213,7 +234,12 @@ public sealed class ReportHistoryStore
             }
             File.Move(temporary, path, overwrite: true);
         }
-        finally { if (File.Exists(temporary)) File.Delete(temporary); }
+        finally
+        {
+            // Drop the cached copy even if the write failed; the next read takes the file as it is on disk.
+            lock (cacheLock) cache.Remove(path);
+            if (File.Exists(temporary)) File.Delete(temporary);
+        }
     }
 
     public MonthlyReportTotals GetMonthlyTotals(ReportExportData current)
@@ -263,7 +289,28 @@ public sealed class ReportHistoryStore
     private HistoryFile ReadMonthFile(DateTime month)
     {
         var path = MonthPath(month);
-        if (!File.Exists(path)) return new HistoryFile(3, Array.Empty<ReportExportData>(), null, Array.Empty<MonthlyOpeningEntry>());
+        var info = new FileInfo(path);
+        if (!info.Exists)
+        {
+            lock (cacheLock) cache.Remove(path);
+            return new HistoryFile(3, Array.Empty<ReportExportData>(), null, Array.Empty<MonthlyOpeningEntry>());
+        }
+        // The file stamp is taken before reading: if the file changes meanwhile,
+        // the next call sees a different stamp and reads it again.
+        var lastWrite = info.LastWriteTimeUtc;
+        var length = info.Length;
+        lock (cacheLock)
+        {
+            if (cache.TryGetValue(path, out var cached) && cached.LastWriteTimeUtc == lastWrite && cached.Length == length)
+                return cached.File;
+        }
+        var parsed = ParseMonthFile(path, month);
+        lock (cacheLock) cache[path] = new CachedMonth(lastWrite, length, parsed);
+        return parsed;
+    }
+
+    private static HistoryFile ParseMonthFile(string path, DateTime month)
+    {
         try
         {
             using var file = File.OpenRead(path);

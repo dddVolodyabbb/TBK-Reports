@@ -14,6 +14,8 @@ offline-cache/
 tools/
 artifacts/
 builds/
+releases/
+backups/
 На публикацию/
 docs/*.docx
 TBK-Report-*-Setup.exe

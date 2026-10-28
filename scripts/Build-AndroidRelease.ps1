@@ -38,6 +38,17 @@ $arguments = @(
 
 Push-Location $projectRoot
 try {
+    # Restore only from the local offline cache so the build never needs the internet
+    # and still works after bin/obj folders have been cleaned. No RID options here: global -r or
+    # -p:RuntimeIdentifiers would also apply to TbkReport.Core and require an unneeded Android
+    # runtime pack for net10.0. The Android project declares android-arm64 itself.
+    & dotnet restore $project `
+        -p:Configuration=Release `
+        --configfile (Join-Path $projectRoot 'NuGet.Offline.Config') `
+        --packages (Join-Path $offlineCache 'installed-packages') `
+        -p:NuGetAudit=false
+    if ($LASTEXITCODE -ne 0) { throw 'Android offline restore failed.' }
+
     & dotnet build $project @arguments
     if ($LASTEXITCODE -ne 0) { throw 'Android Release build failed.' }
 } finally {

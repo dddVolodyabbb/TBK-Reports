@@ -60,7 +60,9 @@
 Сборка Windows-версии:
 
 ```powershell
-dotnet build src/TbkReport/TbkReport.csproj -c Release
+dotnet build src/TbkReport.Windows/TbkReport.csproj -c Release
 ```
+
+Готовая программа: `src/TbkReport.Windows/bin/Release/net10.0/win-x64/TbkReport.exe`.
 
 Сборка установщика Windows и подписанного APK выполняется отдельными сценариями из каталога `scripts`. Для выпуска подписанного APK требуется локальный ключ подписи, который в репозиторий не входит.
