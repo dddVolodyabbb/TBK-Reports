@@ -6,11 +6,14 @@
 
 ## Скачать
 
-Готовые файлы находятся на странице [релиза v1.4](https://github.com/dddVolodyabbb/TBK-Reports/releases/tag/v1.4):
+| Устройство | Скачать |
+|---|---|
+| Компьютер с Windows (64-бит) | [**TBK-Report-v1.4-Setup.exe**](https://github.com/dddVolodyabbb/TBK-Reports/releases/download/v1.4/TBK-Report-v1.4-Setup.exe) — установщик, 41 МБ |
+| Телефон с Android 6.0 и новее | [**TBK-Report-v1.4-Android.apk**](https://github.com/dddVolodyabbb/TBK-Reports/releases/download/v1.4/TBK-Report-v1.4-Android.apk) — 44 МБ |
+| Руководство пользователя | [PDF](https://github.com/dddVolodyabbb/TBK-Reports/releases/download/v1.4/TBK-Report-v1.4-User-Guide.pdf) · [Word](https://github.com/dddVolodyabbb/TBK-Reports/releases/download/v1.4/TBK-Report-v1.4-User-Guide.docx) |
+| Руководство по установке | [PDF](https://github.com/dddVolodyabbb/TBK-Reports/releases/download/v1.4/TBK-Report-v1.4-Installation-Guide.pdf) · [Word](https://github.com/dddVolodyabbb/TBK-Reports/releases/download/v1.4/TBK-Report-v1.4-Installation-Guide.docx) |
 
-- `TBK-Report-v1.4-Setup.exe` — установщик для Windows x64;
-- `TBK-Report-v1.4-Android.apk` — приложение для Android 6.0 и новее на устройствах ARM64;
-- руководства по установке и использованию программы.
+Все файлы и список изменений — на странице [релиза v1.4](https://github.com/dddVolodyabbb/TBK-Reports/releases/tag/v1.4).
 
 ## Возможности
 
