@@ -4,7 +4,11 @@
     # Steps: array of @{ Text = 'что сделать'; Note = 'пояснение'; Image = 'путь к картинке' }
     [Parameter(Mandatory)] [object[]]$Steps,
     [Parameter(Mandatory)] [string]$Destination,
-    [int]$Width = 1080
+    [int]$Width = 1080,
+    # Optional remark in a highlighted box under the steps.
+    [string]$Footer = '',
+    # Number of the first step, for a memo split into several pictures.
+    [int]$FirstNumber = 1
 )
 # Builds one tall picture with numbered steps and screenshots, to send to a messenger chat.
 $ErrorActionPreference = 'Stop'
@@ -45,6 +49,9 @@ $layout = foreach ($step in $Steps) {
     $y += 56
     [pscustomobject]@{ Step = $step; Top = $top; TextHeight = $textHeight; Image = $image; ImageTop = $y - 56 - $imageHeight; ImageWidth = $drawWidth; ImageHeight = $imageHeight }
 }
+$footerTop = $y
+$footerHeight = if ($Footer) { (Measure-Text $Footer $fontNote ($Width - 2 * $pad - 64)) + 56 } else { 0 }
+if ($Footer) { $y += $footerHeight + 32 }
 $height = $y + $pad - 24
 
 # Second pass: drawing.
@@ -63,7 +70,7 @@ try {
             [System.Drawing.RectangleF]::new($pad, $pad + $titleHeight + 10, $Width - 2 * $pad, $headerHeight))
     }
     $center = [System.Drawing.StringFormat]::new(); $center.Alignment = 'Center'; $center.LineAlignment = 'Center'
-    $number = 1
+    $number = $FirstNumber
     foreach ($item in $layout) {
         $g.FillEllipse([System.Drawing.SolidBrush]::new($red), $pad, $item.Top, $badge, $badge)
         $g.DrawString([string]$number, $fontBadge, [System.Drawing.Brushes]::White, [System.Drawing.RectangleF]::new($pad, $item.Top + 2, $badge, $badge), $center)
@@ -82,6 +89,12 @@ try {
             $item.Image.Dispose()
         }
         $number++
+    }
+    if ($Footer) {
+        $g.FillRectangle([System.Drawing.SolidBrush]::new([System.Drawing.Color]::FromArgb(255, 243, 205)), $pad, $footerTop, $Width - 2 * $pad, $footerHeight)
+        $g.FillRectangle([System.Drawing.SolidBrush]::new([System.Drawing.Color]::FromArgb(255, 179, 0)), $pad, $footerTop, 10, $footerHeight)
+        $g.DrawString($Footer, $fontNote, [System.Drawing.SolidBrush]::new([System.Drawing.Color]::FromArgb(60, 50, 20)),
+            [System.Drawing.RectangleF]::new($pad + 36, $footerTop + 28, $Width - 2 * $pad - 64, $footerHeight))
     }
 } finally { $g.Dispose() }
 [IO.Directory]::CreateDirectory((Split-Path -Parent ([IO.Path]::GetFullPath($Destination)))) | Out-Null
