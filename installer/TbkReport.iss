@@ -145,6 +145,8 @@ procedure InitializeWizard;
 begin
   WizardForm.Caption := 'Установка ТБК Отчёт';
   WizardForm.SelectDirLabel.Caption := 'Папка установки:';
+  { The standard text mentions a «Далее» button, which this one-page installer does not have. }
+  WizardForm.SelectDirBrowseLabel.Caption := 'Нажмите «Установить», чтобы продолжить. Если нужна другая папка, нажмите «Обзор».';
 
   DesktopShortcutCheckBox := TNewCheckBox.Create(WizardForm);
   DesktopShortcutCheckBox.Parent := WizardForm.SelectDirPage;

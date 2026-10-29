@@ -10,8 +10,11 @@ public static class Common
     private const string ApplicationFolderName = "TBK Report";
 
     public static string InstallationDirectory { get; } = Path.GetFullPath(AppContext.BaseDirectory);
-    public static string RootDirectory { get; } = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), ApplicationFolderName);
+    // TBK_REPORT_DATA_DIR points the application at a separate data folder, for example
+    // demo data used for documentation screenshots, without touching the user's own data.
+    public static string RootDirectory { get; } = Environment.GetEnvironmentVariable("TBK_REPORT_DATA_DIR") is { Length: > 0 } dataDirectory
+        ? Path.GetFullPath(dataDirectory)
+        : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), ApplicationFolderName);
     public static string TemporaryDirectory { get; } = Path.Combine(RootDirectory, "Temp");
     public static string DefaultExportDirectory { get; } = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "ТБК Отчёт");
