@@ -98,8 +98,47 @@ begin
   end;
 end;
 
+{ User data that very old versions kept next to the program. The application moves it to the
+  user profile on first start, so an update must leave it in place. }
+function IsLegacyUserData(const Name: String): Boolean;
+begin
+  Result := (CompareText(Name, 'settings.json') = 0) or (CompareText(Name, 'draft.json') = 0) or
+    (CompareText(Name, 'History') = 0) or (CompareText(Name, 'Exports') = 0);
+end;
+
+{ Before an update, remove the previous version's program files so nothing outdated is left behind.
+  Runs only in a folder that is recognisably a TBK Report installation. }
+procedure RemovePreviousProgramFiles(const Directory: String);
+var
+  FindRecord: TFindRec;
+  Path: String;
+begin
+  if not FileExists(AddBackslash(Directory) + '.tbk-report-install') and
+     not FileExists(AddBackslash(Directory) + '{#AppExeName}') then
+    Exit;
+  if FindFirst(AddBackslash(Directory) + '*', FindRecord) then
+  begin
+    try
+      repeat
+        if (FindRecord.Name = '.') or (FindRecord.Name = '..') or IsLegacyUserData(FindRecord.Name) or
+           (CompareText(Copy(FindRecord.Name, 1, 6), 'unins0') = 0) then
+          Continue;
+        Path := AddBackslash(Directory) + FindRecord.Name;
+        if FindRecord.Attributes and FILE_ATTRIBUTE_DIRECTORY <> 0 then
+          DelTree(Path, True, True, True)
+        else
+          DeleteFile(Path);
+      until not FindNext(FindRecord);
+    finally
+      FindClose(FindRecord);
+    end;
+  end;
+end;
+
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
+  if CurStep = ssInstall then
+    RemovePreviousProgramFiles(ExpandConstant('{app}'));
   if CurStep = ssPostInstall then
     SaveStringToFile(ExpandConstant('{app}\.tbk-report-install'), 'TBK Report', False);
 end;
