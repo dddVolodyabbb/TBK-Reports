@@ -10,7 +10,9 @@
     # Draw boxes without numbers when only one element is marked.
     [switch]$NoNumbers,
     # Thicker frames and larger badges for phone screenshots, which a guide shows narrow.
-    [switch]$Phone
+    [switch]$Phone,
+    # Number of the first badge, for numbering that continues across several pictures.
+    [int]$FirstNumber = 1
 )
 # Marks the buttons and fields a guide talks about: a red frame and a numbered red badge.
 $ErrorActionPreference = 'Stop'
@@ -42,7 +44,7 @@ try {
         $font = [System.Drawing.Font]::new('Segoe UI', [float]($badgeSize * 0.52), [System.Drawing.FontStyle]::Bold, [System.Drawing.GraphicsUnit]::Pixel)
         $format = [System.Drawing.StringFormat]::new()
         $format.Alignment = 'Center'; $format.LineAlignment = 'Center'
-        $number = 1
+        $number = $FirstNumber
         foreach ($boxText in ($Boxes.Split(';') | Where-Object { $_.Trim() })) {
             $box = ConvertTo-Rect $boxText
             $r = [System.Drawing.RectangleF]::new(($box.X - $cropRect.X) * $scale, ($box.Y - $cropRect.Y) * $scale, $box.Width * $scale, $box.Height * $scale)

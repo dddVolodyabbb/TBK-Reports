@@ -35,12 +35,15 @@ foreach ($line in $lines) {
         [void]$paragraphs.Append('<w:p><w:r><w:br w:type="page"/></w:r></w:p>')
         continue
     }
-    if ($line -match '^!\[(.*)\]\((.+)\)$') {
+    # Optional width as a share of the text width: ![caption](images/file.png "60%")
+    if ($line -match '^!\[(.*)\]\((\S+)(?:\s+"(\d+)%")?\)$') {
         $caption = $Matches[1]
         $imagePath = Join-Path $Directory $Matches[2]
+        $widthLimit = if ($Matches[3]) { $maxImageWidth * [int]$Matches[3] / 100.0 } else { $maxImageWidth }
         $bitmap = [System.Drawing.Image]::FromFile($imagePath)
         try { $pixelWidth = $bitmap.Width; $pixelHeight = $bitmap.Height } finally { $bitmap.Dispose() }
-        $scale = [Math]::Min(1.0, [Math]::Min($maxImageWidth / ($pixelWidth * 9525.0), $maxImageHeight / ($pixelHeight * 9525.0)))
+        $scale = [Math]::Min($widthLimit / ($pixelWidth * 9525.0), $maxImageHeight / ($pixelHeight * 9525.0))
+        if (-not $Matches[3]) { $scale = [Math]::Min(1.0, $scale) }
         $cx = [long]($pixelWidth * 9525 * $scale)
         $cy = [long]($pixelHeight * 9525 * $scale)
         $number = $images.Count + 1

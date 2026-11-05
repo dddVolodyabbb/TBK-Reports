@@ -4,7 +4,7 @@
 • на компьютер (Windows) — https://github.com/dddVolodyabbb/TBK-Reports/releases/download/v1.4/TBK-Report-v1.4-Setup.exe
 • на смартфон (Android) — https://github.com/dddVolodyabbb/TBK-Reports/releases/download/v1.4/TBK-Report-v1.4-Android.apk
 
-Как установить — по шагам на картинках ниже, красной рамкой обведено, куда нажать: первая картинка — для компьютера, вторая и третья — для смартфона.
+Как установить — по шагам на картинках ниже, красной рамкой обведено, куда нажать: первые две картинки — для компьютера, третья и четвёртая — для смартфона.
 
 Подробная инструкция по работе с программой (с картинками):
 https://github.com/dddVolodyabbb/TBK-Reports/releases/download/v1.4/TBK-Report-v1.4-User-Guide.pdf
