@@ -32,6 +32,10 @@ public sealed record ReportExportData(
         Add(FirstShift.Repairs, SecondShift.Repairs));
     public ReportHeaderData? Header { get; init; }
     public string CollectorDisplay => Header?.CollectorNumber is { } number ? $"№ трубы: ГК {number}" : "";
+
+    /// <summary>Export file name; the collector is part of it because one date may have a report per collector.</summary>
+    public string FileName(string extension) =>
+        $"Отчёт-{Date:dd-MM-yyyy}{(Header?.CollectorNumber is { } number ? $"-ГК{number}" : "")}.{extension}";
     public IReadOnlyList<string> Problems { get; init; } = Array.Empty<string>();
     public IReadOnlyList<EquipmentData> Equipment { get; init; } = Array.Empty<EquipmentData>();
 

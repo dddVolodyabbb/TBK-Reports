@@ -59,25 +59,26 @@ public partial class ShiftViewModel : ViewModelBase
     partial void OnFirstJointChanged(string value)
     {
         if (!automatic) FirstManuallyEdited = true;
-        if (!string.IsNullOrWhiteSpace(value)) IsFirstJointInvalid = false;
+        IsFirstJointInvalid = false;
         RecalculateLastJoint();
         OnPropertyChanged(nameof(FirstJointDisplay));
         Refresh();
     }
     partial void OnLastJointChanged(string value)
     {
-        if (!string.IsNullOrWhiteSpace(value)) IsLastJointInvalid = false;
+        IsLastJointInvalid = false;
         OnPropertyChanged(nameof(LastJointDisplay));
         Refresh();
     }
     partial void OnStartTimeChanged(TimeSpan? value)
     {
+        // Any edit of a highlighted field hides its mark; the next save or export checks again.
         if (value is not null) IsStartTimeInvalid = false;
         SynchronizeTimeComment(value, StartCommentText);
     }
     partial void OnStopTimeChanged(TimeSpan? value)
     {
-        if (value is not null) IsStopTimeInvalid = false;
+        IsStopTimeInvalid = false;
         SynchronizeTimeComment(value, StopCommentText);
     }
     private void Refresh()
@@ -142,6 +143,24 @@ public partial class ShiftViewModel : ViewModelBase
                 ? ((long)first + count - 1).ToString(System.Globalization.CultureInfo.InvariantCulture) : "";
     }
 
+    /// <summary>
+    /// A shift without a start time records only comments (for example, why there was no welding):
+    /// its stop time, joints, count and repairs must stay empty and are exported as dashes.
+    /// Highlights such fields together with the missing start time and returns whether any were filled.
+    /// </summary>
+    public bool HighlightWorkDataWithoutStart()
+    {
+        if (StartTime is not null) return false;
+        IsStopTimeInvalid = StopTime is not null;
+        IsFirstJointInvalid = !IsCountMode && !string.IsNullOrWhiteSpace(FirstJoint);
+        IsLastJointInvalid = !IsCountMode && !string.IsNullOrWhiteSpace(LastJoint);
+        IsWeldedCountInvalid = IsCountMode && !string.IsNullOrWhiteSpace(WeldedCountText);
+        IsRepairsInvalid = !string.IsNullOrWhiteSpace(Repairs);
+        var filled = IsStopTimeInvalid || IsFirstJointInvalid || IsLastJointInvalid || IsWeldedCountInvalid || IsRepairsInvalid;
+        IsStartTimeInvalid = filled;
+        return filled;
+    }
+
     public bool HighlightMissingRequiredFields(bool highlightMissingStart = false)
     {
         var started = StartTime is not null;
@@ -157,7 +176,7 @@ public partial class ShiftViewModel : ViewModelBase
 
     partial void OnRepairsChanged(string value)
     {
-        if (!string.IsNullOrWhiteSpace(value)) IsRepairsInvalid = false;
+        IsRepairsInvalid = false;
         Refresh();
     }
     partial void OnIsCommentTimeRangeChanged(bool value)

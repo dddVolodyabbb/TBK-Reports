@@ -104,8 +104,8 @@ public sealed class DataTransferService(ReportHistoryStore history, ReportDefaul
 
     public int Conflicts(TransferDocument document)
     {
-        var dates = history.GetDates().ToHashSet();
-        return document.Reports.Count(report => dates.Contains(report.Date.Date));
+        var keys = history.GetReportKeys().ToHashSet();
+        return document.Reports.Count(report => keys.Contains(new HistoryReportKey(report.Date.Date, report.Header?.CollectorNumber)));
     }
 
     private static void Validate(TransferDocument document)
@@ -119,8 +119,8 @@ public sealed class DataTransferService(ReportHistoryStore history, ReportDefaul
             ValidateLists(report.Equipment, report.Problems);
             ValidateHeader(report.Header, "Номер коллектора в отчёте должен содержать не более трёх цифр.");
         }
-        if (document.Reports.Select(r => r.Date.Date).Distinct().Count() != document.Reports.Length)
-            throw new InvalidDataException("В файле повторяются даты отчётов.");
+        if (document.Reports.Select(r => (r.Date.Date, r.Header?.CollectorNumber)).Distinct().Count() != document.Reports.Length)
+            throw new InvalidDataException("В файле повторяются отчёты с одинаковыми датой и номером ГК.");
         if (document.Defaults is { } data) ValidateLists(data.Equipment, data.Problems);
         ValidateHeader(document.Defaults?.Header, "Некорректный номер коллектора в шапке.");
 
@@ -195,10 +195,10 @@ public sealed class DataTransferService(ReportHistoryStore history, ReportDefaul
                 var target = Path.Combine(history.DirectoryPath, name);
                 var source = Path.Combine(stagedHistory.DirectoryPath, name);
                 if (File.Exists(target)) File.Copy(target, source);
-                var dates = stagedHistory.GetDates().ToHashSet();
+                var keys = stagedHistory.GetReportKeys().ToHashSet();
                 foreach (var report in reports.Where(report => report.Date.Year == month.Year && report.Date.Month == month.Month))
                 {
-                    if (dates.Contains(report.Date.Date)) stagedHistory.Update(report);
+                    if (keys.Contains(new HistoryReportKey(report.Date.Date, report.Header?.CollectorNumber))) stagedHistory.Update(report);
                     else stagedHistory.Save(report);
                 }
                 foreach (var opening in openings.Where(item => item.Month.Date == month))

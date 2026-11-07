@@ -28,7 +28,7 @@ internal static class CollectorChecks
         Check(history.GetNextJointNumber(firstDate.AddDays(4), 3) == "1", "New collector did not start at 1.");
         Check(history.GetNextJointNumber(firstDate.AddMonths(1), 1) == "1011", "Collector continuity broke across months.");
         Check(history.GetNextJointNumber(firstDate, 1) == "1001", "Collector opening was not used at month start.");
-        Check(history.Load(firstDate)!.FirstShift.FirstJoint == "1001", "Collector opening did not rebase its report.");
+        Check(history.Load(firstDate, 1)!.FirstShift.FirstJoint == "1001", "Collector opening did not rebase its report.");
         var current = first with { Date = firstDate.AddDays(4) };
         var totals = history.GetMonthlyTotals(current);
         Check(totals.Total.Welded == 40 && totals.Total.Repairs == 6, "Collector 1 totals lost its opening or report.");
@@ -72,6 +72,37 @@ internal static class CollectorChecks
         var copy = new DataTransferService(destination, new ReportDefaultsStore(Path.Combine(root, "collector-copy", "settings.json")));
         copy.Import(copy.Read(transfer.Export()));
         Check(destination.GetNextJointNumber(firstDate.AddMonths(1), 2) == "2021", "Transfer lost collector opening.");
+
+        // One date may hold one report per collector: the old collector is finished and a new one started the same day.
+        var sameDay = firstDate.AddDays(10);
+        history.Save(first with { Date = sameDay });
+        history.Save(first with { Date = sameDay, Header = header with { CollectorNumber = 7 } });
+        Check(history.Load(sameDay, 1) is not null && history.Load(sameDay, 7) is not null,
+            "Two collectors could not each keep a report on the same date.");
+        var duplicateRejected = false;
+        try { history.Save(first with { Date = sameDay }); } catch (InvalidOperationException) { duplicateRejected = true; }
+        Check(duplicateRejected, "A second report for the same date and collector was accepted.");
+        Check(history.GetReports(sameDay.Year, sameDay.Month).Count(key => key.Date == sameDay) == 2,
+            "History does not list both reports of the day.");
+        Check(new HistoryDayItem(sameDay, 7).Label.EndsWith("· ГК 7", StringComparison.Ordinal),
+            "History day label does not name the collector.");
+        Check(history.Load(sameDay, 1)!.FileName("pdf") == $"Отчёт-{sameDay:dd-MM-yyyy}-ГК1.pdf" &&
+            (first with { Header = null }).FileName("xlsx") == $"Отчёт-{firstDate:dd-MM-yyyy}.xlsx",
+            "Export file names do not keep reports of different collectors apart.");
+        history.Update(history.Load(sameDay, 7)! with { FirstShift = firstShift with { Repairs = 4 } });
+        Check(history.Load(sameDay, 7)!.FirstShift.Repairs == 4 && history.Load(sameDay, 1)!.FirstShift.Repairs == 2,
+            "Updating one collector's report changed the other.");
+        Check(history.Delete(sameDay, 7) && history.Load(sameDay, 7) is null && history.Load(sameDay, 1) is not null,
+            "Deleting one collector's report removed the other.");
+        history.Save(first with { Date = sameDay, Header = header with { CollectorNumber = 7 } });
+        var sameDayCopy = new ReportHistoryStore(Path.Combine(root, "same-day-copy", "History"));
+        var sameDayTransfer = new DataTransferService(sameDayCopy, new ReportDefaultsStore(Path.Combine(root, "same-day-copy", "settings.json")));
+        sameDayTransfer.Import(sameDayTransfer.Read(transfer.Export()));
+        Check(sameDayCopy.Load(sameDay, 1) is not null && sameDayCopy.Load(sameDay, 7) is not null,
+            "Data transfer lost one of two reports on the same date.");
+        sameDayTransfer.Import(sameDayTransfer.Read(transfer.Export()));
+        Check(sameDayCopy.GetReports(sameDay.Year, sameDay.Month).Count(key => key.Date == sameDay) == 2,
+            "Importing the same reports twice duplicated them instead of replacing them.");
     }
 
     private static void Check(bool condition, string message)

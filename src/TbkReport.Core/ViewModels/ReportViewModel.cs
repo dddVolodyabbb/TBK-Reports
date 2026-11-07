@@ -203,6 +203,7 @@ public partial class ReportViewModel : ViewModelBase
     private ReportExportData? pendingExportData;
     private bool pendingExportIsPdf;
     private DateTime? editingHistoryDate;
+    private int? editingHistoryCollector;
     private readonly string rootDirectory;
     private readonly string pdfFontDirectory;
     private readonly Func<string> findExcelTemplate;
@@ -363,6 +364,10 @@ public partial class ReportViewModel : ViewModelBase
         var secondIncomplete = Second.HighlightMissingRequiredFields();
         if (firstIncomplete || secondIncomplete)
             throw new InvalidOperationException("Заполните обязательные поля начатой смены, выделенные красным.");
+        var firstWithoutStart = First.HighlightWorkDataWithoutStart();
+        var secondWithoutStart = Second.HighlightWorkDataWithoutStart();
+        if (firstWithoutStart || secondWithoutStart)
+            throw new InvalidOperationException("В смене без времени старта должны быть только комментарии. Укажите время старта или очистите поля, выделенные красным.");
         if (First.NewCommentText.Trim().Length > 0 || Second.NewCommentText.Trim().Length > 0)
             throw new InvalidOperationException("Сначала добавьте комментарий или сохраните его изменения.");
     }
@@ -410,14 +415,18 @@ public partial class ReportViewModel : ViewModelBase
                     throw new InvalidOperationException("Не выбран редактируемый отчёт.");
                 if (CurrentReportDate != editedDate.Date)
                     throw new InvalidOperationException("Дату отчёта при редактировании истории изменять нельзя.");
+                if (Header.CollectorNumber != editingHistoryCollector)
+                    throw new InvalidOperationException("Номер ГК при редактировании истории изменять нельзя.");
                 history.Update(savedReport);
                 RestoreDraftAfterHistoryEdit();
                 RefreshHistory();
             }
             else
             {
-                if (history.Load(CurrentReportDate) is not null)
-                    throw new InvalidOperationException($"Отчёт за {CurrentReportDate:dd-MM-yyyy} уже сохранён. Повторное сохранение запрещено.");
+                if (history.Load(CurrentReportDate, Header.CollectorNumber) is not null)
+                    throw new InvalidOperationException(Header.CollectorNumber is { } number
+                        ? $"Отчёт за {CurrentReportDate:dd-MM-yyyy} для ГК {number} уже сохранён. Повторное сохранение запрещено."
+                        : $"Отчёт за {CurrentReportDate:dd-MM-yyyy} уже сохранён. Повторное сохранение запрещено.");
                 history.Save(savedReport);
                 draft.Delete();
                 MarkCurrentStateSaved();
@@ -462,14 +471,16 @@ public partial class ReportViewModel : ViewModelBase
 
     [ObservableProperty] private bool isDeleteHistoryPromptVisible;
     [ObservableProperty] private string deleteHistoryPrompt = "";
-    private DateTime? pendingHistoryDeletion;
+    private HistoryReportKey? pendingHistoryDeletion;
 
     [RelayCommand]
     private void DeleteHistoryReport()
     {
         if (SelectedHistoryReport is not { } report) return;
-        pendingHistoryDeletion = report.Date.Date;
-        DeleteHistoryPrompt = $"Удалить отчёт за {report.Date.ToString("dd MMMM yyyy", CultureInfo.GetCultureInfo("ru-RU"))} из истории? Это действие нельзя отменить.";
+        var collectorNumber = report.Header?.CollectorNumber;
+        pendingHistoryDeletion = new HistoryReportKey(report.Date.Date, collectorNumber);
+        var collector = collectorNumber is { } number ? $" для ГК {number}" : "";
+        DeleteHistoryPrompt = $"Удалить отчёт за {report.Date.ToString("dd MMMM yyyy", CultureInfo.GetCultureInfo("ru-RU"))}{collector} из истории? Это действие нельзя отменить.";
         IsDeleteHistoryPromptVisible = true;
     }
 
@@ -483,10 +494,11 @@ public partial class ReportViewModel : ViewModelBase
     [RelayCommand]
     private void ConfirmHistoryDeletion()
     {
-        if (!IsDeleteHistoryPromptVisible || pendingHistoryDeletion is not { } date) return;
+        if (!IsDeleteHistoryPromptVisible || pendingHistoryDeletion is not { } key) return;
+        var date = key.Date;
         try
         {
-            var deleted = history.Delete(date);
+            var deleted = history.Delete(date, key.CollectorNumber);
             CancelHistoryDeletion();
             RefreshHistory();
             SelectHistoryMonth(HistoryMonths.FirstOrDefault(month => month.Year == date.Year && month.Month == date.Month));
@@ -505,7 +517,7 @@ public partial class ReportViewModel : ViewModelBase
         SelectedHistoryReport = null;
         HistoryDays.Clear();
         if (month is null) return;
-        foreach (var day in history.GetDates(month.Year, month.Month).Select(date => new HistoryDayItem(date)))
+        foreach (var day in history.GetReports(month.Year, month.Month).Select(key => new HistoryDayItem(key.Date, key.CollectorNumber)))
             HistoryDays.Add(day);
     }
 
@@ -514,7 +526,7 @@ public partial class ReportViewModel : ViewModelBase
     {
         CancelHistoryDeletion();
         SelectedHistoryDay = day;
-        var report = day is null ? null : history.Load(day.Date);
+        var report = day is null ? null : history.Load(day.Date, day.CollectorNumber);
         SelectedHistoryReport = report is null ? null : report with { MonthlyTotals = history.GetMonthlyTotals(report) };
     }
 
@@ -523,6 +535,7 @@ public partial class ReportViewModel : ViewModelBase
     {
         if (SelectedHistoryReport is not { } selected) return;
         editingHistoryDate = selected.Date.Date;
+        editingHistoryCollector = selected.Header?.CollectorNumber;
         var report = selected with { MonthlyTotals = null };
         CloseHistory();
         ApplyReport(report);
@@ -542,6 +555,7 @@ public partial class ReportViewModel : ViewModelBase
     {
         var storedDraft = draft.Load();
         editingHistoryDate = null;
+        editingHistoryCollector = null;
         IsEditingHistoryReport = false;
         EditingHistoryNotice = "";
         var empty = new ShiftReportData("", "", null, null, null, Array.Empty<ReportComment>());
@@ -651,7 +665,7 @@ public partial class ReportViewModel : ViewModelBase
                 ? Path.GetFullPath(ExportDirectory)
                 : Path.GetFullPath(Path.Combine(rootDirectory, ExportDirectory));
             Directory.CreateDirectory(directory);
-            var outputPath = Path.Combine(directory, $"Отчёт-{data.Date:dd-MM-yyyy}.xlsx");
+            var outputPath = Path.Combine(directory, data.FileName("xlsx"));
             if (File.Exists(outputPath))
             {
                 pendingExportPath = outputPath;
@@ -676,7 +690,7 @@ public partial class ReportViewModel : ViewModelBase
                 ? Path.GetFullPath(ExportDirectory)
                 : Path.GetFullPath(Path.Combine(rootDirectory, ExportDirectory));
             Directory.CreateDirectory(directory);
-            var outputPath = Path.Combine(directory, $"Отчёт-{data.Date:dd-MM-yyyy}.pdf");
+            var outputPath = Path.Combine(directory, data.FileName("pdf"));
             if (File.Exists(outputPath))
             {
                 pendingExportPath = outputPath;
@@ -947,7 +961,8 @@ public sealed record HistoryMonthItem(int Year, int Month, int ReportCount)
     }
 }
 
-public sealed record HistoryDayItem(DateTime Date)
+public sealed record HistoryDayItem(DateTime Date, int? CollectorNumber = null)
 {
-    public string Label => Date.ToString("dd MMMM yyyy, dddd", CultureInfo.GetCultureInfo("ru-RU"));
+    public string Label => Date.ToString("dd MMMM yyyy, dddd", CultureInfo.GetCultureInfo("ru-RU")) +
+        (CollectorNumber is { } number ? $" · ГК {number}" : "");
 }

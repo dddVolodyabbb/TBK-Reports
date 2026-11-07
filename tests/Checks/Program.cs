@@ -1089,11 +1089,58 @@ try
     commentOnlyEditor.First.NewCommentTime = new TimeSpan(8, 0, 0);
     commentOnlyEditor.First.NewCommentText = "Отсутствие фронта работ";
     commentOnlyEditor.First.AddCommentCommand.Execute(null);
+    commentOnlyEditor.First.StopTime = new TimeSpan(20, 0, 0);
+    commentOnlyEditor.First.Repairs = "0";
+    commentOnlyEditor.SaveHistoryCommand.Execute(null);
+    Check(commentOnlyStore.GetDates().Count == 0 && commentOnlyEditor.First.IsStopTimeInvalid &&
+          commentOnlyEditor.First.IsRepairsInvalid && commentOnlyEditor.First.IsStartTimeInvalid &&
+          commentOnlyEditor.ExportStatus.Contains("только комментарии", StringComparison.Ordinal),
+        "a shift without a start time cannot carry a stop time or repairs");
+    commentOnlyEditor.First.StopTime = null;
+    commentOnlyEditor.First.Repairs = "";
+    Check(!commentOnlyEditor.First.IsStopTimeInvalid && !commentOnlyEditor.First.IsRepairsInvalid,
+        "clearing the extra fields hides their highlight");
     commentOnlyEditor.SaveHistoryCommand.Execute(null);
     Check(commentOnlyStore.GetDates().Count == 1 && !commentOnlyEditor.First.IsRepairsInvalid,
         "a comment-only shift is saved without repairs");
 }
 finally { if (Directory.Exists(repairsRoot)) Directory.Delete(repairsRoot, true); }
+
+// Changing the collector in the middle of a day: the editor saves one report per collector for the same date.
+var sameDayRoot = Path.Combine(Path.GetTempPath(), $"tbk-same-day-{Guid.NewGuid():N}");
+try
+{
+    var sameDayStore = new ReportHistoryStore(Path.Combine(sameDayRoot, "History"));
+    var sameDayEditor = new MainViewModel(sameDayStore, new ReportDefaultsStore(Path.Combine(sameDayRoot, "settings.json")));
+    FillRequiredHeader(sameDayEditor);
+    var day = new DateTime(2030, 4, 5);
+    sameDayEditor.ReportDate = new DateTimeOffset(day);
+    sameDayEditor.Header.CollectorNumberText = "1";
+    sameDayEditor.First.StartTime = new TimeSpan(8, 0, 0);
+    sameDayEditor.First.LastJoint = "3";
+    sameDayEditor.First.StopTime = new TimeSpan(12, 0, 0);
+    sameDayEditor.First.Repairs = "0";
+    sameDayEditor.SaveHistoryCommand.Execute(null);
+    sameDayEditor.SaveHistoryCommand.Execute(null);
+    Check(sameDayStore.GetReports(day.Year, day.Month).Count == 1 && sameDayEditor.ExportStatus.Contains("для ГК 1 уже сохранён", StringComparison.Ordinal),
+        "the same collector cannot save a second report for one date");
+    sameDayEditor.Header.CollectorNumberText = "2";
+    sameDayEditor.SaveHistoryCommand.Execute(null);
+    Check(sameDayStore.Load(day, 1) is not null && sameDayStore.Load(day, 2) is not null,
+        "a second collector saves its own report for the same date");
+    sameDayEditor.OpenHistoryCommand.Execute(null);
+    sameDayEditor.SelectHistoryMonthCommand.Execute(sameDayEditor.HistoryMonths.Single());
+    Check(sameDayEditor.HistoryDays.Count == 2 && sameDayEditor.HistoryDays.Any(item => item.Label.EndsWith("· ГК 2", StringComparison.Ordinal)),
+        "history lists both collectors of the day");
+    sameDayEditor.SelectHistoryDayCommand.Execute(sameDayEditor.HistoryDays.Single(item => item.CollectorNumber == 1));
+    sameDayEditor.EditHistoryReportCommand.Execute(null);
+    sameDayEditor.Header.CollectorNumberText = "3";
+    sameDayEditor.SaveHistoryCommand.Execute(null);
+    Check(sameDayStore.Load(day, 3) is null && sameDayEditor.IsEditingHistoryReport &&
+          sameDayEditor.ExportStatus.Contains("Номер ГК при редактировании", StringComparison.Ordinal),
+        "editing a saved report cannot move it to another collector");
+}
+finally { if (Directory.Exists(sameDayRoot)) Directory.Delete(sameDayRoot, true); }
 
 static string FindTemplate()
 {

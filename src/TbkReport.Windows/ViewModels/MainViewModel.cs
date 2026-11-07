@@ -28,8 +28,8 @@ public sealed class MainViewModel : ReportViewModel
     {
         var directory = Common.ResolveExportLocation(ExportDirectory);
         Directory.CreateDirectory(directory);
-        if (excel) ExportToExcel(Path.Combine(directory, $"Отчёт-{report.Date:dd-MM-yyyy}.xlsx"), report);
-        if (pdf) ExportToPdf(Path.Combine(directory, $"Отчёт-{report.Date:dd-MM-yyyy}.pdf"), report);
+        if (excel) ExportToExcel(Path.Combine(directory, report.FileName("xlsx")), report);
+        if (pdf) ExportToPdf(Path.Combine(directory, report.FileName("pdf")), report);
         return System.Threading.Tasks.Task.CompletedTask;
     }
 }

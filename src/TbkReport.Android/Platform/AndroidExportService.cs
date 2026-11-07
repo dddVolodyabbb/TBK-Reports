@@ -71,7 +71,7 @@ public sealed class AndroidExportService
     {
         var extension = pdf ? "pdf" : "xlsx";
         var mimeType = pdf ? "application/pdf" : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-        var name = $"Отчёт-{data.Date:dd-MM-yyyy}.{extension}";
+        var name = data.FileName(extension);
         using var folder = await OpenExportFolderAsync(report.ExportDirectory);
         using var existing = folder is null ? null : await folder.GetFileAsync(name);
         if (!overwrite && (folder is null ? await ExistsInDocumentsAsync(name) : existing is not null))

@@ -65,6 +65,20 @@ public sealed class ReportHistoryStore
     public IReadOnlyList<DateTime> GetDates(int year, int month) => ReadMonth(new DateTime(year, month, 1))
         .Select(report => report.Date.Date).OrderByDescending(date => date).ToArray();
 
+    /// <summary>Reports of one month as date and collector, newest first; a date may hold one report per collector.</summary>
+    public IReadOnlyList<HistoryReportKey> GetReports(int year, int month) => ReadMonth(new DateTime(year, month, 1))
+        .Select(report => new HistoryReportKey(report.Date.Date, report.Header?.CollectorNumber))
+        .OrderByDescending(key => key.Date).ThenBy(key => key.CollectorNumber ?? -1).ToArray();
+
+    /// <summary>Every stored report as date and collector.</summary>
+    public IReadOnlyList<HistoryReportKey> GetReportKeys() => GetStoredMonthKeys()
+        .SelectMany(month => ReadMonth(month))
+        .Select(report => new HistoryReportKey(report.Date.Date, report.Header?.CollectorNumber)).ToArray();
+
+    // A report is identified by its date and collector: two collectors may each have a report on the same day.
+    private static bool IsReport(ReportExportData report, DateTime date, int? collectorNumber) =>
+        report.Date.Date == date.Date && report.Header?.CollectorNumber == collectorNumber;
+
     public HistoryMonthSnapshot[] ReadStoredMonths() => GetStoredMonthKeys()
         .Select(month =>
         {
@@ -72,11 +86,12 @@ public sealed class ReportHistoryStore
             return new HistoryMonthSnapshot(month, stored.Reports, stored.Openings);
         }).ToArray();
 
-    public ReportExportData? Load(DateTime date) => LoadFromMonth(ReadMonthFile(date), date);
+    public ReportExportData? Load(DateTime date, int? collectorNumber = null) =>
+        LoadFromMonth(ReadMonthFile(date), date, collectorNumber);
 
-    private static ReportExportData? LoadFromMonth(HistoryFile month, DateTime date)
+    private static ReportExportData? LoadFromMonth(HistoryFile month, DateTime date, int? collectorNumber)
     {
-        var report = month.Reports.SingleOrDefault(item => item.Date.Date == date.Date);
+        var report = month.Reports.SingleOrDefault(item => IsReport(item, date, collectorNumber));
         var opening = report is null ? null : FindOpening(month, report.Header?.CollectorNumber);
         if (report is not null && opening?.LastJoint is > 0)
             report = ApplyOpeningNumbering(month, report.Date, report.Header?.CollectorNumber, opening);
@@ -142,7 +157,7 @@ public sealed class ReportHistoryStore
                 .OrderByDescending(report => report.Date);
             foreach (var report in previousReports)
             {
-                var effective = LoadFromMonth(stored, report.Date) ?? report;
+                var effective = LoadFromMonth(stored, report.Date, collectorNumber) ?? report;
                 var last = TryGetLastJoint(effective.SecondShift) ?? TryGetLastJoint(effective.FirstShift);
                 if (last is null) continue;
                 if (last == int.MaxValue) throw new InvalidOperationException("Достигнут максимальный номер стыка.");
@@ -163,28 +178,34 @@ public sealed class ReportHistoryStore
     {
         var month = ReadMonthFile(report.Date);
         var reportsInMonth = month.Reports;
-        if (reportsInMonth.Any(item => item.Date.Date == report.Date.Date))
-            throw new InvalidOperationException($"Отчёт за {report.Date:dd-MM-yyyy} уже сохранён. Повторное сохранение запрещено.");
+        var collectorNumber = report.Header?.CollectorNumber;
+        if (reportsInMonth.Any(item => IsReport(item, report.Date, collectorNumber)))
+            throw new InvalidOperationException($"{ReportName(report.Date, collectorNumber)} уже сохранён. Повторное сохранение запрещено.");
         var reports = reportsInMonth.Append(SortCommentsByTime(report with { Date = report.Date.Date, MonthlyTotals = null }))
-            .OrderBy(item => item.Date).ToArray();
+            .OrderBy(item => item.Date).ThenBy(item => item.Header?.CollectorNumber ?? -1).ToArray();
         WriteMonth(report.Date, reports, month.Openings);
     }
 
     public void Update(ReportExportData report)
     {
         var month = ReadMonthFile(report.Date);
-        var index = Array.FindIndex(month.Reports, item => item.Date.Date == report.Date.Date);
+        var collectorNumber = report.Header?.CollectorNumber;
+        var index = Array.FindIndex(month.Reports, item => IsReport(item, report.Date, collectorNumber));
         if (index < 0)
-            throw new InvalidOperationException($"Отчёт за {report.Date:dd-MM-yyyy} отсутствует в истории.");
+            throw new InvalidOperationException($"{ReportName(report.Date, collectorNumber)} отсутствует в истории.");
         var reports = month.Reports.ToArray();
         reports[index] = SortCommentsByTime(report with { Date = report.Date.Date, MonthlyTotals = null });
-        WriteMonth(report.Date, reports.OrderBy(item => item.Date).ToArray(), month.Openings);
+        WriteMonth(report.Date, reports, month.Openings);
     }
 
-    public bool Delete(DateTime date)
+    private static string ReportName(DateTime date, int? collectorNumber) => collectorNumber is { } number
+        ? $"Отчёт за {date:dd-MM-yyyy} для ГК {number}"
+        : $"Отчёт за {date:dd-MM-yyyy}";
+
+    public bool Delete(DateTime date, int? collectorNumber = null)
     {
         var month = ReadMonthFile(date);
-        var remaining = month.Reports.Where(report => report.Date.Date != date.Date).ToArray();
+        var remaining = month.Reports.Where(report => !IsReport(report, date, collectorNumber)).ToArray();
         if (remaining.Length == month.Reports.Length) return false;
         WriteMonth(date, remaining, month.Openings);
         return true;
@@ -329,7 +350,7 @@ public sealed class ReportHistoryStore
                     item.Data.LastJoint is <= 0 || item.Data.Welded is < 0 || item.Data.Repairs is < 0 ||
                     item.Data is { LastJoint: null, Welded: null, Repairs: null }) ||
                 openings.Select(item => item.CollectorNumber).Distinct().Count() != openings.Length ||
-                document.Reports.Select(report => report.Date.Date).Distinct().Count() != document.Reports.Length)
+                document.Reports.Select(report => (report.Date.Date, report.Header?.CollectorNumber)).Distinct().Count() != document.Reports.Length)
                 throw new InvalidDataException("Некорректные записи истории.");
             return document with { Version = 3, Opening = null, StoredOpenings = openings };
         }
@@ -358,4 +379,5 @@ public sealed class ReportHistoryStore
     }
 }
 
+public sealed record HistoryReportKey(DateTime Date, int? CollectorNumber);
 public sealed record HistoryMonthSnapshot(DateTime Month, ReportExportData[] Reports, MonthlyOpeningEntry[] Openings);
