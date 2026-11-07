@@ -10,13 +10,43 @@ $source = Join-Path $Directory ($DocumentName + '.md')
 $destination = Join-Path $Directory ($DocumentName + '.docx')
 $lines = [System.IO.File]::ReadAllLines($source)
 $headingBookmarks = @{}
+# GitHub-style heading anchors ("## 10. Настройки" -> "10-настройки"), so [text](#10-настройки)
+# links work both on GitHub and, through the bookmarks below, in Word.
+function Get-HeadingSlug([string]$text) {
+    (($text.ToLowerInvariant() -replace '[^\p{L}\p{Nd}\s-]', '') -replace '\s', '-')
+}
+$slugBookmarks = @{}
 $bookmarkNumber = 1
 foreach ($headingLine in $lines) {
     if (-not $headingLine.StartsWith('## ')) { continue }
     $headingText = $headingLine.Substring(3)
-    if ($headingText -eq 'Руководство пользователя · версия 1.4 · Windows' -or $headingText -eq 'Содержание') { continue }
+    # The subtitle under the title ("… · версия 1.4") and the contents are not sections.
+    if ($headingText.Contains('·') -or $headingText -eq 'Содержание') { continue }
     $headingBookmarks[$headingText] = "section$bookmarkNumber"
+    $slugBookmarks[(Get-HeadingSlug $headingText)] = "section$bookmarkNumber"
     $bookmarkNumber++
+}
+
+# Turns text with [label](#anchor) links into Word runs; section links become internal hyperlinks.
+function ConvertTo-Runs([string]$text) {
+    $result = [System.Text.StringBuilder]::new()
+    $position = 0
+    foreach ($match in [regex]::Matches($text, '\[([^\]]+)\]\(#([^)]+)\)')) {
+        if ($match.Index -gt $position) {
+            $plain = [System.Security.SecurityElement]::Escape($text.Substring($position, $match.Index - $position))
+            [void]$result.Append("<w:r><w:t xml:space=`"preserve`">$plain</w:t></w:r>")
+        }
+        $label = [System.Security.SecurityElement]::Escape($match.Groups[1].Value)
+        $anchor = $slugBookmarks[$match.Groups[2].Value]
+        if (-not $anchor) { throw "Ссылка на несуществующий раздел: #$($match.Groups[2].Value)" }
+        [void]$result.Append("<w:hyperlink w:anchor=`"$anchor`" w:history=`"1`"><w:r><w:rPr><w:color w:val=`"0563C1`"/><w:u w:val=`"single`"/></w:rPr><w:t xml:space=`"preserve`">$label</w:t></w:r></w:hyperlink>")
+        $position = $match.Index + $match.Length
+    }
+    if ($position -lt $text.Length) {
+        $plain = [System.Security.SecurityElement]::Escape($text.Substring($position))
+        [void]$result.Append("<w:r><w:t xml:space=`"preserve`">$plain</w:t></w:r>")
+    }
+    $result.ToString()
 }
 $paragraphs = [System.Text.StringBuilder]::new()
 $insideContents = $false
@@ -74,7 +104,7 @@ foreach ($line in $lines) {
         [void]$paragraphs.Append("<w:p><w:pPr><w:pStyle w:val=`"$style`"/></w:pPr><w:bookmarkStart w:id=`"$bookmarkId`" w:name=`"$anchor`"/><w:r><w:t xml:space=`"preserve`">$escaped</w:t></w:r><w:bookmarkEnd w:id=`"$bookmarkId`"/></w:p>")
         $bookmarkId++
     } else {
-        [void]$paragraphs.Append("<w:p><w:pPr><w:pStyle w:val=`"$style`"/></w:pPr><w:r><w:t xml:space=`"preserve`">$escaped</w:t></w:r></w:p>")
+        [void]$paragraphs.Append("<w:p><w:pPr><w:pStyle w:val=`"$style`"/></w:pPr>$(ConvertTo-Runs $value)</w:p>")
     }
 }
 $imageRelationships = ($images | ForEach-Object {

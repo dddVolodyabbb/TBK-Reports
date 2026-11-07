@@ -284,22 +284,22 @@ public sealed class ExcelReportExporter
         SetJoint(sheetData, "C19", data.FirstShift.LastJoint);
         SetOptionalTime(sheetData, "C20", data.FirstShift.StopTime);
         SetOptionalCount(sheetData, "C21", Welded(data.FirstShift));
-        SetOptionalCount(sheetData, "C23", data.FirstShift.Repairs);
+        SetRepairCount(sheetData, "C23", data.FirstShift.Repairs);
         SetJoint(sheetData, "G17", data.SecondShift.FirstJoint);
         SetOptionalTime(sheetData, "G18", data.SecondShift.StartTime);
         SetJoint(sheetData, "G19", data.SecondShift.LastJoint);
         SetOptionalTime(sheetData, "G20", data.SecondShift.StopTime);
         SetOptionalCount(sheetData, "G21", Welded(data.SecondShift));
-        SetOptionalCount(sheetData, "G23", data.SecondShift.Repairs);
+        SetRepairCount(sheetData, "G23", data.SecondShift.Repairs);
         SetOptionalCount(sheetData, "K21", Combine(Welded(data.FirstShift), Welded(data.SecondShift)));
-        SetOptionalCount(sheetData, "K23", Combine(data.FirstShift.Repairs, data.SecondShift.Repairs));
+        SetRepairCount(sheetData, "K23", Combine(data.FirstShift.Repairs, data.SecondShift.Repairs));
         var monthly = data.MonthlyTotals;
         SetOptionalCount(sheetData, "C22", monthly?.First.Welded);
         SetOptionalCount(sheetData, "G22", monthly?.Second.Welded);
         SetOptionalCount(sheetData, "K22", monthly?.Total.Welded);
-        SetOptionalCount(sheetData, "C24", monthly?.First.Repairs);
-        SetOptionalCount(sheetData, "G24", monthly?.Second.Repairs);
-        SetOptionalCount(sheetData, "K24", monthly?.Total.Repairs);
+        SetRepairCount(sheetData, "C24", monthly?.First.Repairs);
+        SetRepairCount(sheetData, "G24", monthly?.Second.Repairs);
+        SetRepairCount(sheetData, "K24", monthly?.Total.Repairs);
         foreach (var cell in new[] { "C25", "G25", "K25" })
             ClearCachedFormulaValue(sheetData, cell);
         PopulateComments(root, sheetData, data.FirstShift, 1, 2, firstCommentCapacity);
@@ -657,6 +657,11 @@ public sealed class ExcelReportExporter
 
     private static void SetOptionalCount(XElement sheetData, string address, int? value) =>
         SetValue(sheetData, address, value?.ToString(CultureInfo.InvariantCulture) ?? "-", value is null ? "inlineStr" : "n");
+
+    // Zero repairs are printed as a dash, like a missing value. The repair-percentage formulas
+    // treat the dash as an error and fall back to 0, which is the correct share for no repairs.
+    private static void SetRepairCount(XElement sheetData, string address, int? value) =>
+        SetOptionalCount(sheetData, address, value is 0 ? null : value);
 
     private static void SetTextOrDash(XElement sheetData, string address, string? value) =>
         SetValue(sheetData, address, string.IsNullOrWhiteSpace(value) ? "-" : value.Trim());

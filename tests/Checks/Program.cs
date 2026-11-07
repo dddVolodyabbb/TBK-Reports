@@ -26,6 +26,7 @@ var newReportEditor = new MainViewModel(
     new ReportHistoryStore(Path.Combine(Path.GetTempPath(), $"tbk-new-report-check-{Guid.NewGuid():N}")),
     new ReportDefaultsStore(Path.Combine(Path.GetTempPath(), $"tbk-new-report-settings-{Guid.NewGuid():N}.json")));
 newReportEditor.First.StartTime = new TimeSpan(7, 0, 0);
+newReportEditor.First.Repairs = "0";
 newReportEditor.NewReportCommand.Execute(null);
 Check(newReportEditor.IsNewReportConfirmPromptVisible && newReportEditor.First.StartTime == new TimeSpan(7, 0, 0),
     "new report asks before discarding unsaved changes");
@@ -54,6 +55,7 @@ var draftEditor = new MainViewModel(draftHistory, draftDefaults, draftStore);
 var draftDate = new DateTime(2031, 4, 12);
 draftEditor.ReportDate = new DateTimeOffset(draftDate);
 draftEditor.First.StartTime = new TimeSpan(7, 10, 0);
+draftEditor.First.Repairs = "0";
 draftEditor.First.FirstJoint = "41";
 draftEditor.First.LastJoint = "43";
 draftEditor.First.StopTime = new TimeSpan(18, 20, 0);
@@ -89,10 +91,13 @@ Check(cleanAfterSave.First.StartTime is null && cleanAfterSave.First.FirstJoint 
       cleanAfterSave.First.Comments.Count == 0, "startup is clean after the draft was saved to history");
 
 vm.First.StartTime = new TimeSpan(7, 0, 0);
+vm.First.Repairs = "0";
 vm.Second.StartTime = new TimeSpan(19, 0, 0);
+vm.Second.Repairs = "0";
 Check(vm.First.FirstJoint == "1" && vm.Second.FirstJoint == "1", "empty history auto-fills a joint number when either shift starts");
 var secondOnly = new MainViewModel(new ReportHistoryStore(Path.Combine(Path.GetTempPath(), $"tbk-second-only-{Guid.NewGuid():N}")));
 secondOnly.Second.StartTime = new TimeSpan(19, 0, 0);
+secondOnly.Second.Repairs = "0";
 Check(secondOnly.First.FirstJoint == "" && secondOnly.Second.FirstJoint == "1", "second-only work auto-fills the second shift field");
 var suggestionCheck = new ShiftViewModel();
 suggestionCheck.SetAutomaticFirst("10");
@@ -465,6 +470,7 @@ try
     var jointEditor = new MainViewModel(jointHistory, new ReportDefaultsStore(Path.Combine(historyDirectory, "joint-editor-settings.json")));
     jointEditor.ReportDate = new DateTimeOffset(new DateTime(2026, 9, 21));
     jointEditor.Second.StartTime = new TimeSpan(19, 0, 0);
+    jointEditor.Second.Repairs = "0";
     Check(jointEditor.First.FirstJoint == "" && jointEditor.Second.FirstJoint == "19",
         "second shift auto-fills from history when the first shift is empty");
     jointEditor.First.FirstJoint = "20";
@@ -565,6 +571,7 @@ try
     var draftDateBeforeEdit = new DateTime(2033, 5, 20);
     editEditor.ReportDate = new DateTimeOffset(draftDateBeforeEdit);
     editEditor.First.StartTime = TimeSpan.FromHours(8);
+    editEditor.First.Repairs = "0";
     editEditor.First.FirstJoint = "20";
     editEditor.First.LastJoint = "22";
     editEditor.First.StopTime = TimeSpan.FromHours(19);
@@ -605,6 +612,7 @@ try
     var headerGuardDate = new DateTime(2029, 2, 1);
     headerGuardEditor.ReportDate = new DateTimeOffset(headerGuardDate);
     headerGuardEditor.Second.StartTime = new TimeSpan(19, 0, 0);
+    headerGuardEditor.Second.Repairs = "0";
     headerGuardEditor.Second.LastJoint = "1";
     headerGuardEditor.Second.StopTime = new TimeSpan(6, 0, 0);
     headerGuardEditor.SaveHistoryCommand.Execute(null);
@@ -630,6 +638,7 @@ try
     Check(guardEditor.First.IsStartTimeInvalid && guardEditor.Second.IsStartTimeInvalid,
         "missing start times are highlighted in both empty shifts");
     guardEditor.First.StartTime = new TimeSpan(7, 0, 0);
+    guardEditor.First.Repairs = "0";
     guardEditor.SaveHistoryCommand.Execute(null);
     Check(guardStore.GetDates().Count == 0, "history save is blocked when a started shift lacks a stop time");
     Check(guardEditor.First.IsStopTimeInvalid && !guardEditor.First.IsFirstJointInvalid && !guardEditor.First.IsLastJointInvalid,
@@ -639,6 +648,7 @@ try
     Check(guardStore.GetDates().Single() == new DateTime(2029, 1, 1), "one complete shift can be saved while the other is empty");
     guardEditor.ReportDate = new DateTimeOffset(new DateTime(2029, 1, 2));
     guardEditor.Second.StartTime = new TimeSpan(19, 0, 0);
+    guardEditor.Second.Repairs = "0";
     guardEditor.SaveHistoryCommand.Execute(null);
     Check(guardStore.GetDates().Count == 1 && guardEditor.Second.IsLastJointInvalid && guardEditor.Second.IsStopTimeInvalid,
         "history save is blocked and missing second shift fields are highlighted");
@@ -673,6 +683,7 @@ try
     await dateEditor.ExportCurrentToExcelCommand.ExecuteAsync(null);
     Check(!File.Exists(dateOutput), "Excel export is blocked when neither shift has a start time");
     dateEditor.First.StartTime = new TimeSpan(9, 0, 0);
+    dateEditor.First.Repairs = "0";
     await dateEditor.ExportCurrentToExcelCommand.ExecuteAsync(null);
     Check(!File.Exists(dateOutput), "Excel export is blocked when a started shift lacks a stop time");
     dateEditor.First.StopTime = new TimeSpan(18, 0, 0);
@@ -860,11 +871,13 @@ var emptyModeEditor = new MainViewModel(new ReportHistoryStore(Path.Combine(coun
 emptyModeEditor.CalculateByCount = true;
 Check(!File.Exists(emptyModeDraft.FilePath), "switching a clean empty report mode does not create a draft");
 countEditor.First.StartTime = new TimeSpan(7, 0, 0);
+countEditor.First.Repairs = "0";
 countEditor.First.StopTime = new TimeSpan(18, 0, 0);
 countEditor.SaveHistoryCommand.Execute(null);
 Check(countEditor.First.IsWeldedCountInvalid && countHistory.Load(countDate) is null,
     "started count-mode shift requires a count and highlights its input");
 countEditor.First.StartTime = null;
+countEditor.First.Repairs = "0";
 countEditor.First.StopTime = null;
 countEditor.First.WeldedCountText = "5";
 countEditor.Second.WeldedCountText = "3";
@@ -901,8 +914,10 @@ countDefaults.SaveExportPath(Path.Combine(countRoot, "Exports"));
 countDefaults.Save(null, Array.Empty<EquipmentData>(), Array.Empty<string>(), Path.Combine(countRoot, "Exports"));
 Check(countDefaults.Load()!.CalculateByCount, "saving export path and report defaults preserves calculation mode");
 restoredCount.First.StartTime = new TimeSpan(7, 0, 0);
+restoredCount.First.Repairs = "0";
 restoredCount.First.StopTime = new TimeSpan(18, 0, 0);
 restoredCount.Second.StartTime = new TimeSpan(19, 0, 0);
+restoredCount.Second.Repairs = "0";
 restoredCount.Second.StopTime = new TimeSpan(23, 0, 0);
 restoredCount.ExportDirectory = Path.Combine(countRoot, "Exports");
 await restoredCount.ExportCurrentToExcelCommand.ExecuteAsync(null);
@@ -952,6 +967,7 @@ try
     Check(openingHistory.LoadMonthlyOpeningData(openingDate)?.Welded == 20,
         "monthly opening UI command persists entered 20 joints");
     openingEditor.First.StartTime = TimeSpan.FromHours(7);
+    openingEditor.First.Repairs = "0";
     openingEditor.First.FirstJoint = "101";
     openingEditor.First.LastJoint = "103";
     openingEditor.First.StopTime = TimeSpan.FromHours(18);
@@ -1029,6 +1045,55 @@ try
     Check(listRejected, "history list requires opening a day before export");
 }
 finally { if (Directory.Exists(openingCheckRoot)) Directory.Delete(openingCheckRoot, true); }
+
+// Repairs are required for a shift with welding, optional for a comment-only shift,
+// and a zero count is exported as a dash.
+var repairsRoot = Path.Combine(Path.GetTempPath(), $"tbk-repairs-{Guid.NewGuid():N}");
+try
+{
+    var repairsStore = new ReportHistoryStore(Path.Combine(repairsRoot, "History"));
+    var repairsEditor = new MainViewModel(repairsStore, new ReportDefaultsStore(Path.Combine(repairsRoot, "settings.json")));
+    FillRequiredHeader(repairsEditor);
+    var weldingDate = new DateTime(2030, 3, 2);
+    repairsEditor.ReportDate = new DateTimeOffset(weldingDate);
+    repairsEditor.First.StartTime = new TimeSpan(8, 0, 0);
+    repairsEditor.First.LastJoint = "5";
+    repairsEditor.First.StopTime = new TimeSpan(20, 0, 0);
+    repairsEditor.SaveHistoryCommand.Execute(null);
+    Check(repairsStore.GetDates().Count == 0 && repairsEditor.First.IsRepairsInvalid,
+        "a started shift without repairs is not saved and the repairs field is highlighted");
+    repairsEditor.First.Repairs = "0";
+    Check(!repairsEditor.First.IsRepairsInvalid, "entering repairs clears the highlight");
+    repairsEditor.SaveHistoryCommand.Execute(null);
+    Check(repairsStore.GetDates().SequenceEqual(new[] { weldingDate }), "a started shift with zero repairs is saved");
+
+    var saved = repairsStore.Load(weldingDate)!;
+    var zeroExport = Path.Combine(repairsRoot, "zero-repairs.xlsx");
+    new ExcelReportExporter().Export(FindTemplate(), zeroExport, saved with { MonthlyTotals = repairsStore.GetMonthlyTotals(saved) });
+    using (var archive = ZipFile.OpenRead(zeroExport))
+    using (var reader = new StreamReader(archive.GetEntry("xl/worksheets/sheet1.xml")!.Open()))
+    {
+        var sheet = XDocument.Load(reader);
+        XNamespace ns = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
+        string? Cell(string reference) => sheet.Descendants(ns + "c").FirstOrDefault(c => (string?)c.Attribute("r") == reference) is { } cell
+            ? cell.Element(ns + "is")?.Element(ns + "t")?.Value ?? cell.Element(ns + "v")?.Value
+            : null;
+        Check(new[] { "C23", "K23", "C24", "K24" }.All(cell => Cell(cell) == "-") && Cell("C21") == "5",
+            "zero repairs are exported as dashes while welded joints keep their numbers");
+    }
+
+    var commentOnlyStore = new ReportHistoryStore(Path.Combine(repairsRoot, "CommentOnly"));
+    var commentOnlyEditor = new MainViewModel(commentOnlyStore, new ReportDefaultsStore(Path.Combine(repairsRoot, "comment-only.json")));
+    FillRequiredHeader(commentOnlyEditor);
+    commentOnlyEditor.ReportDate = new DateTimeOffset(new DateTime(2030, 3, 3));
+    commentOnlyEditor.First.NewCommentTime = new TimeSpan(8, 0, 0);
+    commentOnlyEditor.First.NewCommentText = "Отсутствие фронта работ";
+    commentOnlyEditor.First.AddCommentCommand.Execute(null);
+    commentOnlyEditor.SaveHistoryCommand.Execute(null);
+    Check(commentOnlyStore.GetDates().Count == 1 && !commentOnlyEditor.First.IsRepairsInvalid,
+        "a comment-only shift is saved without repairs");
+}
+finally { if (Directory.Exists(repairsRoot)) Directory.Delete(repairsRoot, true); }
 
 static string FindTemplate()
 {

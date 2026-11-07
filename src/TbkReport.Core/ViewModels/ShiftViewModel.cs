@@ -39,6 +39,7 @@ public partial class ShiftViewModel : ViewModelBase
     [ObservableProperty] private bool isFirstJointInvalid;
     [ObservableProperty] private bool isLastJointInvalid;
     [ObservableProperty] private bool isStopTimeInvalid;
+    [ObservableProperty] private bool isRepairsInvalid;
     public ObservableCollection<ReportComment> Comments { get; } = new();
     public bool HasComments => Comments.Count > 0;
     private bool automatic;
@@ -149,10 +150,16 @@ public partial class ShiftViewModel : ViewModelBase
         IsLastJointInvalid = started && string.IsNullOrWhiteSpace(LastJoint);
         IsStopTimeInvalid = started && StopTime is null;
         IsWeldedCountInvalid = IsCountMode && started && (WeldedCountText.Length == 0 || CountValidation.Length > 0);
-        return IsStartTimeInvalid || IsFirstJointInvalid || IsLastJointInvalid || IsStopTimeInvalid || IsWeldedCountInvalid;
+        // A shift with welding must state its repairs, 0 included; a shift with only comments may leave it empty.
+        IsRepairsInvalid = started && string.IsNullOrWhiteSpace(Repairs);
+        return IsStartTimeInvalid || IsFirstJointInvalid || IsLastJointInvalid || IsStopTimeInvalid || IsWeldedCountInvalid || IsRepairsInvalid;
     }
 
-    partial void OnRepairsChanged(string value) => Refresh();
+    partial void OnRepairsChanged(string value)
+    {
+        if (!string.IsNullOrWhiteSpace(value)) IsRepairsInvalid = false;
+        Refresh();
+    }
     partial void OnIsCommentTimeRangeChanged(bool value)
     {
         CommentValidation = "";

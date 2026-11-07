@@ -48,9 +48,11 @@ internal static class CollectorChecks
             viewModel.ReportDate = new DateTimeOffset(firstDate.AddDays(4));
             viewModel.Header.CollectorNumberText = "1";
             viewModel.First.StartTime = TimeSpan.FromHours(8);
+            viewModel.First.Repairs = "0";
             if (countMode) viewModel.First.WeldedCountText = "5";
             else viewModel.First.LastJoint = "1015";
             viewModel.Second.StartTime = TimeSpan.FromHours(13);
+            viewModel.Second.Repairs = "0";
             if (countMode) viewModel.Second.WeldedCountText = "3";
             else viewModel.Second.LastJoint = "1018";
             viewModel.Header.CollectorNumberText = "2";

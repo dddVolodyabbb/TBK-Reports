@@ -33,6 +33,7 @@
         <Grid ColumnDefinitions="*,*" ColumnSpacing="24" RowSpacing="8">
           <TextBlock Text="Ремонтов за смену" VerticalAlignment="Center" />
           <TextBox Grid.Column="1" MinWidth="230" Text="{Binding Repairs, Mode=TwoWay}" PlaceholderText="Например, 0" TextChanged="DigitsOnlyTextChanged" />
+          <Border Grid.Column="1" IsVisible="{Binding IsRepairsInvalid}" BorderBrush="Red" BorderThickness="2" CornerRadius="4" Background="Transparent" IsHitTestVisible="False" />
         </Grid>
         <TextBlock IsVisible="{Binding HasRepairsValidation}" Text="{Binding RepairsValidation}" Foreground="OrangeRed" TextWrapping="Wrap" />
       </StackPanel>
