@@ -85,6 +85,14 @@ try
     Require(afterTechnicians is { ExportPath: "target-path", CalculateByCount: true, AutoExportExcel: false, AutoExportPdf: false },
         "Technician import replaced local settings.");
 
+    // A signature without a first technician name cannot belong to anybody, so it is not imported.
+    var orphan = techniciansOnly with
+    {
+        Technicians = techniciansOnly.Technicians! with { SecondShiftTechnician1 = "", SecondShiftSignature = localSignature }
+    };
+    importer.Import(orphan);
+    Require(targetDefaults.Load()!.Header?.SecondShiftSignature is null, "A signature without a technician name was imported.");
+
     var headerOnly = exporter.Read(exporter.Export(new TransferSelection(
         History: false, Problems: false, Equipment: false, Openings: false,
         Settings: false, Header: true, Technicians: false)));

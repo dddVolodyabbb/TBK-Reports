@@ -185,8 +185,10 @@ public sealed class ExcelReportExporter
     {
         var values = new[]
         {
-            (Value: header?.FirstShiftSignature, Column: 2, FileName: "tbk-signature-first.png", Name: "Подпись первого техника первой смены"),
-            (Value: header?.SecondShiftSignature, Column: 6, FileName: "tbk-signature-second.png", Name: "Подпись первого техника второй смены")
+            // A signature belongs to the shift's first technician: without that name it is not printed.
+            (Value: string.IsNullOrWhiteSpace(header?.FirstShiftTechnician1) ? null : header.FirstShiftSignature,
+                Column: 2, FileName: "tbk-signature-first.png", Name: "Подпись первого техника первой смены"),
+            (Value: string.IsNullOrWhiteSpace(header?.SecondShiftTechnician1) ? null : header.SecondShiftSignature, Column: 6, FileName: "tbk-signature-second.png", Name: "Подпись первого техника второй смены")
         };
         var rendered = values.Select(value => (value, Png: SignatureData.RenderPng(value.Value)))
             .Where(item => item.Png is not null).ToArray();

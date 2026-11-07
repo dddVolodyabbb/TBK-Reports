@@ -912,12 +912,12 @@ public partial class ReportViewModel : ViewModelBase
         if (header is null || savedHeader is null) return report;
 
         var firstSignature = header.FirstShiftSignature;
-        if (string.IsNullOrWhiteSpace(firstSignature) &&
+        if (string.IsNullOrWhiteSpace(firstSignature) && !string.IsNullOrWhiteSpace(header.FirstShiftTechnician1) &&
             string.Equals(header.FirstShiftTechnician1.Trim(), savedHeader.FirstShiftTechnician1.Trim(), StringComparison.OrdinalIgnoreCase))
             firstSignature = savedHeader.FirstShiftSignature;
 
         var secondSignature = header.SecondShiftSignature;
-        if (string.IsNullOrWhiteSpace(secondSignature) &&
+        if (string.IsNullOrWhiteSpace(secondSignature) && !string.IsNullOrWhiteSpace(header.SecondShiftTechnician1) &&
             string.Equals(header.SecondShiftTechnician1.Trim(), savedHeader.SecondShiftTechnician1.Trim(), StringComparison.OrdinalIgnoreCase))
             secondSignature = savedHeader.SecondShiftSignature;
 

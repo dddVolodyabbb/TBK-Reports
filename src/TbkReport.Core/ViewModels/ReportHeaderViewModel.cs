@@ -46,10 +46,18 @@ public partial class ReportHeaderViewModel : ViewModelBase
     public string FirstShiftSignatureActionText => HasFirstShiftSignature ? "Редактировать подпись" : "Добавить подпись";
     public string SecondShiftSignatureActionText => HasSecondShiftSignature ? "Редактировать подпись" : "Добавить подпись";
 
+    // The name each signature was made for: another name must not carry someone else's signature.
+    private string firstShiftSignedName = "";
+    private string secondShiftSignedName = "";
+
+    // Spaces and letter case do not make a different person.
+    private static string PersonKey(string? name) =>
+        string.Join(' ', (name ?? "").Split((char[]?)null, System.StringSplitOptions.RemoveEmptyEntries)).ToUpperInvariant();
+
     partial void OnFirstShiftTechnician1Changed(string value)
     {
         OnPropertyChanged(nameof(HasFirstShiftTechnician1));
-        if (!string.IsNullOrWhiteSpace(value)) return;
+        if (FirstShiftSignature is null || PersonKey(value) == firstShiftSignedName) return;
         FirstShiftSignature = null;
         firstShiftSignatureBeforeEdit = null;
         IsFirstShiftSignatureEditorVisible = false;
@@ -58,7 +66,7 @@ public partial class ReportHeaderViewModel : ViewModelBase
     partial void OnSecondShiftTechnician1Changed(string value)
     {
         OnPropertyChanged(nameof(HasSecondShiftTechnician1));
-        if (!string.IsNullOrWhiteSpace(value)) return;
+        if (SecondShiftSignature is null || PersonKey(value) == secondShiftSignedName) return;
         SecondShiftSignature = null;
         secondShiftSignatureBeforeEdit = null;
         IsSecondShiftSignatureEditorVisible = false;
@@ -66,12 +74,14 @@ public partial class ReportHeaderViewModel : ViewModelBase
 
     partial void OnFirstShiftSignatureChanged(string? value)
     {
+        if (value is not null) firstShiftSignedName = PersonKey(FirstShiftTechnician1);
         OnPropertyChanged(nameof(HasFirstShiftSignature));
         OnPropertyChanged(nameof(FirstShiftSignatureActionText));
     }
 
     partial void OnSecondShiftSignatureChanged(string? value)
     {
+        if (value is not null) secondShiftSignedName = PersonKey(SecondShiftTechnician1);
         OnPropertyChanged(nameof(HasSecondShiftSignature));
         OnPropertyChanged(nameof(SecondShiftSignatureActionText));
     }

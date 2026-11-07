@@ -309,5 +309,7 @@ public sealed class DataTransferService(ReportHistoryStore history, ReportDefaul
         current?.Customer ?? "", current?.Project ?? "", current?.Site ?? "", current?.Complex ?? "", current?.Pipe ?? "",
         imported.FirstShiftTechnician1, imported.FirstShiftTechnician2,
         imported.SecondShiftTechnician1, imported.SecondShiftTechnician2,
-        current?.CollectorNumber, imported.FirstShiftSignature, imported.SecondShiftSignature);
+        current?.CollectorNumber,
+        string.IsNullOrWhiteSpace(imported.FirstShiftTechnician1) ? null : imported.FirstShiftSignature,
+        string.IsNullOrWhiteSpace(imported.SecondShiftTechnician1) ? null : imported.SecondShiftSignature);
 }

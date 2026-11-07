@@ -46,6 +46,19 @@ signatureHeader.FirstShiftSignature = "changed-signature";
 signatureHeader.CancelFirstShiftSignatureEditCommand.Execute(null);
 Check(signatureHeader.FirstShiftSignature == "original-signature" && !signatureHeader.IsFirstShiftSignatureEditorVisible,
     "canceling signature edit restores the original signature");
+signatureHeader.FirstShiftTechnician1 = "  техник ";
+Check(signatureHeader.FirstShiftSignature == "original-signature", "spaces or letter case in the name keep the signature");
+signatureHeader.FirstShiftTechnician1 = "Другой техник";
+Check(signatureHeader.FirstShiftSignature is null, "another first technician name drops the previous signature");
+signatureHeader.SecondShiftTechnician1 = "Иванов";
+signatureHeader.SecondShiftSignature = "second-signature";
+signatureHeader.SecondShiftTechnician1 = "Петров";
+Check(signatureHeader.SecondShiftSignature is null, "second shift: another name drops the previous signature");
+var loadedHeader = new ReportHeaderViewModel();
+loadedHeader.Load(new ReportHeaderData("", "", "", "", "", "Иванов", "", "", "", null, "saved-signature", null));
+Check(loadedHeader.FirstShiftSignature == "saved-signature", "loading a saved header keeps its signature");
+loadedHeader.FirstShiftTechnician1 = "Петров";
+Check(loadedHeader.FirstShiftSignature is null, "a loaded signature is dropped when the name changes");
 
 var draftDirectory = Path.Combine(Path.GetTempPath(), $"tbk-draft-check-{Guid.NewGuid():N}");
 var draftHistory = new ReportHistoryStore(Path.Combine(draftDirectory, "History"));
