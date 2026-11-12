@@ -101,11 +101,11 @@
           </StackPanel>
         </Button>
       </Grid>
-      <Border IsVisible="{Binding DataTransfer.IsConfirmationVisible}" Padding="12" BorderBrush="Orange" BorderThickness="1">
+      <Border x:Name="ImportConfirmation" IsVisible="{Binding DataTransfer.IsConfirmationVisible}" Padding="12" BorderBrush="Orange" BorderThickness="1">
         <StackPanel Spacing="8">
           <TextBlock Text="{Binding DataTransfer.Confirmation}" TextWrapping="Wrap" />
           <StackPanel Orientation="Horizontal" Spacing="8">
-            <Button Content="Импортировать" Command="{Binding DataTransfer.ConfirmImportCommand}" MinHeight="48" />
+            <Button x:Name="ConfirmImportButton" Content="Импортировать" Command="{Binding DataTransfer.ConfirmImportCommand}" MinHeight="48" />
             <Button Content="Отмена" Command="{Binding DataTransfer.CancelImportCommand}" MinHeight="48" />
           </StackPanel>
         </StackPanel>

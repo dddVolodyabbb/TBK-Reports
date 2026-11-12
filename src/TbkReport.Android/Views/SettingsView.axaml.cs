@@ -50,7 +50,17 @@ public partial class SettingsView : UserControl
                 buffer.Write(chunk, 0, count);
             }
             transfer.PrepareImport(buffer.ToArray());
+            if (transfer.IsConfirmationVisible) ShowImportConfirmation();
         }
         catch (System.Exception error) { transfer.ShowError(error); }
     }
+
+    // The confirmation sits at the bottom of the scrolled settings page: bring it into view
+    // and focus «Импортировать» once the block has been laid out.
+    private void ShowImportConfirmation() =>
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            ImportConfirmation.BringIntoView();
+            ConfirmImportButton.Focus();
+        }, Avalonia.Threading.DispatcherPriority.Loaded);
 }
