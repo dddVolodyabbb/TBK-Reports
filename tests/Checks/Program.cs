@@ -6,7 +6,10 @@ using System.Xml.Linq;
 using TbkReport.Models;
 using TbkReport.Services;
 using TbkReport.ViewModels;
-var vm = new MainViewModel(new ReportHistoryStore(Path.Combine(Path.GetTempPath(), $"tbk-unused-history-{Guid.NewGuid():N}")));
+// Every editor gets its own temporary settings file: the real %LocalAppData% settings must never
+// influence the checks (for example, a saved count mode) or be overwritten by them.
+var vmRoot = Path.Combine(Path.GetTempPath(), $"tbk-unused-history-{Guid.NewGuid():N}");
+var vm = new MainViewModel(new ReportHistoryStore(vmRoot), new ReportDefaultsStore(Path.Combine(vmRoot, "settings.json")));
 void Check(bool ok, string name) { if (!ok) throw new Exception(name); Console.WriteLine("PASS " + name); }
 void FillRequiredHeader(MainViewModel editor, bool includeSecondShift = false)
 {
@@ -108,7 +111,8 @@ vm.First.Repairs = "0";
 vm.Second.StartTime = new TimeSpan(19, 0, 0);
 vm.Second.Repairs = "0";
 Check(vm.First.FirstJoint == "1" && vm.Second.FirstJoint == "1", "empty history auto-fills a joint number when either shift starts");
-var secondOnly = new MainViewModel(new ReportHistoryStore(Path.Combine(Path.GetTempPath(), $"tbk-second-only-{Guid.NewGuid():N}")));
+var secondOnlyRoot = Path.Combine(Path.GetTempPath(), $"tbk-second-only-{Guid.NewGuid():N}");
+var secondOnly = new MainViewModel(new ReportHistoryStore(secondOnlyRoot), new ReportDefaultsStore(Path.Combine(secondOnlyRoot, "settings.json")));
 secondOnly.Second.StartTime = new TimeSpan(19, 0, 0);
 secondOnly.Second.Repairs = "0";
 Check(secondOnly.First.FirstJoint == "" && secondOnly.Second.FirstJoint == "1", "second-only work auto-fills the second shift field");
