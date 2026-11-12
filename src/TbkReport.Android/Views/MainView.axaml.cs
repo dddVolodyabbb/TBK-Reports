@@ -13,16 +13,8 @@ namespace TbkReport.Mobile.Views;
 
 public partial class MainView : UserControl
 {
-    private static readonly string[] SwipeSections =
-    [
-        "Первая смена",
-        "Вторая смена",
-        "Проблемы",
-        "Оборудование",
-        "Шапка отчёта",
-        "Начальные данные месяца",
-        "История отчётов"
-    ];
+    // Which pages a swipe can reach is decided by MainViewModel (two galleries: shifts and
+    // report data); this view only tracks the finger and animates the transition.
 
     // Gesture thresholds in device-independent pixels.
     private const double ClaimDistance = 20;          // horizontal travel before a swipe takes the pointer
@@ -104,17 +96,16 @@ public partial class MainView : UserControl
 
         e.Handled = true;
         swipeDistance = horizontal;
-        var currentIndex = Array.IndexOf(SwipeSections, viewModel.CurrentSection);
-        if (currentIndex < 0)
+        if (!viewModel.CanSwipeSections)
         {
             ResetSwipeTracking();
             return;
         }
 
-        var movingPastFirst = currentIndex == 0 && swipeDistance > 0;
-        var movingPastLast = currentIndex == SwipeSections.Length - 1 && swipeDistance < 0;
+        // Past the first or last page of the gallery the page only stretches a little.
+        var movingPastEdge = swipeDistance != 0 && viewModel.GetSwipeTarget(swipeDistance < 0 ? 1 : -1) is null;
         var visualDistance = swipeDistance;
-        sectionTranslate.X = movingPastFirst || movingPastLast
+        sectionTranslate.X = movingPastEdge
             ? Math.Sign(visualDistance) * Math.Min(Math.Abs(visualDistance) * 0.25, 36)
             : Math.Clamp(visualDistance, -SectionWidth, SectionWidth);
     }
@@ -222,19 +213,18 @@ public partial class MainView : UserControl
             SwipeInputBlocker.IsVisible = false;
             return;
         }
-        var currentIndex = Array.IndexOf(SwipeSections, viewModel.CurrentSection);
-        if (currentIndex < 0)
+        if (!viewModel.CanSwipeSections)
         {
             sectionTranslate.X = 0;
             SwipeInputBlocker.IsVisible = false;
             return;
         }
         var direction = distance < 0 ? 1 : -1;
-        var nextIndex = currentIndex + direction;
+        var nextSection = viewModel.GetSwipeTarget(direction);
         swipeAnimating = true;
         try
         {
-            if (nextIndex < 0 || nextIndex >= SwipeSections.Length)
+            if (nextSection is null)
             {
                 var edgeOffset = direction > 0 ? -28d : 28d;
                 if (Math.Abs(sectionTranslate.X) < 1)
@@ -247,7 +237,7 @@ public partial class MainView : UserControl
             if (Math.Abs(exitOffset) < 1)
                 exitOffset = direction > 0 ? -SectionWidth : SectionWidth;
             await AnimateSection(sectionTranslate.X, exitOffset, 180);
-            viewModel.NavigateCommand.Execute(SwipeSections[nextIndex]);
+            viewModel.NavigateCommand.Execute(nextSection);
             sectionTranslate.X = -exitOffset;
             await AnimateSection(-exitOffset, 0, 220);
         }

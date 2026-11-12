@@ -68,7 +68,34 @@ public partial class MainViewModel : ObservableObject
     }
 
     public void ShowExitNotification(string message) => SetStatus(message);
-    [ObservableProperty] private bool isDataMenuOpen;
+    // The «Данные отчёта» group of the side menu is expanded by default.
+    [ObservableProperty] private bool isDataMenuOpen = true;
+
+    // Swiping moves only inside the current gallery: the two shifts form one gallery and the
+    // report data pages another. Switching between galleries (and opening history) goes
+    // through the side menu.
+    private static readonly string[] ShiftGallery = ["Первая смена", "Вторая смена"];
+    private static readonly string[] DataGallery =
+        ["Проблемы", "Оборудование", "Шапка отчёта", "Приём начатого коллектора"];
+
+    private string[]? CurrentGallery =>
+        Array.IndexOf(ShiftGallery, CurrentSection) >= 0 ? ShiftGallery :
+        Array.IndexOf(DataGallery, CurrentSection) >= 0 ? DataGallery : null;
+
+    public bool CanSwipeSections => CurrentGallery is not null;
+
+    /// <summary>
+    /// The neighbouring page in the current gallery: direction 1 is the next page (swipe left),
+    /// -1 the previous one. Null at the gallery edges and outside the galleries.
+    /// </summary>
+    public string? GetSwipeTarget(int direction)
+    {
+        if (CurrentGallery is not { } gallery) return null;
+        var index = Array.IndexOf(gallery, CurrentSection) + Math.Sign(direction);
+        return index >= 0 && index < gallery.Length ? gallery[index] : null;
+    }
+
+    public bool IsShiftGalleryVisible => IsFirstShiftVisible || IsSecondShiftVisible;
     [ObservableProperty] private bool isExportReplacePromptVisible;
     private bool pendingExportIsPdf;
     private ReportExportData? pendingExportData;
@@ -78,7 +105,7 @@ public partial class MainViewModel : ObservableObject
     public bool IsProblemsVisible => CurrentSection == "Проблемы";
     public bool IsEquipmentVisible => CurrentSection == "Оборудование";
     public bool IsHeaderVisible => CurrentSection == "Шапка отчёта";
-    public bool IsMonthlyOpeningVisible => CurrentSection == "Начальные данные месяца";
+    public bool IsMonthlyOpeningVisible => CurrentSection == "Приём начатого коллектора";
     public bool IsDataSectionVisible => IsProblemsVisible || IsEquipmentVisible || IsHeaderVisible || IsMonthlyOpeningVisible;
     public bool IsRegularDataSectionVisible => IsDataSectionVisible && !IsMonthlyOpeningVisible;
     public bool IsReportVisible => CurrentSection is not ("История отчётов" or "Настройки");
@@ -93,6 +120,8 @@ public partial class MainViewModel : ObservableObject
     {
         OnPropertyChanged(nameof(IsFirstShiftVisible));
         OnPropertyChanged(nameof(IsSecondShiftVisible));
+        OnPropertyChanged(nameof(IsShiftGalleryVisible));
+        OnPropertyChanged(nameof(CanSwipeSections));
         OnPropertyChanged(nameof(IsProblemsVisible));
         OnPropertyChanged(nameof(IsEquipmentVisible));
         OnPropertyChanged(nameof(IsHeaderVisible));

@@ -13,7 +13,7 @@
       <StackPanel IsVisible="{Binding IsCountMode}" Spacing="0">
         <Grid ColumnDefinitions="*,*" ColumnSpacing="24" RowSpacing="8">
           <TextBlock Text="Сварено за смену" VerticalAlignment="Center" />
-          <TextBox Grid.Column="1" Text="{Binding WeldedCountText, Mode=TwoWay}" PlaceholderText="Например, 10" MinWidth="230" TextChanged="DigitsOnlyTextChanged" />
+          <TextBox Grid.Column="1" Text="{Binding WeldedCountText, Mode=TwoWay}" MinWidth="230" TextChanged="DigitsOnlyTextChanged" />
           <Border Grid.Column="1" IsVisible="{Binding IsWeldedCountInvalid}" BorderBrush="Red" BorderThickness="2" CornerRadius="4" IsHitTestVisible="False" />
         </Grid>
         <TextBlock IsVisible="{Binding HasCountValidation}" Text="{Binding CountValidation}" Foreground="OrangeRed" TextWrapping="Wrap" />
@@ -22,9 +22,9 @@
         <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="24" RowSpacing="8">
           <TextBlock Text="Первый стык №" />
           <TextBlock Grid.Column="1" Text="Последний стык №" />
-          <TextBox Grid.Row="1" MinWidth="230" Text="{Binding FirstJoint, Mode=TwoWay}" PlaceholderText="Например, 21" TextChanged="DigitsOnlyTextChanged" />
+          <TextBox Grid.Row="1" MinWidth="230" Text="{Binding FirstJoint, Mode=TwoWay}" TextChanged="DigitsOnlyTextChanged" />
           <Border Grid.Row="1" IsVisible="{Binding IsFirstJointInvalid}" BorderBrush="Red" BorderThickness="2" CornerRadius="4" Background="Transparent" IsHitTestVisible="False" />
-          <TextBox Grid.Row="1" Grid.Column="1" MinWidth="230" Text="{Binding LastJoint, Mode=TwoWay}" PlaceholderText="Например, 22" TextChanged="DigitsOnlyTextChanged" />
+          <TextBox Grid.Row="1" Grid.Column="1" MinWidth="230" Text="{Binding LastJoint, Mode=TwoWay}" TextChanged="DigitsOnlyTextChanged" />
           <Border Grid.Row="1" Grid.Column="1" IsVisible="{Binding IsLastJointInvalid}" BorderBrush="Red" BorderThickness="2" CornerRadius="4" Background="Transparent" IsHitTestVisible="False" />
         </Grid>
         <TextBlock IsVisible="{Binding HasJointValidation}" Text="{Binding JointValidation}" Foreground="OrangeRed" TextWrapping="Wrap" />
@@ -32,7 +32,7 @@
       <StackPanel Spacing="0">
         <Grid ColumnDefinitions="*,*" ColumnSpacing="24" RowSpacing="8">
           <TextBlock Text="Ремонтов за смену" VerticalAlignment="Center" />
-          <TextBox Grid.Column="1" MinWidth="230" Text="{Binding Repairs, Mode=TwoWay}" PlaceholderText="Например, 0" TextChanged="DigitsOnlyTextChanged" />
+          <TextBox Grid.Column="1" MinWidth="230" Text="{Binding Repairs, Mode=TwoWay}" TextChanged="DigitsOnlyTextChanged" />
           <Border Grid.Column="1" IsVisible="{Binding IsRepairsInvalid}" BorderBrush="Red" BorderThickness="2" CornerRadius="4" Background="Transparent" IsHitTestVisible="False" />
         </Grid>
         <TextBlock IsVisible="{Binding HasRepairsValidation}" Text="{Binding RepairsValidation}" Foreground="OrangeRed" TextWrapping="Wrap" />

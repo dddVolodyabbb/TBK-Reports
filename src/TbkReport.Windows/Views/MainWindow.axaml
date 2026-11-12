@@ -118,12 +118,16 @@
               </StackPanel>
             </ScrollViewer>
           </TabItem>
-          <TabItem Header="Начальные данные месяца">
+          <TabItem Header="Приём начатого коллектора">
             <ScrollViewer>
               <StackPanel Margin="16" Spacing="10" MaxWidth="760" HorizontalAlignment="Left">
-                <TextBlock Text="Начальные данные месяца" FontSize="18" FontWeight="Bold" />
+                <TextBlock Text="Приём начатого коллектора" FontSize="18" FontWeight="Bold" />
                 <TextBlock Text="{Binding MonthlyOpeningScope}" FontWeight="SemiBold" Foreground="#FF42A5F5" />
-                <TextBlock Text="Для выбранного месяца и указанной в шапке ГК можно записать накопленные значения без создания ежедневного отчёта. Последний номер продолжит нумерацию стыков, а количество стыков и ремонтов войдёт в месячный итог этой ГК." TextWrapping="Wrap" Opacity="0.75" />
+                <!-- The most common case comes first and in red: most users must not fill this page at all. -->
+                <TextBlock Text="Если коллектор варится с первого стыка, здесь ничего заполнять не нужно!" TextWrapping="Wrap"
+                           Foreground="#FFE53935" FontWeight="Bold" FontSize="16" />
+                <TextBlock Text="Заполняйте этот раздел, только если принимаете коллектор, который уже начали варить другие техники, и их отчётов нет в программе." TextWrapping="Wrap" />
+                <TextBlock Text="Значения возьмите из последнего отчёта техника, которого меняете. Они сохраняются для месяца из даты отчёта и для ГК из шапки." TextWrapping="Wrap" Opacity="0.75" />
                 <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="14" RowSpacing="8">
                   <TextBlock Grid.Row="0" Text="Последний номер стыка" VerticalAlignment="Center" />
                   <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding MonthlyOpeningLastJoint, Mode=TwoWay}" PlaceholderText="Например, 274" />
@@ -132,7 +136,7 @@
                   <TextBlock Grid.Row="2" Text="Ремонтов за месяц" VerticalAlignment="Center" />
                   <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding MonthlyOpeningRepairs, Mode=TwoWay}" PlaceholderText="Например, 3" />
                 </Grid>
-                <TextBlock Text="Начальные количества учитываются нарастающим итогом: сначала в первой смене, затем во второй. Если первой смены нет, подсчёт продолжается во второй. Оставьте поле пустым, если значение неизвестно; очистите все три поля и сохраните, чтобы удалить начальные данные." TextWrapping="Wrap" Opacity="0.75" />
+                <TextBlock Text="Если какое-то значение неизвестно, оставьте поле пустым. Чтобы удалить ошибочные данные, очистите все три поля и нажмите «Сохранить начальные данные»." TextWrapping="Wrap" Opacity="0.75" />
               </StackPanel>
             </ScrollViewer>
           </TabItem>

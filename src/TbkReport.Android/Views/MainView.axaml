@@ -18,24 +18,28 @@
     </Style>
   </UserControl.Styles>
   <Grid RowDefinitions="Auto,*">
-    <Border Background="White" Padding="4" BorderBrush="#E2E5E9" BorderThickness="0,0,0,1">
-      <Grid ColumnDefinitions="48,*,48" MinHeight="48">
+    <!-- A white bar looked like the system status area and users skipped the section name:
+         an accent-coloured bar with a bold white title stands out in both light and dark themes. -->
+    <Border Background="#FF0078D4" Padding="4">
+      <Grid ColumnDefinitions="48,*,48" MinHeight="52">
         <Button Width="48" Height="48" Background="Transparent" BorderThickness="0"
                 HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                 AutomationProperties.Name="Открыть меню разделов"
                 Command="{Binding ToggleNavigationCommand}">
-          <Path Width="24" Height="24" Stroke="Black" StrokeThickness="2"
+          <Path Width="24" Height="24" Stroke="White" StrokeThickness="2"
                 Data="M 2,5 L 22,5 M 2,12 L 22,12 M 2,19 L 22,19" />
         </Button>
-        <TextBlock Grid.Column="1" Text="{Binding CurrentSection}" Foreground="Black" FontSize="18" TextTrimming="CharacterEllipsis"
+        <!-- Long names («Приём начатого коллектора») wrap to a second line instead of being cut off. -->
+        <TextBlock Grid.Column="1" Text="{Binding CurrentSection}" Foreground="White" FontSize="20" FontWeight="Bold"
+                   TextWrapping="Wrap" MaxLines="2" TextAlignment="Center" TextTrimming="CharacterEllipsis"
                    HorizontalAlignment="Center" VerticalAlignment="Center" />
         <Button Grid.Column="2" Width="48" Height="48" Background="Transparent" BorderThickness="0"
                 HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                 AutomationProperties.Name="Действия с отчётом">
           <StackPanel Spacing="4">
-            <Ellipse Width="4" Height="4" Fill="Black" />
-            <Ellipse Width="4" Height="4" Fill="Black" />
-            <Ellipse Width="4" Height="4" Fill="Black" />
+            <Ellipse Width="4" Height="4" Fill="White" />
+            <Ellipse Width="4" Height="4" Fill="White" />
+            <Ellipse Width="4" Height="4" Fill="White" />
           </StackPanel>
           <Button.Flyout>
             <MenuFlyout Placement="BottomEdgeAlignedRight">
@@ -61,14 +65,18 @@
             <Button Content="Первая смена" Command="{Binding NavigateCommand}" CommandParameter="Первая смена" HorizontalAlignment="Stretch" MinHeight="48" />
             <Button Content="Вторая смена" Command="{Binding NavigateCommand}" CommandParameter="Вторая смена" HorizontalAlignment="Stretch" MinHeight="48" />
             <Button Content="Данные отчёта ▾" Command="{Binding ToggleDataMenuCommand}" HorizontalAlignment="Stretch" MinHeight="48" />
-            <StackPanel IsVisible="{Binding IsDataMenuOpen}" Margin="12,0,0,0" Spacing="8">
-              <Button Content="Проблемы" Command="{Binding NavigateCommand}" CommandParameter="Проблемы" HorizontalAlignment="Stretch" MinHeight="48" />
-              <Button Content="Оборудование" Command="{Binding NavigateCommand}" CommandParameter="Оборудование" HorizontalAlignment="Stretch" MinHeight="48" />
-              <Button Content="Шапка отчёта" Command="{Binding NavigateCommand}" CommandParameter="Шапка отчёта" HorizontalAlignment="Stretch" MinHeight="48" />
-              <Button Command="{Binding NavigateCommand}" CommandParameter="Начальные данные месяца" HorizontalAlignment="Stretch" MinHeight="48">
-                <TextBlock Text="Начальные данные месяца" TextWrapping="Wrap" />
-              </Button>
-            </StackPanel>
+            <!-- Group items are indented and marked with a vertical line so they read as one group. -->
+            <Border IsVisible="{Binding IsDataMenuOpen}" Margin="16,0,0,0" Padding="12,0,0,0"
+                    BorderBrush="#FF0078D4" BorderThickness="3,0,0,0">
+              <StackPanel Spacing="8">
+                <Button Content="Проблемы" Command="{Binding NavigateCommand}" CommandParameter="Проблемы" HorizontalAlignment="Stretch" MinHeight="48" />
+                <Button Content="Оборудование" Command="{Binding NavigateCommand}" CommandParameter="Оборудование" HorizontalAlignment="Stretch" MinHeight="48" />
+                <Button Content="Шапка отчёта" Command="{Binding NavigateCommand}" CommandParameter="Шапка отчёта" HorizontalAlignment="Stretch" MinHeight="48" />
+                <Button Command="{Binding NavigateCommand}" CommandParameter="Приём начатого коллектора" HorizontalAlignment="Stretch" MinHeight="48">
+                  <TextBlock Text="Приём начатого коллектора" TextWrapping="Wrap" />
+                </Button>
+              </StackPanel>
+            </Border>
             <Button Content="История отчётов" Command="{Binding NavigateCommand}" CommandParameter="История отчётов" HorizontalAlignment="Stretch" MinHeight="48" />
           </StackPanel>
         </ScrollViewer>
@@ -85,14 +93,16 @@
         </Border>
         <Border Grid.Row="1" Padding="12,4,12,8" IsVisible="{Binding IsReportVisible}">
           <StackPanel Spacing="6">
-            <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+            <!-- Page dots show only the gallery the user can swipe through right now. -->
+            <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center" IsVisible="{Binding IsShiftGalleryVisible}">
               <Ellipse Classes="section-indicator" Classes.active="{Binding IsFirstShiftVisible}" />
               <Ellipse Classes="section-indicator" Classes.active="{Binding IsSecondShiftVisible}" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center" IsVisible="{Binding IsDataSectionVisible}">
               <Ellipse Classes="section-indicator" Classes.active="{Binding IsProblemsVisible}" />
               <Ellipse Classes="section-indicator" Classes.active="{Binding IsEquipmentVisible}" />
               <Ellipse Classes="section-indicator" Classes.active="{Binding IsHeaderVisible}" />
               <Ellipse Classes="section-indicator" Classes.active="{Binding IsMonthlyOpeningVisible}" />
-              <Ellipse Classes="section-indicator" Classes.active="{Binding IsHistoryVisible}" />
             </StackPanel>
             <TextBlock Text="Дата отчёта" />
             <DatePicker SelectedDate="{Binding Report.ReportDate, Mode=TwoWay}" IsEnabled="{Binding Report.IsReportDateEditable}" DayFormat="dd" MonthFormat="MMMM" YearFormat="yyyy" HorizontalAlignment="Left" />
