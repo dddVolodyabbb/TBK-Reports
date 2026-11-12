@@ -31,11 +31,11 @@ try {
         --self-contained true --no-restore -o $publishDirectory
     if ($LASTEXITCODE -ne 0) { throw 'Windows self-contained publish failed.' }
 
-    # IDE-only Avalonia files, the macOS renderer and .NET debugging helpers are
-    # not used by the installed Windows application.
+    # IDE-only Avalonia files and .NET debugging helpers are not used by the installed
+    # Windows application. Avalonia.Metal.dll must stay: Avalonia 12 loads it on Windows too,
+    # and without it every frame fails to render, leaving a transparent window.
     $releaseOnlyUnusedFiles = @(
         'Avalonia.DesignerSupport.dll',
-        'Avalonia.Metal.dll',
         'createdump.exe',
         'Microsoft.DiaSymReader.Native.amd64.dll',
         'mscordaccore.dll',
