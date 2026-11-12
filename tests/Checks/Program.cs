@@ -112,6 +112,38 @@ var secondOnly = new MainViewModel(new ReportHistoryStore(Path.Combine(Path.GetT
 secondOnly.Second.StartTime = new TimeSpan(19, 0, 0);
 secondOnly.Second.Repairs = "0";
 Check(secondOnly.First.FirstJoint == "" && secondOnly.Second.FirstJoint == "1", "second-only work auto-fills the second shift field");
+secondOnly.Second.LastJoint = "3";
+secondOnly.Second.StopTime = new TimeSpan(23, 0, 0);
+secondOnly.Second.StartTime = null;
+Check(secondOnly.Second.FirstJoint == "1", "suggested first joint stays while other work fields are filled");
+secondOnly.Second.StopTime = null;
+secondOnly.Second.LastJoint = "";
+secondOnly.Second.Repairs = "";
+Check(secondOnly.Second.FirstJoint == "" && !secondOnly.Second.FirstManuallyEdited,
+    "erasing a mistakenly started shift erases the suggested first joint");
+secondOnly.Second.StartTime = new TimeSpan(19, 0, 0);
+Check(secondOnly.Second.FirstJoint == "1", "starting the erased shift again suggests the first joint again");
+secondOnly.Second.FirstJoint = "5";
+secondOnly.Second.StartTime = null;
+Check(secondOnly.Second.FirstJoint == "5", "a first joint typed by hand is not erased with the start time");
+var countErase = new ShiftViewModel();
+countErase.SetCountMode(true);
+countErase.SetAutomaticFirst("40");
+countErase.WeldedCountText = "2";
+countErase.WeldedCountText = "";
+Check(countErase.FirstJoint == "" && countErase.LastJoint == "", "count mode erases the suggested first joint with the count");
+var numberErase = new ShiftViewModel();
+numberErase.SetCountMode(true);
+numberErase.SetAutomaticFirst("40");
+numberErase.WeldedCountText = "3";
+numberErase.SetCountMode(false);
+numberErase.StartTime = new TimeSpan(19, 0, 0);
+numberErase.StartTime = null;
+Check(numberErase.FirstJoint == "40" && numberErase.WeldedCountText == "3",
+    "number mode keeps joints and count while the last joint is filled");
+numberErase.LastJoint = "";
+Check(numberErase.FirstJoint == "" && numberErase.WeldedCountText == "" && numberErase.Welded == 0,
+    "number mode erases the suggested first joint and the hidden count when all fields are cleared");
 var suggestionCheck = new ShiftViewModel();
 suggestionCheck.SetAutomaticFirst("10");
 suggestionCheck.FirstJoint = "";

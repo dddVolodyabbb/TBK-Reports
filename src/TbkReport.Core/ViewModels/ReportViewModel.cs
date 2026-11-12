@@ -251,7 +251,7 @@ public partial class ReportViewModel : ViewModelBase
             {
                 if (e.PropertyName == nameof(ShiftViewModel.StartTime) && First.StartTime is not null)
                     First.SetAutomaticFirst(reservedNextJointNumber);
-                if (e.PropertyName == nameof(ShiftViewModel.WeldedCountText) && CalculateByCount)
+                if (e.PropertyName == nameof(ShiftViewModel.WeldedCountText) && CalculateByCount && First.WeldedCountText.Length > 0)
                     First.SetAutomaticFirst(reservedNextJointNumber);
                 if (e.PropertyName == nameof(ShiftViewModel.Welded) &&
                     (Second.StartTime is not null || (CalculateByCount && Second.WeldedCountText.Length > 0)))
@@ -263,7 +263,8 @@ public partial class ReportViewModel : ViewModelBase
         {
             if (!isApplyingReport && e.PropertyName == nameof(ShiftViewModel.StartTime) && Second.StartTime is not null)
                 Second.SetAutomaticFirst(GetNextSecondJoint());
-            if (!isApplyingReport && e.PropertyName == nameof(ShiftViewModel.WeldedCountText) && CalculateByCount)
+            if (!isApplyingReport && e.PropertyName == nameof(ShiftViewModel.WeldedCountText) && CalculateByCount &&
+                Second.WeldedCountText.Length > 0)
                 Second.SetAutomaticFirst(GetNextSecondJoint());
             if (IsDraftProperty(e.PropertyName)) SaveDraftIfReady();
         };

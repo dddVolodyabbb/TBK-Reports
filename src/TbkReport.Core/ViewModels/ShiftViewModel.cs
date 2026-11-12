@@ -63,23 +63,48 @@ public partial class ShiftViewModel : ViewModelBase
         RecalculateLastJoint();
         OnPropertyChanged(nameof(FirstJointDisplay));
         Refresh();
+        if (value.Length == 0) ClearAutomaticFirstIfShiftErased();
     }
     partial void OnLastJointChanged(string value)
     {
         IsLastJointInvalid = false;
         OnPropertyChanged(nameof(LastJointDisplay));
         Refresh();
+        if (value.Length == 0) ClearAutomaticFirstIfShiftErased();
     }
     partial void OnStartTimeChanged(TimeSpan? value)
     {
         // Any edit of a highlighted field hides its mark; the next save or export checks again.
         if (value is not null) IsStartTimeInvalid = false;
         SynchronizeTimeComment(value, StartCommentText);
+        if (value is null) ClearAutomaticFirstIfShiftErased();
     }
     partial void OnStopTimeChanged(TimeSpan? value)
     {
         IsStopTimeInvalid = false;
         SynchronizeTimeComment(value, StopCommentText);
+        if (value is null) ClearAutomaticFirstIfShiftErased();
+    }
+
+    /// <summary>
+    /// The first joint is filled automatically when the start time is entered. If the user started
+    /// this shift by mistake and erased the start time and every other work field, the suggested
+    /// number is erased too, so the shift does not keep a stray joint number. A number typed by hand
+    /// in number mode is kept. In number mode the hidden count left from count mode is erased as well
+    /// once both joint numbers are empty.
+    /// </summary>
+    private void ClearAutomaticFirstIfShiftErased()
+    {
+        if (loadingReport) return;
+        if (StartTime is not null || StopTime is not null || LastJoint.Length > 0 || Repairs.Length > 0 ||
+            (IsCountMode && WeldedCountText.Length > 0)) return;
+        if (FirstJoint.Length > 0 && (IsCountMode || !FirstManuallyEdited))
+        {
+            automatic = true;
+            FirstJoint = "";
+            automatic = false;
+        }
+        if (!IsCountMode && FirstJoint.Length == 0 && WeldedCountText.Length > 0) WeldedCountText = "";
     }
     private void Refresh()
     {
@@ -97,6 +122,7 @@ public partial class ShiftViewModel : ViewModelBase
         IsWeldedCountInvalid = false;
         RecalculateLastJoint();
         Refresh();
+        if (value.Length == 0) ClearAutomaticFirstIfShiftErased();
     }
 
     public void SetCountMode(bool enabled)
@@ -178,6 +204,7 @@ public partial class ShiftViewModel : ViewModelBase
     {
         IsRepairsInvalid = false;
         Refresh();
+        if (value.Length == 0) ClearAutomaticFirstIfShiftErased();
     }
     partial void OnIsCommentTimeRangeChanged(bool value)
     {
