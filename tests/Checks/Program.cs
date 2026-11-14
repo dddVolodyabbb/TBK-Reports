@@ -464,6 +464,41 @@ foreach (var count in new[] { 3, 4, 3, 12, 40 })
     finally { if (File.Exists(equipmentOutput)) File.Delete(equipmentOutput); }
 }
 
+var longEquipmentOutput = Path.Combine(Path.GetTempPath(), $"tbk-long-equipment-{Guid.NewGuid():N}.xlsx");
+try
+{
+    var empty = new ShiftReportData("", "", null, null, null, Array.Empty<ReportComment>());
+    var longName = "Сварочный источник питания Lincoln Electric с выносным подающим механизмом и пультом";
+    var entries = new[]
+    {
+        new EquipmentData("Головка Альфа", 1, 0),
+        new EquipmentData(longName, 2, 1),
+        new EquipmentData("Источник PCW-300", 1, 1)
+    };
+    new ExcelReportExporter().Export(template, longEquipmentOutput, new ReportExportData(DateTime.Today, empty, empty)
+        { Equipment = entries, Problems = new[] { "Первая проблема" } });
+    using var archive = ZipFile.OpenRead(longEquipmentOutput);
+    XNamespace ns = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
+    XDocument sheet, styles;
+    using (var stream = archive.GetEntry("xl/worksheets/sheet1.xml")!.Open()) sheet = XDocument.Load(stream);
+    using (var stream = archive.GetEntry("xl/styles.xml")!.Open()) styles = XDocument.Load(stream);
+    var cells = sheet.Descendants(ns + "c").ToDictionary(cell => (string)cell.Attribute("r")!);
+    string? Value(string address) => cells[address].Element(ns + "is")?.Element(ns + "t")?.Value ?? cells[address].Element(ns + "v")?.Value;
+    var merges = sheet.Descendants(ns + "mergeCell").Select(merge => (string)merge.Attribute("ref")!).ToHashSet();
+    // Row 29: short name; rows 30-32: the long name wrapped over three lines; row 33: next item.
+    Check(Value("I30") == longName && Value("L30") == "2" && Value("M30") == "1" &&
+          merges.Contains("I30:K32") && merges.Contains("L30:L32") && merges.Contains("M30:M32"),
+        "a long equipment name spans several rows with its quantities merged alongside");
+    Check(Value("I33") == "Источник PCW-300" && merges.Contains("I33:K33") && Value("I34") == "Проблемные вопросы:" &&
+          Value("I35") == "1) Первая проблема", "rows below a wrapped equipment name move down");
+    var formats = styles.Descendants(ns + "cellXfs").Single().Elements(ns + "xf").ToArray();
+    var nameFormat = formats[int.Parse((string)cells["I30"].Attribute("s")!)];
+    Check((string?)nameFormat.Element(ns + "alignment")?.Attribute("wrapText") == "1" &&
+          (string?)styles.Descendants(ns + "cellXfs").Single().Attribute("count") == formats.Length.ToString(),
+        "equipment names use a wrapping copy of the template style");
+}
+finally { if (File.Exists(longEquipmentOutput)) File.Delete(longEquipmentOutput); }
+
 var historyDirectory = Path.Combine(Path.GetTempPath(), $"tbk-history-check-{Guid.NewGuid():N}");
 try
 {

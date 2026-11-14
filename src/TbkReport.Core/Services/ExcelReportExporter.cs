@@ -24,6 +24,7 @@ public sealed class ExcelReportExporter
     private const int TemplateProblemTextRow = 38;
     private const int ReportBodyEndRow = 58;
     private const int CharactersPerProblemLine = 38;
+    private const int EquipmentStartRow = 29;
     private const double DefaultRowHeight = 22.8;
 
     public void Export(string templatePath, string outputPath, ReportExportData data)
@@ -48,6 +49,7 @@ public sealed class ExcelReportExporter
             {
                 var legacySignatures = FindTemplateSignatureDrawings(source);
                 var signatures = PrepareSignatures(source, data.Header);
+                var equipmentNameStyle = PrepareWrappedEquipmentStyle(source, out var styles);
                 foreach (var entry in source.Entries)
                 {
                     if (entry.FullName == "xl/calcChain.xml") continue;
@@ -59,9 +61,11 @@ public sealed class ExcelReportExporter
                     {
                         worksheetFound = true;
                         var sheet = XDocument.Load(input);
-                        PopulateSheet(sheet, data);
+                        PopulateSheet(sheet, data, equipmentNameStyle);
                         sheet.Save(target, SaveOptions.DisableFormatting);
                     }
+                    else if (entry.FullName == "xl/styles.xml" && styles is not null)
+                        styles.Save(target, SaveOptions.DisableFormatting);
                     else if (entry.FullName == "xl/_rels/workbook.xml.rels")
                     {
                         var relationships = XDocument.Load(input);
@@ -255,7 +259,42 @@ public sealed class ExcelReportExporter
 
     private sealed record SignatureImage(int Column, string FileName, string Name, string RelationshipId, int DrawingId, byte[] Png);
 
-    private static void PopulateSheet(XDocument sheet, ReportExportData data)
+    /// <summary>
+    /// The template's equipment name cell does not wrap text. Adds a copy of its style with
+    /// wrapping turned on, so a long name can occupy several rows; returns the new style index
+    /// (null when the template does not have the expected parts, then names stay unwrapped).
+    /// </summary>
+    private static string? PrepareWrappedEquipmentStyle(ZipArchive source, out XDocument? styles)
+    {
+        styles = null;
+        var sheetEntry = source.GetEntry("xl/worksheets/sheet1.xml");
+        var stylesEntry = source.GetEntry("xl/styles.xml");
+        if (sheetEntry is null || stylesEntry is null) return null;
+        XDocument sheet;
+        using (var input = sheetEntry.Open()) sheet = XDocument.Load(input);
+        var nameStyle = (int?)sheet.Descendants(MainNs + "c")
+            .FirstOrDefault(cell => (string?)cell.Attribute("r") == $"I{EquipmentStartRow}")?.Attribute("s") ?? 0;
+        XDocument document;
+        using (var input = stylesEntry.Open()) document = XDocument.Load(input);
+        var cellFormats = document.Root?.Element(MainNs + "cellXfs");
+        var formats = cellFormats?.Elements(MainNs + "xf").ToList();
+        if (cellFormats is null || formats is null || nameStyle >= formats.Count) return null;
+        var wrapped = new XElement(formats[nameStyle]);
+        var alignment = wrapped.Element(MainNs + "alignment");
+        if (alignment is null)
+        {
+            alignment = new XElement(MainNs + "alignment");
+            wrapped.AddFirst(alignment);
+        }
+        alignment.SetAttributeValue("wrapText", "1");
+        wrapped.SetAttributeValue("applyAlignment", "1");
+        cellFormats.Add(wrapped);
+        cellFormats.SetAttributeValue("count", formats.Count + 1);
+        styles = document;
+        return formats.Count.ToString(CultureInfo.InvariantCulture);
+    }
+
+    private static void PopulateSheet(XDocument sheet, ReportExportData data, string? equipmentNameStyle = null)
     {
         var root = sheet.Root ?? throw new InvalidDataException("В шаблоне отсутствует лист отчёта.");
         var sheetData = root.Element(MainNs + "sheetData") ?? throw new InvalidDataException("В шаблоне отсутствуют строки отчёта.");
@@ -306,13 +345,14 @@ public sealed class ExcelReportExporter
             ClearCachedFormulaValue(sheetData, cell);
         PopulateComments(root, sheetData, data.FirstShift, 1, 2, firstCommentCapacity);
         PopulateComments(root, sheetData, data.SecondShift, 5, 6, secondCommentCapacity);
-        var reportEndRow = PopulateProblems(root, sheetData, data, overflow);
+        var reportEndRow = PopulateProblems(root, sheetData, data, overflow, equipmentNameStyle);
         EnsureCommentTextColumnsMerged(root, reportEndRow);
         CenterReportOnPrintedPage(root);
         SortAndValidateMerges(root);
     }
 
-    private static int PopulateProblems(XElement root, XElement sheetData, ReportExportData data, int commentOverflow)
+    private static int PopulateProblems(XElement root, XElement sheetData, ReportExportData data, int commentOverflow,
+        string? equipmentNameStyle)
     {
         var items = (data.Problems ?? Array.Empty<string>()).Where(text => !string.IsNullOrWhiteSpace(text))
             .Select((text, index) => $"{index + 1}) {text.Trim()}")
@@ -320,8 +360,11 @@ public sealed class ExcelReportExporter
         var equipment = data.Equipment ?? Array.Empty<EquipmentData>();
         if (equipment.Any(item => string.IsNullOrWhiteSpace(item.Name) || item.InWork < 0 || item.InReserve < 0))
             throw new InvalidDataException("Проверьте названия и количество оборудования.");
-        const int equipmentStart = 29;
-        var headingRow = equipmentStart + equipment.Count;
+        const int equipmentStart = EquipmentStartRow;
+        // A long equipment name takes as many rows as it needs; everything below moves down.
+        var equipmentCharacters = EquipmentLineCapacity(root);
+        var equipmentRows = equipment.Select(item => WrappedLineCount(item.Name.Trim(), equipmentCharacters)).ToArray();
+        var headingRow = equipmentStart + equipmentRows.Sum();
         var start = headingRow + 1;
         var oldEnd = ReportBodyEndRow + commentOverflow;
         var requiredProblemRows = Math.Max(1, items.Sum(item => item.Rows));
@@ -370,13 +413,25 @@ public sealed class ExcelReportExporter
                     .SetAttributeValue("s", styles[column - 9]);
             }
         }
+        var equipmentRow = equipmentStart;
         for (var index = 0; index < equipment.Count; index++)
         {
-            var row = equipmentStart + index;
+            var row = equipmentRow;
+            var last = row + equipmentRows[index] - 1;
             SetValue(sheetData, $"I{row}", equipment[index].Name.Trim());
             SetOptionalCount(sheetData, $"L{row}", equipment[index].InWork);
             SetOptionalCount(sheetData, $"M{row}", equipment[index].InReserve);
-            AddMerge(merges, $"I{row}:K{row}");
+            if (equipmentNameStyle is not null)
+                sheetData.Descendants(MainNs + "c").First(cell => (string?)cell.Attribute("r") == $"I{row}")
+                    .SetAttributeValue("s", equipmentNameStyle);
+            AddMerge(merges, $"I{row}:K{last}");
+            if (last > row)
+            {
+                // The quantities stay centred against the whole wrapped name.
+                AddMerge(merges, $"L{row}:L{last}");
+                AddMerge(merges, $"M{row}:M{last}");
+            }
+            equipmentRow = last + 1;
         }
         // The problem heading follows the final equipment row without a spacer.
         SetValue(sheetData, $"I{headingRow}", "Проблемные вопросы:");
@@ -420,27 +475,44 @@ public sealed class ExcelReportExporter
 
     private static int CommentLineCapacity(XElement root, int textColumn)
     {
-        var columnWidths = new Dictionary<int, double>();
-        var defaultWidth = (double?)root.Element(MainNs + "sheetFormatPr")?.Attribute("defaultColWidth") ?? 8.43;
-        foreach (var column in root.Element(MainNs + "cols")?.Elements(MainNs + "col") ?? Enumerable.Empty<XElement>())
-        {
-            var first = (int?)column.Attribute("min") ?? 1;
-            var last = (int?)column.Attribute("max") ?? first;
-            var width = (double?)column.Attribute("width") ?? defaultWidth;
-            for (var index = first; index <= last; index++) columnWidths[index] = width;
-        }
-
         var merges = root.Element(MainNs + "mergeCells")?.Elements(MainNs + "mergeCell") ?? Enumerable.Empty<XElement>();
         var merge = merges.Select(element => ParseMerge((string)element.Attribute("ref")!))
             .FirstOrDefault(bounds => bounds.StartColumn == textColumn && bounds.StartRow == FirstCommentRow);
         var endColumn = merge.EndColumn >= textColumn ? merge.EndColumn : textColumn;
-        var widthInCharacters = 0d;
-        for (var column = textColumn; column <= endColumn; column++)
-            widthInCharacters += columnWidths.GetValueOrDefault(column, defaultWidth);
+        var widthInCharacters = ColumnSpanWidth(root, textColumn, endColumn);
 
         // Excel column width is expressed in the width of the default font's "0".
         // Reserve a small amount for cell padding so wrapping follows the visible width.
         return Math.Max(1, (int)Math.Floor(widthInCharacters - 1));
+    }
+
+    // Equipment names (I:K) use the same font as the problem text (I:M), whose line length was
+    // matched to the printed report; scale it by the share of the width the names get.
+    private static int EquipmentLineCapacity(XElement root)
+    {
+        var problemWidth = ColumnSpanWidth(root, 9, 13);
+        var nameWidth = ColumnSpanWidth(root, 9, 11);
+        return problemWidth <= 0
+            ? CharactersPerProblemLine
+            : Math.Max(1, (int)Math.Floor(CharactersPerProblemLine * nameWidth / problemWidth));
+    }
+
+    // Total width of the columns first..last in Excel character units.
+    private static double ColumnSpanWidth(XElement root, int first, int last)
+    {
+        var columnWidths = new Dictionary<int, double>();
+        var defaultWidth = (double?)root.Element(MainNs + "sheetFormatPr")?.Attribute("defaultColWidth") ?? 8.43;
+        foreach (var column in root.Element(MainNs + "cols")?.Elements(MainNs + "col") ?? Enumerable.Empty<XElement>())
+        {
+            var min = (int?)column.Attribute("min") ?? 1;
+            var max = (int?)column.Attribute("max") ?? min;
+            var width = (double?)column.Attribute("width") ?? defaultWidth;
+            for (var index = min; index <= max; index++) columnWidths[index] = width;
+        }
+        var total = 0d;
+        for (var column = first; column <= last; column++)
+            total += columnWidths.GetValueOrDefault(column, defaultWidth);
+        return total;
     }
 
     private static void ClearCommentArea(XElement root, XElement sheetData, int overflow)
