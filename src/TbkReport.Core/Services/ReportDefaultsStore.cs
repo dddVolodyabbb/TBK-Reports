@@ -3,8 +3,18 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace TbkReport.Services;
+
+/// <summary>Colour theme of the application. System follows the Windows or Android setting.</summary>
+[JsonConverter(typeof(JsonStringEnumConverter<AppTheme>))]
+public enum AppTheme
+{
+    System,
+    Light,
+    Dark
+}
 
 public sealed record ReportDefaultsData(
     int Version,
@@ -14,7 +24,8 @@ public sealed record ReportDefaultsData(
     string? ExportPath = null,
     bool CalculateByCount = true,
     bool AutoExportExcel = false,
-    bool AutoExportPdf = false);
+    bool AutoExportPdf = false,
+    AppTheme Theme = AppTheme.System);
 
 // Persistent defaults shared by new reports and stored separately from dated history.
 public sealed class ReportDefaultsStore
@@ -38,7 +49,8 @@ public sealed class ReportDefaultsStore
                 data.Equipment.Any(item => item is null || string.IsNullOrWhiteSpace(item.Name) || item.InWork < 0 || item.InReserve < 0) ||
                 data.Problems.Any(problem => problem is null))
                 throw new InvalidDataException("Файл постоянных данных отчёта имеет неверный формат.");
-            return data;
+            // An out-of-range numeric theme value falls back to the system theme.
+            return Enum.IsDefined(data.Theme) ? data : data with { Theme = AppTheme.System };
         }
         catch (JsonException ex)
         {
@@ -52,7 +64,8 @@ public sealed class ReportDefaultsStore
             throw new InvalidDataException("Проверьте названия и количество оборудования.");
         var current = Load();
         var data = new ReportDefaultsData(1, header, equipment.ToArray(), problems.ToArray(), exportPath,
-            current?.CalculateByCount ?? true, current?.AutoExportExcel ?? false, current?.AutoExportPdf ?? false);
+            current?.CalculateByCount ?? true, current?.AutoExportExcel ?? false, current?.AutoExportPdf ?? false,
+            current?.Theme ?? AppTheme.System);
         Write(data);
     }
 
@@ -62,7 +75,8 @@ public sealed class ReportDefaultsStore
         Write(current with { ExportPath = exportPath });
     }
 
-    public void SaveSettings(string exportPath, bool calculateByCount, bool autoExportExcel = false, bool autoExportPdf = false)
+    public void SaveSettings(string exportPath, bool calculateByCount, bool autoExportExcel = false, bool autoExportPdf = false,
+        AppTheme? theme = null)
     {
         var current = Load() ?? new ReportDefaultsData(1, null, Array.Empty<EquipmentData>(), Array.Empty<string>(), CalculateByCount: true);
         Write(current with
@@ -70,7 +84,9 @@ public sealed class ReportDefaultsStore
             ExportPath = exportPath,
             CalculateByCount = calculateByCount,
             AutoExportExcel = autoExportExcel,
-            AutoExportPdf = autoExportPdf
+            AutoExportPdf = autoExportPdf,
+            // Callers that do not manage the theme keep the stored one.
+            Theme = theme ?? current.Theme
         });
     }
 

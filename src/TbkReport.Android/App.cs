@@ -17,6 +17,11 @@ public sealed class App : Application
         System.Globalization.CultureInfo.CurrentUICulture = System.Globalization.CultureInfo.GetCultureInfo("ru-RU");
         Resources["StringTimePickerHourText"] = "часы";
         Resources["StringTimePickerMinuteText"] = "минуты";
+        // Accent-coloured text readable on both backgrounds: darker blue in the light theme.
+        Resources.ThemeDictionaries[ThemeVariant.Light] = new ResourceDictionary
+            { ["AccentTextBrush"] = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#FF005A9E")) };
+        Resources.ThemeDictionaries[ThemeVariant.Dark] = new ResourceDictionary
+            { ["AccentTextBrush"] = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#FF42A5F5")) };
         Styles.Add(new FluentTheme());
         Styles.Add(new Style(selector => selector.Is<Button>())
         {
@@ -38,10 +43,23 @@ public sealed class App : Application
             var exportService = new AndroidExportService(context, paths);
             var mainView = new MainView();
             var viewModel = new MainViewModel(paths, Common.DefaultExportLocation, paths.TemplatePath, exportService);
+            ApplyTheme(viewModel.Report.Theme);
+            viewModel.Report.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(TbkReport.ViewModels.ReportViewModel.Theme)) ApplyTheme(viewModel.Report.Theme);
+            };
             mainView.DataContext = viewModel;
             lifetime.MainView = mainView;
             exportService.StorageProvider = () => Avalonia.Controls.TopLevel.GetTopLevel(lifetime.MainView)?.StorageProvider;
         }
         base.OnFrameworkInitializationCompleted();
     }
+
+    // «Как в системе» is Avalonia's Default variant, which follows the Android light/dark setting.
+    private void ApplyTheme(TbkReport.Services.AppTheme theme) => RequestedThemeVariant = theme switch
+    {
+        TbkReport.Services.AppTheme.Light => ThemeVariant.Light,
+        TbkReport.Services.AppTheme.Dark => ThemeVariant.Dark,
+        _ => ThemeVariant.Default
+    };
 }

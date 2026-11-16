@@ -17,6 +17,13 @@ public partial class EquipmentViewModel : ViewModelBase
     [ObservableProperty] private string draftInReserve = "0";
     [ObservableProperty] private string validation = "";
     [ObservableProperty] private EquipmentData? editingItem;
+    // Fields marked by the last add/save attempt; editing a field removes its mark until the next attempt.
+    [ObservableProperty] private bool isNameInvalid;
+    [ObservableProperty] private bool isInWorkInvalid;
+    [ObservableProperty] private bool isInReserveInvalid;
+    partial void OnDraftNameChanged(string value) => IsNameInvalid = false;
+    partial void OnDraftInWorkChanged(string value) => IsInWorkInvalid = false;
+    partial void OnDraftInReserveChanged(string value) => IsInReserveInvalid = false;
     public bool IsEditing => EditingItem is not null;
     public string ActionText => IsEditing ? "Сохранить изменения" : "Добавить оборудование";
     public bool HasDraft => IsEditing || !string.IsNullOrWhiteSpace(DraftName) || DraftInWork != "0" || DraftInReserve != "0";
@@ -29,10 +36,19 @@ public partial class EquipmentViewModel : ViewModelBase
     [RelayCommand]
     private void AddOrSave()
     {
-        if (string.IsNullOrWhiteSpace(DraftName)) { Validation = "Введите название оборудования."; return; }
-        if (!int.TryParse(DraftInWork, NumberStyles.None, CultureInfo.InvariantCulture, out var work) ||
-            !int.TryParse(DraftInReserve, NumberStyles.None, CultureInfo.InvariantCulture, out var reserve))
-        { Validation = "Количество должно быть целым неотрицательным числом."; return; }
+        // All fields are checked at once, so every wrong field is marked in one go.
+        IsNameInvalid = string.IsNullOrWhiteSpace(DraftName);
+        IsInWorkInvalid = !int.TryParse(DraftInWork, NumberStyles.None, CultureInfo.InvariantCulture, out var work);
+        IsInReserveInvalid = !int.TryParse(DraftInReserve, NumberStyles.None, CultureInfo.InvariantCulture, out var reserve);
+        if (IsNameInvalid || IsInWorkInvalid || IsInReserveInvalid)
+        {
+            Validation = IsNameInvalid
+                ? IsInWorkInvalid || IsInReserveInvalid
+                    ? "Введите название оборудования. Количество должно быть целым неотрицательным числом."
+                    : "Введите название оборудования."
+                : "Количество должно быть целым неотрицательным числом.";
+            return;
+        }
         var entry = new EquipmentData(DraftName.Trim(), work, reserve);
         var index = EditingItem is null ? -1 : IndexOf(EditingItem);
         if (index >= 0) Items[index] = entry;
@@ -44,6 +60,7 @@ public partial class EquipmentViewModel : ViewModelBase
     private void CancelEdit()
     {
         EditingItem = null; DraftName = ""; DraftInWork = "0"; DraftInReserve = "0"; Validation = "";
+        IsNameInvalid = IsInWorkInvalid = IsInReserveInvalid = false;
     }
 
     private int IndexOf(EquipmentData item)
@@ -58,6 +75,7 @@ public partial class EquipmentViewModel : ViewModelBase
         DraftInWork = item.InWork.ToString(CultureInfo.InvariantCulture);
         DraftInReserve = item.InReserve.ToString(CultureInfo.InvariantCulture);
         Validation = "";
+        IsNameInvalid = IsInWorkInvalid = IsInReserveInvalid = false;
     }
     public void Remove(EquipmentData item)
     {

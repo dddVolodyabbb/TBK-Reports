@@ -6,8 +6,19 @@
              <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
 
     <Application.Resources>
-        <x:String x:Key="StringTimePickerHourText">часы</x:String>
-        <x:String x:Key="StringTimePickerMinuteText">минуты</x:String>
+        <ResourceDictionary>
+            <!-- Accent-coloured text readable on both backgrounds: darker blue in the light theme. -->
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="AccentTextBrush" Color="#FF005A9E" />
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Dark">
+                    <SolidColorBrush x:Key="AccentTextBrush" Color="#FF42A5F5" />
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+            <x:String x:Key="StringTimePickerHourText">часы</x:String>
+            <x:String x:Key="StringTimePickerMinuteText">минуты</x:String>
+        </ResourceDictionary>
     </Application.Resources>
     <Application.DataTemplates>
         <local:ViewLocator />

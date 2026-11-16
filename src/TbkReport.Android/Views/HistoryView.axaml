@@ -6,10 +6,40 @@
     <Style Selector="TextBlock"><Setter Property="TextWrapping" Value="Wrap" /></Style>
     <Style Selector="Button"><Setter Property="MinHeight" Value="48" /></Style>
   </UserControl.Styles>
-  <ScrollViewer Margin="12" HorizontalScrollBarVisibility="Disabled">
+  <!-- The buttons stay at the top of the screen; only the content below them scrolls. -->
+  <Grid RowDefinitions="Auto,*" Margin="12">
+    <StackPanel Spacing="8" Margin="0,0,0,8">
+      <Button IsVisible="{Binding Report.IsHistoryMonthListVisible}" HorizontalAlignment="Left" Content="← Назад" Command="{Binding BackCommand}" />
+      <WrapPanel IsVisible="{Binding Report.IsHistoryDayListVisible}">
+        <Button Content="← К месяцам" Command="{Binding BackCommand}" Margin="0,0,8,0" />
+        <Button Content="К текущему отчёту" Command="{Binding NavigateCommand}" CommandParameter="Первая смена" />
+      </WrapPanel>
+      <StackPanel IsVisible="{Binding Report.IsHistoryReportVisible}" Spacing="8">
+        <WrapPanel>
+          <Button Content="← К дням" Command="{Binding BackCommand}" Margin="0,0,8,0" />
+          <Button Content="К текущему отчёту" Command="{Binding NavigateCommand}" CommandParameter="Первая смена" />
+        </WrapPanel>
+        <WrapPanel>
+          <Button Content="Редактировать отчёт" Command="{Binding EditHistoryReportCommand}" Margin="0,0,8,0"
+                  HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
+          <Button Content="Удалить отчёт" Command="{Binding Report.DeleteHistoryReportCommand}"
+                  HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
+        </WrapPanel>
+        <!-- The delete confirmation appears right under «Удалить отчёт», wherever the report is scrolled to. -->
+        <Border IsVisible="{Binding Report.IsDeleteHistoryPromptVisible}" Background="#FFFFC107" Padding="12">
+          <StackPanel Spacing="8">
+            <TextBlock Text="{Binding Report.DeleteHistoryPrompt}" Foreground="Black" TextWrapping="Wrap" />
+            <WrapPanel>
+              <Button Content="Удалить" Command="{Binding Report.ConfirmHistoryDeletionCommand}" MinHeight="48" Margin="0,0,8,0" />
+              <Button Content="Отмена" Command="{Binding Report.CancelHistoryDeletionCommand}" MinHeight="48" />
+            </WrapPanel>
+          </StackPanel>
+        </Border>
+      </StackPanel>
+    </StackPanel>
+  <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
                 <StackPanel Spacing="8">
                   <StackPanel IsVisible="{Binding Report.IsHistoryMonthListVisible}" Spacing="8">
-                    <Button HorizontalAlignment="Left" Content="← Назад" Command="{Binding BackCommand}" />
                     <TextBlock Text="Выберите месяц и год" FontSize="17" />
                     <ItemsControl ItemsSource="{Binding Report.HistoryMonths}">
                       
@@ -24,10 +54,6 @@
                     <TextBlock Text="В истории пока нет отчётов." IsVisible="{Binding Report.IsHistoryEmpty}" />
                   </StackPanel>
                   <StackPanel IsVisible="{Binding Report.IsHistoryDayListVisible}" Spacing="8">
-                    <WrapPanel>
-                      <Button Content="← К месяцам" Command="{Binding BackCommand}" Margin="0,0,8,0" />
-                      <Button Content="К текущему отчёту" Command="{Binding NavigateCommand}" CommandParameter="Первая смена" />
-                    </WrapPanel>
                     <TextBlock Text="Выберите день" FontSize="17" />
                     <ItemsControl ItemsSource="{Binding Report.HistoryDays}">
                       <ItemsControl.ItemTemplate>
@@ -41,25 +67,6 @@
                   </StackPanel>
                   <StackPanel IsVisible="{Binding Report.IsHistoryReportVisible}" Spacing="8">
                     <TextBlock Text="{Binding Report.SelectedHistoryReport.CollectorDisplay}" />
-                    <WrapPanel>
-                      <Button Content="← К дням" Command="{Binding BackCommand}" Margin="0,0,8,0" />
-                      <Button Content="К текущему отчёту" Command="{Binding NavigateCommand}" CommandParameter="Первая смена" />
-                    </WrapPanel>
-                    <WrapPanel>
-                      <Button Content="Редактировать отчёт" Command="{Binding EditHistoryReportCommand}" Margin="0,0,8,0"
-                              HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
-                      <Button Content="Удалить отчёт" Command="{Binding Report.DeleteHistoryReportCommand}"
-                              HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
-                    </WrapPanel>
-                    <Border IsVisible="{Binding Report.IsDeleteHistoryPromptVisible}" Background="#FFFFC107" Padding="12">
-                      <StackPanel Spacing="8">
-                        <TextBlock Text="{Binding Report.DeleteHistoryPrompt}" Foreground="Black" TextWrapping="Wrap" />
-                        <WrapPanel>
-                          <Button Content="Удалить" Command="{Binding Report.ConfirmHistoryDeletionCommand}" MinHeight="48" Margin="0,0,8,0" />
-                          <Button Content="Отмена" Command="{Binding Report.CancelHistoryDeletionCommand}" MinHeight="48" />
-                        </WrapPanel>
-                      </StackPanel>
-                    </Border>
                     <TextBlock Text="Отчёт за" FontSize="17" /><TextBlock Text="{Binding Report.SelectedHistoryDay.Label}" FontSize="17" />
                     <Grid ColumnDefinitions="1.7*,*,*,0.9*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" ColumnSpacing="6" RowSpacing="8">
                       <TextBlock Grid.Row="0" Grid.Column="1" Text="Первая смена" FontWeight="Bold" />
@@ -114,4 +121,5 @@
                   </StackPanel>
                 </StackPanel>
               </ScrollViewer>
+  </Grid>
 </UserControl>

@@ -22,9 +22,15 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
+            var viewModel = new MainViewModel();
+            ApplyTheme(viewModel.Theme);
+            viewModel.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(MainViewModel.Theme)) ApplyTheme(viewModel.Theme);
+            };
             desktop.MainWindow = new MainWindow
             {
-                DataContext = new MainViewModel(),
+                DataContext = viewModel,
             };
         }
 
@@ -45,4 +51,12 @@ public partial class App : Application
         }
         base.OnFrameworkInitializationCompleted();
     }
+
+    // «Как в системе» is Avalonia's Default variant, which follows the Windows light/dark setting.
+    private void ApplyTheme(TbkReport.Services.AppTheme theme) => RequestedThemeVariant = theme switch
+    {
+        TbkReport.Services.AppTheme.Light => Avalonia.Styling.ThemeVariant.Light,
+        TbkReport.Services.AppTheme.Dark => Avalonia.Styling.ThemeVariant.Dark,
+        _ => Avalonia.Styling.ThemeVariant.Default
+    };
 }

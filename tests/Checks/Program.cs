@@ -264,13 +264,24 @@ equipmentEditor.DraftName = "Головка Альфа";
 equipmentEditor.DraftInWork = "-1";
 equipmentEditor.AddOrSaveCommand.Execute(null);
 Check(equipmentEditor.Items.Count == 0 && equipmentEditor.Validation.Length > 0, "negative equipment quantity rejected");
+Check(equipmentEditor.IsInWorkInvalid && !equipmentEditor.IsNameInvalid && !equipmentEditor.IsInReserveInvalid,
+    "only the wrong equipment field is marked");
 equipmentEditor.DraftInWork = "2";
+Check(!equipmentEditor.IsInWorkInvalid, "editing a marked equipment field removes its mark");
 equipmentEditor.DraftInReserve = "1.5";
 equipmentEditor.AddOrSaveCommand.Execute(null);
-Check(equipmentEditor.Items.Count == 0, "fractional equipment quantity rejected");
+Check(equipmentEditor.Items.Count == 0 && equipmentEditor.IsInReserveInvalid, "fractional equipment quantity rejected");
+var nameAndCount = new EquipmentViewModel { DraftName = " ", DraftInWork = "x" };
+nameAndCount.AddOrSaveCommand.Execute(null);
+Check(nameAndCount.IsNameInvalid && nameAndCount.IsInWorkInvalid && !nameAndCount.IsInReserveInvalid &&
+      nameAndCount.Validation.Contains("название") && nameAndCount.Validation.Contains("Количество"),
+    "all wrong equipment fields are marked at once");
+nameAndCount.CancelEditCommand.Execute(null);
+Check(!nameAndCount.IsNameInvalid && !nameAndCount.IsInWorkInvalid && nameAndCount.Validation == "", "cancel clears equipment marks");
 equipmentEditor.DraftInReserve = "0";
 equipmentEditor.AddOrSaveCommand.Execute(null);
-Check(equipmentEditor.Items.Single().InReserve == 0 && !equipmentEditor.HasDraft, "equipment retains zero reserve and clears draft");
+Check(equipmentEditor.Items.Single().InReserve == 0 && !equipmentEditor.HasDraft && !equipmentEditor.IsInReserveInvalid,
+    "equipment retains zero reserve and clears draft");
 equipmentEditor.BeginEdit(equipmentEditor.Items[0]);
 equipmentEditor.DraftInWork = "4";
 equipmentEditor.AddOrSaveCommand.Execute(null);
@@ -498,6 +509,51 @@ try
         "equipment names use a wrapping copy of the template style");
 }
 finally { if (File.Exists(longEquipmentOutput)) File.Delete(longEquipmentOutput); }
+
+var themeRoot = Path.Combine(Path.GetTempPath(), $"tbk-theme-{Guid.NewGuid():N}");
+try
+{
+    Directory.CreateDirectory(themeRoot);
+    var themeSettings = Path.Combine(themeRoot, "settings.json");
+    // A settings file from an older version has no theme: the system theme is used.
+    File.WriteAllText(themeSettings, """{"Version":1,"Header":null,"Equipment":[],"Problems":[],"CalculateByCount":false}""");
+    var themeDefaults = new ReportDefaultsStore(themeSettings);
+    Check(themeDefaults.Load()!.Theme == AppTheme.System, "settings without a theme use the system theme");
+
+    var themeHistory = new ReportHistoryStore(Path.Combine(themeRoot, "History"));
+    var themeEditor = new MainViewModel(themeHistory, themeDefaults);
+    Check(themeEditor.Theme == AppTheme.System && themeEditor.PendingThemeSystem, "editor starts with the stored theme");
+    themeEditor.BeginSettingsEdit();
+    themeEditor.PendingThemeDark = true;
+    Check(themeEditor.Theme == AppTheme.System && themeEditor.PendingThemeDark && !themeEditor.PendingThemeSystem,
+        "choosing a theme does not apply it before saving");
+    themeEditor.DiscardSettingsEdit();
+    Check(themeEditor.PendingThemeSystem && themeDefaults.Load()!.Theme == AppTheme.System, "leaving settings discards the chosen theme");
+
+    themeEditor.BeginSettingsEdit();
+    themeEditor.PendingThemeLight = true;
+    themeEditor.SaveSettings(themeRoot);
+    Check(themeEditor.Theme == AppTheme.Light && themeDefaults.Load()!.Theme == AppTheme.Light &&
+          File.ReadAllText(themeSettings).Contains("\"Theme\": \"Light\""), "saving settings applies and stores the theme by name");
+    themeDefaults.Save(null, Array.Empty<EquipmentData>(), new[] { "Проблема" });
+    themeDefaults.SaveSettings(themeRoot, calculateByCount: true);
+    Check(themeDefaults.Load()!.Theme == AppTheme.Light, "saving report data or other settings keeps the theme");
+    Check(new MainViewModel(themeHistory, themeDefaults).Theme == AppTheme.Light, "the theme is restored on the next start");
+
+    // Backups carry the theme in the settings section; older backups without it keep the current theme.
+    var transfer = new DataTransferService(themeHistory, themeDefaults);
+    var backup = transfer.Read(transfer.Export(new TransferSelection(false, false, false, false, true, false, false)));
+    Check(backup.Settings?.Theme == AppTheme.Light, "backup settings include the theme");
+    var otherDefaults = new ReportDefaultsStore(Path.Combine(themeRoot, "other-settings.json"));
+    otherDefaults.SaveSettings(themeRoot, true, theme: AppTheme.Dark);
+    var otherTransfer = new DataTransferService(new ReportHistoryStore(Path.Combine(themeRoot, "OtherHistory")), otherDefaults);
+    otherTransfer.Import(backup);
+    Check(otherDefaults.Load()!.Theme == AppTheme.Light, "importing settings applies the backed-up theme");
+    otherDefaults.SaveSettings(themeRoot, true, theme: AppTheme.Dark);
+    otherTransfer.Import(backup with { Settings = backup.Settings! with { Theme = null } });
+    Check(otherDefaults.Load()!.Theme == AppTheme.Dark, "importing an older backup without a theme keeps the current one");
+}
+finally { if (Directory.Exists(themeRoot)) Directory.Delete(themeRoot, true); }
 
 var historyDirectory = Path.Combine(Path.GetTempPath(), $"tbk-history-check-{Guid.NewGuid():N}");
 try

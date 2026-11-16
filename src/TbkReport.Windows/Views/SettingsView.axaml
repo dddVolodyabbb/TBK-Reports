@@ -6,11 +6,12 @@
       <Setter Property="OnContent" Value="Вкл" />
       <Setter Property="OffContent" Value="Выкл" />
     </Style>
+    <!-- Segment buttons take the theme's button colours, so they read well in light and dark themes. -->
     <Style Selector="RadioButton.CalculationSegment">
-      <Setter Property="Background" Value="#252525" />
+      <Setter Property="Background" Value="{DynamicResource ButtonBackground}" />
       <Setter Property="BorderBrush" Value="#71808C" />
       <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="Foreground" Value="White" />
+      <Setter Property="Foreground" Value="{DynamicResource ButtonForeground}" />
       <Setter Property="Padding" Value="14,9" />
       <Setter Property="HorizontalContentAlignment" Value="Center" />
       <Setter Property="Template">
@@ -25,6 +26,7 @@
     </Style>
     <Style Selector="RadioButton.CalculationSegment:checked">
       <Setter Property="Background" Value="#0078D4" />
+      <Setter Property="Foreground" Value="White" />
     </Style>
     <Style Selector="RadioButton.CalculationSegment.Left /template/ Border#SegmentBorder">
       <Setter Property="CornerRadius" Value="7,0,0,7" />
@@ -40,7 +42,8 @@
         <Button Content="Сохранить" Command="{Binding SaveExportDirectoryCommand}" />
       </StackPanel>
       <TextBlock Text="Параметры" FontSize="22" FontWeight="SemiBold" />
-      <Grid ColumnDefinitions="Auto,*" ColumnSpacing="16">
+      <!-- One grid for both segment rows, so their labels share one column width. -->
+      <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" ColumnSpacing="16" RowSpacing="14">
         <TextBlock Text="Расчёт по" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" />
         <Border Grid.Column="1" Background="#182D4055" CornerRadius="8" Padding="16,10">
           <Grid ColumnDefinitions="*,*" MaxWidth="520" HorizontalAlignment="Left">
@@ -48,6 +51,17 @@
                          IsChecked="{Binding PendingCalculateByNumbers, Mode=TwoWay}" />
             <RadioButton Grid.Column="1" Classes="CalculationSegment Right" GroupName="CalculationMode" Content="Количеству стыков"
                          IsChecked="{Binding PendingCalculateByCount, Mode=TwoWay}" />
+          </Grid>
+        </Border>
+        <TextBlock Grid.Row="1" Text="Тема" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" />
+        <Border Grid.Row="1" Grid.Column="1" Background="#182D4055" CornerRadius="8" Padding="16,10">
+          <Grid ColumnDefinitions="*,*,*" MaxWidth="520" HorizontalAlignment="Left">
+            <RadioButton Classes="CalculationSegment Left" GroupName="ThemeMode" Content="Как в системе"
+                         IsChecked="{Binding PendingThemeSystem, Mode=TwoWay}" />
+            <RadioButton Grid.Column="1" Classes="CalculationSegment" GroupName="ThemeMode" Content="Светлая"
+                         IsChecked="{Binding PendingThemeLight, Mode=TwoWay}" />
+            <RadioButton Grid.Column="2" Classes="CalculationSegment Right" GroupName="ThemeMode" Content="Тёмная"
+                         IsChecked="{Binding PendingThemeDark, Mode=TwoWay}" />
           </Grid>
         </Border>
       </Grid>
@@ -79,7 +93,7 @@
             <CheckBox Grid.Row="3" Grid.ColumnSpan="2" Content="Техники и подписи" IsChecked="{Binding DataTransfer.ExportTechnicians, Mode=TwoWay}" />
           </Grid>
           <TextBlock Text="Папка экспорта не переносится и остаётся своей на каждом устройстве."
-                     Foreground="#FFB0B0B0" TextWrapping="Wrap" />
+                     Opacity="0.7" TextWrapping="Wrap" />
         </StackPanel>
       </Border>
       <Grid ColumnDefinitions="*,*" ColumnSpacing="8">

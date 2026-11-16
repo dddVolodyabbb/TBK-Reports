@@ -22,15 +22,23 @@
       </ItemsControl>
       <StackPanel Spacing="12">
         <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" RowSpacing="8" ColumnSpacing="8">
-          <StackPanel Grid.ColumnSpan="2" Spacing="4"><TextBlock Text="Название оборудования" /><TextBox Name="EquipmentNameTextBox" Text="{Binding DraftName, Mode=TwoWay}" /></StackPanel>
-          <StackPanel Grid.Row="1" Spacing="4"><TextBlock Text="В работе (Рб)" /><TextBox Text="{Binding DraftInWork, Mode=TwoWay}" /></StackPanel>
-          <StackPanel Grid.Row="1" Grid.Column="1" Spacing="4"><TextBlock Text="В резерве (Рз)" /><TextBox Text="{Binding DraftInReserve, Mode=TwoWay}" /></StackPanel>
+          <!-- A red frame marks a field rejected by the last «Добавить оборудование». -->
+          <StackPanel Grid.ColumnSpan="2" Spacing="4"><TextBlock Text="Название оборудования" />
+            <Grid><TextBox Name="EquipmentNameTextBox" Text="{Binding DraftName, Mode=TwoWay}" />
+              <Border IsVisible="{Binding IsNameInvalid}" BorderBrush="Red" BorderThickness="2" CornerRadius="4" IsHitTestVisible="False" /></Grid></StackPanel>
+          <StackPanel Grid.Row="1" Spacing="4"><TextBlock Text="В работе (Рб)" />
+            <Grid><TextBox Text="{Binding DraftInWork, Mode=TwoWay}" />
+              <Border IsVisible="{Binding IsInWorkInvalid}" BorderBrush="Red" BorderThickness="2" CornerRadius="4" IsHitTestVisible="False" /></Grid></StackPanel>
+          <StackPanel Grid.Row="1" Grid.Column="1" Spacing="4"><TextBlock Text="В резерве (Рз)" />
+            <Grid><TextBox Text="{Binding DraftInReserve, Mode=TwoWay}" />
+              <Border IsVisible="{Binding IsInReserveInvalid}" BorderBrush="Red" BorderThickness="2" CornerRadius="4" IsHitTestVisible="False" /></Grid></StackPanel>
         </Grid>
         <Grid ColumnDefinitions="Auto,Auto" ColumnSpacing="8" HorizontalAlignment="Left">
           <Button Content="{Binding ActionText}" Command="{Binding AddOrSaveCommand}" />
           <Button Grid.Column="1" Content="Отмена" Command="{Binding CancelEditCommand}" IsVisible="{Binding IsEditing}" />
         </Grid>
-        <TextBlock Text="{Binding Validation}" TextWrapping="Wrap" />
+        <TextBlock Text="{Binding Validation}" Foreground="OrangeRed" TextWrapping="Wrap"
+                   IsVisible="{Binding Validation, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
       </StackPanel>
     </StackPanel>
   </ScrollViewer>

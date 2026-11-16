@@ -18,11 +18,20 @@
         </ItemsControl.ItemTemplate>
       </ItemsControl>
       <Grid ColumnDefinitions="*,130,130" ColumnSpacing="8">
-        <StackPanel Spacing="4"><TextBlock Text="Название оборудования" /><TextBox Text="{Binding DraftName, Mode=TwoWay}" /></StackPanel>
-        <StackPanel Grid.Column="1" Spacing="4"><TextBlock Text="В работе (Рб)" /><TextBox Text="{Binding DraftInWork, Mode=TwoWay}" /></StackPanel>
-        <StackPanel Grid.Column="2" Spacing="4"><TextBlock Text="В резерве (Рз)" /><TextBox Text="{Binding DraftInReserve, Mode=TwoWay}" /></StackPanel>
+        <!-- A red frame marks a field rejected by the last «Добавить оборудование». -->
+        <StackPanel Spacing="4"><TextBlock Text="Название оборудования" />
+          <Grid><TextBox Text="{Binding DraftName, Mode=TwoWay}" />
+            <Border IsVisible="{Binding IsNameInvalid}" BorderBrush="Red" BorderThickness="2" CornerRadius="4" IsHitTestVisible="False" /></Grid></StackPanel>
+        <StackPanel Grid.Column="1" Spacing="4"><TextBlock Text="В работе (Рб)" />
+          <Grid><TextBox Text="{Binding DraftInWork, Mode=TwoWay}" />
+            <Border IsVisible="{Binding IsInWorkInvalid}" BorderBrush="Red" BorderThickness="2" CornerRadius="4" IsHitTestVisible="False" /></Grid></StackPanel>
+        <StackPanel Grid.Column="2" Spacing="4"><TextBlock Text="В резерве (Рз)" />
+          <Grid><TextBox Text="{Binding DraftInReserve, Mode=TwoWay}" />
+            <Border IsVisible="{Binding IsInReserveInvalid}" BorderBrush="Red" BorderThickness="2" CornerRadius="4" IsHitTestVisible="False" /></Grid></StackPanel>
       </Grid>
-      <TextBlock Text="{Binding Validation}" TextWrapping="Wrap" />
+      <!-- Shown only with an error: an empty line here left a gap between the fields and the button. -->
+      <TextBlock Text="{Binding Validation}" Foreground="OrangeRed" TextWrapping="Wrap"
+                 IsVisible="{Binding Validation, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
       <StackPanel Orientation="Horizontal" Spacing="8">
         <Button Content="{Binding ActionText}" Command="{Binding AddOrSaveCommand}" />
         <Button Content="Отмена" Command="{Binding CancelEditCommand}" IsVisible="{Binding IsEditing}" />

@@ -7,11 +7,12 @@
       <Setter Property="OnContent" Value="Вкл" />
       <Setter Property="OffContent" Value="Выкл" />
     </Style>
+    <!-- Segment buttons take the theme's button colours, so they read well in light and dark themes. -->
     <Style Selector="RadioButton.CalculationSegment">
-      <Setter Property="Background" Value="#252525" />
+      <Setter Property="Background" Value="{DynamicResource ButtonBackground}" />
       <Setter Property="BorderBrush" Value="#71808C" />
       <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="Foreground" Value="White" />
+      <Setter Property="Foreground" Value="{DynamicResource ButtonForeground}" />
       <Setter Property="Padding" Value="10,10" />
       <Setter Property="HorizontalContentAlignment" Value="Center" />
       <Setter Property="Template">
@@ -26,6 +27,7 @@
     </Style>
     <Style Selector="RadioButton.CalculationSegment:checked">
       <Setter Property="Background" Value="#0078D4" />
+      <Setter Property="Foreground" Value="White" />
     </Style>
     <Style Selector="RadioButton.CalculationSegment.Left /template/ Border#SegmentBorder">
       <Setter Property="CornerRadius" Value="7,0,0,7" />
@@ -49,6 +51,20 @@
           </Grid>
         </Border>
       </Grid>
+      <!-- Three choices do not fit beside a label on a phone: the label goes above them. -->
+      <StackPanel Spacing="8">
+        <TextBlock Text="Тема" FontSize="18" FontWeight="SemiBold" />
+        <Border Background="#182D4055" CornerRadius="8" Padding="12,10">
+          <Grid ColumnDefinitions="*,*,*">
+            <RadioButton Classes="CalculationSegment Left" GroupName="ThemeMode" Content="Как в системе"
+                         IsChecked="{Binding Report.PendingThemeSystem, Mode=TwoWay}" />
+            <RadioButton Grid.Column="1" Classes="CalculationSegment" GroupName="ThemeMode" Content="Светлая"
+                         IsChecked="{Binding Report.PendingThemeLight, Mode=TwoWay}" />
+            <RadioButton Grid.Column="2" Classes="CalculationSegment Right" GroupName="ThemeMode" Content="Тёмная"
+                         IsChecked="{Binding Report.PendingThemeDark, Mode=TwoWay}" />
+          </Grid>
+        </Border>
+      </StackPanel>
       <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
         <TextBlock Text="Экспорт Excel одновременно с сохранением отчёта" VerticalAlignment="Center" TextWrapping="Wrap" />
         <ToggleSwitch Grid.Column="1" IsChecked="{Binding Report.PendingAutoExportExcel, Mode=TwoWay}" AutomationProperties.Name="Автоматический экспорт Excel" />

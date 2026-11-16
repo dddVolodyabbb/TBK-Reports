@@ -23,7 +23,8 @@ public sealed record TransferSelection(
     public bool HasAny => History || Problems || Equipment || Openings || Settings || Header || Technicians;
 }
 
-public sealed record TransferSettings(bool CalculateByCount, bool AutoExportExcel, bool AutoExportPdf);
+// Theme is optional: backups made before it existed keep the current theme on import.
+public sealed record TransferSettings(bool CalculateByCount, bool AutoExportExcel, bool AutoExportPdf, AppTheme? Theme = null);
 public sealed record TransferHeader(
     string Customer,
     string Project,
@@ -89,7 +90,8 @@ public sealed class DataTransferService(ReportHistoryStore history, ReportDefaul
             selection.Settings ? new TransferSettings(
                 saved?.CalculateByCount ?? true,
                 saved?.AutoExportExcel ?? false,
-                saved?.AutoExportPdf ?? false) : null);
+                saved?.AutoExportPdf ?? false,
+                saved?.Theme ?? AppTheme.System) : null);
         Validate(document);
         return JsonSerializer.SerializeToUtf8Bytes(document, Options);
     }
@@ -263,7 +265,7 @@ public sealed class DataTransferService(ReportHistoryStore history, ReportDefaul
         if (imported is null) return null;
         return new ReportDefaultsData(1, imported.Header, imported.Equipment, imported.Problems,
             current?.ExportPath, current?.CalculateByCount ?? true,
-            current?.AutoExportExcel ?? false, current?.AutoExportPdf ?? false);
+            current?.AutoExportExcel ?? false, current?.AutoExportPdf ?? false, current?.Theme ?? AppTheme.System);
     }
 
     private static ReportDefaultsData? MergeDefaults(
@@ -286,7 +288,8 @@ public sealed class DataTransferService(ReportHistoryStore history, ReportDefaul
             Problems = selection.Problems ? document.Problems! : current.Problems,
             CalculateByCount = selection.Settings ? settings!.CalculateByCount : current.CalculateByCount,
             AutoExportExcel = selection.Settings ? settings!.AutoExportExcel : current.AutoExportExcel,
-            AutoExportPdf = selection.Settings ? settings!.AutoExportPdf : current.AutoExportPdf
+            AutoExportPdf = selection.Settings ? settings!.AutoExportPdf : current.AutoExportPdf,
+            Theme = selection.Settings && settings!.Theme is { } theme && Enum.IsDefined(theme) ? theme : current.Theme
         };
     }
 

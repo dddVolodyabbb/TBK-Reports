@@ -87,7 +87,7 @@
                   <Border x:Name="FirstSignatureEditor" Grid.Row="2" Grid.Column="1" IsVisible="{Binding Header.IsFirstShiftSignatureEditorVisible}" Padding="8" CornerRadius="8" BorderBrush="#606060" BorderThickness="1">
                     <StackPanel Spacing="8" HorizontalAlignment="Center">
                       <TextBlock Text="Нарисуйте подпись мышью" />
-                      <TextBlock Text="Удерживайте левую кнопку мыши или Shift для работы пера." Foreground="#FFFF5C5C" TextWrapping="Wrap" MaxWidth="360" />
+                      <TextBlock Text="Удерживайте левую кнопку мыши или Shift для работы пера." Foreground="#FFE53935" TextWrapping="Wrap" MaxWidth="360" />
                       <controls:SignaturePad x:Name="FirstSignaturePad" Signature="{Binding Header.FirstShiftSignature, Mode=TwoWay}" Width="240" Height="180" HorizontalAlignment="Center" />
                       <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
                         <Button Content="Очистить" Command="{Binding Header.ClearFirstShiftSignatureCommand}" />
@@ -99,7 +99,7 @@
                   <Border x:Name="SecondSignatureEditor" Grid.Row="2" Grid.Column="2" IsVisible="{Binding Header.IsSecondShiftSignatureEditorVisible}" Padding="8" CornerRadius="8" BorderBrush="#606060" BorderThickness="1">
                     <StackPanel Spacing="8" HorizontalAlignment="Center">
                       <TextBlock Text="Нарисуйте подпись мышью" />
-                      <TextBlock Text="Удерживайте левую кнопку мыши или Shift для работы пера." Foreground="#FFFF5C5C" TextWrapping="Wrap" MaxWidth="360" />
+                      <TextBlock Text="Удерживайте левую кнопку мыши или Shift для работы пера." Foreground="#FFE53935" TextWrapping="Wrap" MaxWidth="360" />
                       <controls:SignaturePad x:Name="SecondSignaturePad" Signature="{Binding Header.SecondShiftSignature, Mode=TwoWay}" Width="240" Height="180" HorizontalAlignment="Center" />
                       <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
                         <Button Content="Очистить" Command="{Binding Header.ClearSecondShiftSignatureCommand}" />
@@ -122,7 +122,7 @@
             <ScrollViewer>
               <StackPanel Margin="16" Spacing="10" MaxWidth="760" HorizontalAlignment="Left">
                 <TextBlock Text="Приём начатого коллектора" FontSize="18" FontWeight="Bold" />
-                <TextBlock Text="{Binding MonthlyOpeningScope}" FontWeight="SemiBold" Foreground="#FF42A5F5" />
+                <TextBlock Text="{Binding MonthlyOpeningScope}" FontWeight="SemiBold" Foreground="{DynamicResource AccentTextBrush}" />
                 <!-- The most common case comes first and in red: most users must not fill this page at all. -->
                 <TextBlock Text="Если коллектор варится с первого стыка, здесь ничего заполнять не нужно!" TextWrapping="Wrap"
                            Foreground="#FFE53935" FontWeight="Bold" FontSize="16" />

@@ -62,11 +62,46 @@ public partial class ReportViewModel : ViewModelBase
         set { if (value) PendingCalculateByCount = false; }
     }
 
+    /// <summary>The applied colour theme; the application shell maps it to light, dark or the system theme.</summary>
+    [ObservableProperty] private AppTheme theme;
+
+    // The theme chosen on the settings page; applied together with the other settings by «Сохранить».
+    private AppTheme pendingTheme;
+    public AppTheme PendingTheme
+    {
+        get => pendingTheme;
+        set
+        {
+            if (pendingTheme == value) return;
+            pendingTheme = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(PendingThemeSystem));
+            OnPropertyChanged(nameof(PendingThemeLight));
+            OnPropertyChanged(nameof(PendingThemeDark));
+        }
+    }
+    public bool PendingThemeSystem
+    {
+        get => PendingTheme == AppTheme.System;
+        set { if (value) PendingTheme = AppTheme.System; }
+    }
+    public bool PendingThemeLight
+    {
+        get => PendingTheme == AppTheme.Light;
+        set { if (value) PendingTheme = AppTheme.Light; }
+    }
+    public bool PendingThemeDark
+    {
+        get => PendingTheme == AppTheme.Dark;
+        set { if (value) PendingTheme = AppTheme.Dark; }
+    }
+
     public void BeginSettingsEdit()
     {
         PendingCalculateByCount = CalculateByCount;
         PendingAutoExportExcel = AutoExportExcel;
         PendingAutoExportPdf = AutoExportPdf;
+        PendingTheme = Theme;
     }
 
     public void DiscardSettingsEdit()
@@ -74,11 +109,13 @@ public partial class ReportViewModel : ViewModelBase
         PendingCalculateByCount = CalculateByCount;
         PendingAutoExportExcel = AutoExportExcel;
         PendingAutoExportPdf = AutoExportPdf;
+        PendingTheme = Theme;
     }
 
     public void SaveSettings(string exportPath)
     {
-        defaults.SaveSettings(exportPath, PendingCalculateByCount, PendingAutoExportExcel, PendingAutoExportPdf);
+        defaults.SaveSettings(exportPath, PendingCalculateByCount, PendingAutoExportExcel, PendingAutoExportPdf, PendingTheme);
+        Theme = PendingTheme;
         if (calculateByCount != PendingCalculateByCount)
         {
             calculateByCount = PendingCalculateByCount;
@@ -864,6 +901,8 @@ public partial class ReportViewModel : ViewModelBase
         AutoExportPdf = storedDefaults.AutoExportPdf;
         PendingAutoExportExcel = AutoExportExcel;
         PendingAutoExportPdf = AutoExportPdf;
+        Theme = storedDefaults.Theme;
+        PendingTheme = Theme;
         ApplyCalculationMode();
         Header.Load(storedDefaults.Header);
         Problems.Load(storedDefaults.Problems);
