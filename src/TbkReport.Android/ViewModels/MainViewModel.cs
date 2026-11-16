@@ -24,6 +24,8 @@ public partial class MainViewModel : ObservableObject
             () => templatePath, location => location, calculateByCountByDefault: true);
         ExportService = exportService;
         Report.AutoExportSavedReport = AutoExportSavedReportAsync;
+        Report.Mail = new ReportMailService(new MailSettingsStore(Path.Combine(storagePaths.DataDirectory, "mail.json")),
+            new AndroidSecretProtector(), new GmailTransport());
         pendingExportLocation = Report.ExportDirectory;
     }
 
@@ -289,6 +291,12 @@ public partial class MainViewModel : ObservableObject
         if (IsExportReplacePromptVisible)
         {
             CancelExportReplacement();
+            return true;
+        }
+
+        if (Report.IsSendEmailPromptVisible)
+        {
+            Report.CancelSendEmailCommand.Execute(null);
             return true;
         }
 

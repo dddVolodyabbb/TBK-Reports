@@ -7,7 +7,12 @@ namespace TbkReport.ViewModels;
 public sealed class MainViewModel : ReportViewModel
 {
     public MainViewModel() : this(new ReportHistoryStore(Common.Current),
-        new ReportDefaultsStore(Common.Current), new ReportDraftStore(Common.Current), true) { }
+        new ReportDefaultsStore(Common.Current), new ReportDraftStore(Common.Current), true)
+    {
+        // Only the real application signs in to mail; test editors built with other constructors never touch mail.json.
+        Mail = new ReportMailService(new MailSettingsStore(Path.Combine(Common.Current.DataDirectory, "mail.json")),
+            new WindowsSecretProtector(), new GmailTransport());
+    }
 
     public MainViewModel(ReportHistoryStore history) : this(history,
         new ReportDefaultsStore(Common.Current), new ReportDraftStore(Path.Combine(history.DirectoryPath, "draft.json"))) { }

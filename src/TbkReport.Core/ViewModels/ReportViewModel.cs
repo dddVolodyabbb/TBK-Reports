@@ -102,6 +102,7 @@ public partial class ReportViewModel : ViewModelBase
         PendingAutoExportExcel = AutoExportExcel;
         PendingAutoExportPdf = AutoExportPdf;
         PendingTheme = Theme;
+        ResetPendingMailSettings();
     }
 
     public void DiscardSettingsEdit()
@@ -110,10 +111,12 @@ public partial class ReportViewModel : ViewModelBase
         PendingAutoExportExcel = AutoExportExcel;
         PendingAutoExportPdf = AutoExportPdf;
         PendingTheme = Theme;
+        ResetPendingMailSettings();
     }
 
     public void SaveSettings(string exportPath)
     {
+        SavePendingMailSettings();
         defaults.SaveSettings(exportPath, PendingCalculateByCount, PendingAutoExportExcel, PendingAutoExportPdf, PendingTheme);
         Theme = PendingTheme;
         if (calculateByCount != PendingCalculateByCount)
@@ -124,6 +127,8 @@ public partial class ReportViewModel : ViewModelBase
         }
         AutoExportExcel = PendingAutoExportExcel;
         AutoExportPdf = PendingAutoExportPdf;
+        AutoSendEmail = mail?.AutoSend == true && AutoExportPdf;
+        NotifySendEmailAvailability();
     }
 
     private void ApplyCalculationMode()
@@ -199,14 +204,20 @@ public partial class ReportViewModel : ViewModelBase
     {
         OnPropertyChanged(nameof(IsHistoryReportVisible));
         OnPropertyChanged(nameof(SelectedHistoryProblems));
+        NotifySendEmailAvailability();
     }
-    partial void OnIsHistoryViewVisibleChanged(bool value) => OnPropertyChanged(nameof(IsReportViewVisible));
+    partial void OnIsHistoryViewVisibleChanged(bool value)
+    {
+        OnPropertyChanged(nameof(IsReportViewVisible));
+        NotifySendEmailAvailability();
+    }
     partial void OnIsSettingsViewVisibleChanged(bool value) => OnPropertyChanged(nameof(IsReportViewVisible));
     partial void OnIsErrorStatusChanged(bool value) => OnPropertyChanged(nameof(StatusForeground));
     partial void OnExportStatusChanged(string value) => OnPropertyChanged(nameof(HasExportStatus));
     partial void OnIsEditingHistoryReportChanged(bool value) => OnPropertyChanged(nameof(IsReportDateEditable));
     partial void OnReportDateChanged(DateTimeOffset? value)
     {
+        NotifySendEmailAvailability();
         isChangingReportDate = true;
         try
         {
@@ -265,6 +276,7 @@ public partial class ReportViewModel : ViewModelBase
         {
             if (args.PropertyName != nameof(ReportHeaderViewModel.CollectorNumber)) return;
             OnPropertyChanged(nameof(MonthlyOpeningScope));
+            NotifySendEmailAvailability();
             if (!isDraftTrackingReady || isApplyingReport) return;
             try
             {
@@ -449,6 +461,9 @@ public partial class ReportViewModel : ViewModelBase
             savedReport = CurrentReport();
             if (IsEditingHistoryReport)
             {
+                // A changed report may be sent to the management again.
+                if (editingHistoryDate is { } changedDate && Header.CollectorNumber == editingHistoryCollector)
+                    ForgetSentReport(changedDate, editingHistoryCollector);
                 if (editingHistoryDate is not { } editedDate)
                     throw new InvalidOperationException("Не выбран редактируемый отчёт.");
                 if (CurrentReportDate != editedDate.Date)
@@ -478,16 +493,45 @@ public partial class ReportViewModel : ViewModelBase
             return;
         }
 
-        if ((!AutoExportExcel && !AutoExportPdf) || AutoExportSavedReport is null) return;
+        var exportData = savedReport with { MonthlyTotals = history.GetMonthlyTotals(savedReport) };
+        var exported = false;
+        if ((AutoExportExcel || AutoExportPdf) && AutoExportSavedReport is not null)
+        {
+            try
+            {
+                await AutoExportSavedReport(exportData, AutoExportExcel, AutoExportPdf);
+                exported = true;
+            }
+            catch (Exception ex)
+            {
+                // A failed export never sends a mail: the user fixes the export first.
+                ShowStatus($"Отчёт сохранён, но не удалось выполнить автоматический экспорт: {ExportErrorMessage(ex)}" +
+                    (ShouldAutoSendEmail ? " На почту отчёт не отправлен." : ""), isError: true);
+                return;
+            }
+        }
+
+        if (!ShouldAutoSendEmail)
+        {
+            if (exported) ShowStatus("Отчёт сохранён. Автоматический экспорт выполнен.");
+            return;
+        }
+        var done = exported ? "Отчёт сохранён и экспортирован" : "Отчёт сохранён";
+        if (mail!.FindSent(exportData.Date, exportData.Header?.CollectorNumber) is { } mark)
+        {
+            ShowStatus($"{done}. На почту не отправлен: этот отчёт уже отправлен {SentText(mark)}.");
+            return;
+        }
         try
         {
-            var exportData = savedReport with { MonthlyTotals = history.GetMonthlyTotals(savedReport) };
-            await AutoExportSavedReport(exportData, AutoExportExcel, AutoExportPdf);
-            ShowStatus("Отчёт сохранён. Автоматический экспорт выполнен.");
+            ShowStatus($"{done}. Отправка на почту…");
+            await SendReportByMailAsync(exportData);
+            ShowStatus($"{done} и отправлен на почту руководству.");
         }
         catch (Exception ex)
         {
-            ShowStatus($"Отчёт сохранён, но не удалось выполнить автоматический экспорт: {ExportErrorMessage(ex)}", isError: true);
+            ShowStatus($"{done}, но не отправлен на почту: {(ex is MailException ? ex.Message : ExportErrorMessage(ex))} " +
+                "Отправьте его вручную через «Отправить на почту».", isError: true);
         }
     }
 
@@ -537,6 +581,7 @@ public partial class ReportViewModel : ViewModelBase
         try
         {
             var deleted = history.Delete(date, key.CollectorNumber);
+            ForgetSentReport(date, key.CollectorNumber);
             CancelHistoryDeletion();
             RefreshHistory();
             SelectHistoryMonth(HistoryMonths.FirstOrDefault(month => month.Year == date.Year && month.Month == date.Month));

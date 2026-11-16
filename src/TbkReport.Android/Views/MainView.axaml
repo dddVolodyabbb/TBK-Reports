@@ -48,6 +48,7 @@
               <MenuItem Header="Отменить редактирование" Command="{Binding CancelHistoryEditCommand}" IsVisible="{Binding Report.IsEditingHistoryReport}" MinHeight="56" MinWidth="260" FontSize="18" Padding="16,12" />
               <MenuItem Header="Экспортировать Excel" Command="{Binding ExportReportCommand}" MinHeight="56" MinWidth="260" FontSize="18" Padding="16,12" />
               <MenuItem Header="Экспортировать PDF" Command="{Binding ExportPdfReportCommand}" MinHeight="56" MinWidth="260" FontSize="18" Padding="16,12" />
+              <MenuItem Header="Отправить на почту" Command="{Binding Report.SendEmailCommand}" Classes.MailUnavailable="{Binding !Report.IsSendEmailAvailable}" MinHeight="56" MinWidth="260" FontSize="18" Padding="16,12" />
               <Separator />
               <MenuItem Header="Настройки" Command="{Binding OpenSettingsCommand}" MinHeight="56" MinWidth="260" FontSize="18" Padding="16,12" />
             </MenuFlyout>
@@ -82,7 +83,8 @@
         </ScrollViewer>
       </SplitView.Pane>
       <Grid RowDefinitions="Auto,Auto,Auto,Auto,*">
-        <Border Grid.Row="0" IsVisible="{Binding IsExportReplacePromptVisible}" Background="#FFFFC107" Padding="12" Margin="12,4">
+        <StackPanel Grid.Row="0">
+        <Border IsVisible="{Binding IsExportReplacePromptVisible}" Background="#FFFFC107" Padding="12" Margin="12,4">
           <StackPanel Spacing="8">
             <TextBlock Foreground="Black" Text="Такой файл уже есть. Заменить?" TextWrapping="Wrap" />
             <WrapPanel>
@@ -91,6 +93,16 @@
             </WrapPanel>
           </StackPanel>
         </Border>
+        <Border IsVisible="{Binding Report.IsSendEmailPromptVisible}" Background="#FFFFC107" Padding="12" Margin="12,4">
+          <StackPanel Spacing="8">
+            <TextBlock Foreground="Black" Text="{Binding Report.SendEmailPrompt}" TextWrapping="Wrap" />
+            <WrapPanel>
+              <Button Content="Отправить" Command="{Binding Report.ConfirmSendEmailCommand}" MinHeight="48" Margin="0,0,8,0" />
+              <Button Content="Отмена" Command="{Binding Report.CancelSendEmailCommand}" MinHeight="48" />
+            </WrapPanel>
+          </StackPanel>
+        </Border>
+        </StackPanel>
         <Border Grid.Row="1" Padding="12,4,12,8" IsVisible="{Binding IsReportVisible}">
           <StackPanel Spacing="6">
             <!-- Page dots show only the gallery the user can swipe through right now. -->

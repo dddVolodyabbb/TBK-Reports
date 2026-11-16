@@ -1282,6 +1282,121 @@ try
 }
 finally { if (Directory.Exists(sameDayRoot)) Directory.Delete(sameDayRoot, true); }
 
+var dpapi = new TbkReport.WindowsSecretProtector();
+var dpapiSecret = System.Text.Encoding.UTF8.GetBytes("abcdefghijklmnop");
+var dpapiProtected = dpapi.Protect(dpapiSecret);
+Check(!System.Text.Encoding.UTF8.GetString(dpapiProtected).Contains("abcdefghijklmnop", StringComparison.Ordinal) &&
+      dpapi.Unprotect(dpapiProtected).SequenceEqual(dpapiSecret), "Windows DPAPI encrypts and restores the app password");
+
+// Mail: a fake transport records messages instead of contacting Gmail.
+var mailRoot = Path.Combine(Path.GetTempPath(), $"tbk-mail-check-{Guid.NewGuid():N}");
+try
+{
+    var transport = new FakeMailTransport();
+    var mailStore = new MailSettingsStore(Path.Combine(mailRoot, "mail.json"));
+    var mailService = new ReportMailService(mailStore, new FakeProtector(), transport, "director@company.ru");
+    Check(new ReportMailService(mailStore, new FakeProtector(), transport).ManagementAddress == ReportMailService.DefaultManagementAddress,
+        "the management address is fixed in the program");
+    Check(!mailService.IsSignedIn && !mailService.AutoSend, "mail starts signed out with automatic sending off");
+
+    transport.RejectLogin = true;
+    var rejected = false;
+    try { await mailService.SignInAsync("tech@gmail.com", "wrong"); } catch (MailException) { rejected = true; }
+    Check(rejected && !mailService.IsSignedIn && !File.Exists(mailStore.FilePath), "a rejected sign-in stores nothing");
+    transport.RejectLogin = false;
+    await mailService.SignInAsync("tech@gmail.com", "abcd efgh ijkl mnop");
+    Check(mailService.IsSignedIn && transport.VerifiedPassword == "abcdefghijklmnop" &&
+          !File.ReadAllText(mailStore.FilePath).Contains("abcdefghijklmnop", StringComparison.Ordinal),
+        "sign-in strips spaces from the app password and stores it only encrypted");
+
+    var mailHistory = new ReportHistoryStore(Path.Combine(mailRoot, "History"));
+    var mailDefaults = new ReportDefaultsStore(Path.Combine(mailRoot, "settings.json"));
+    var mailEditor = new MainViewModel(mailHistory, mailDefaults, new ReportDraftStore(Path.Combine(mailRoot, "draft.json")));
+    var unsignedEditor = new MainViewModel(new ReportHistoryStore(Path.Combine(mailRoot, "History2")),
+        new ReportDefaultsStore(Path.Combine(mailRoot, "settings2.json")), new ReportDraftStore(Path.Combine(mailRoot, "draft2.json")));
+    unsignedEditor.Mail = new ReportMailService(new MailSettingsStore(Path.Combine(mailRoot, "mail2.json")), new FakeProtector(), transport);
+    Check(!unsignedEditor.IsSendEmailAvailable, "the send action is grey without sign-in");
+    unsignedEditor.SendEmailCommand.Execute(null);
+    Check(!unsignedEditor.IsSendEmailPromptVisible && unsignedEditor.ExportStatus.Contains("не вошли в почту", StringComparison.Ordinal),
+        "tapping the grey send action without sign-in explains why");
+    unsignedEditor.OpenSettingsCommand.Execute(null);
+    unsignedEditor.PendingAutoExportPdf = true;
+    unsignedEditor.PendingAutoSendEmail = true;
+    Check(!unsignedEditor.PendingAutoSendEmail && unsignedEditor.ExportStatus.Contains("войдите в почту", StringComparison.Ordinal),
+        "automatic sending cannot be switched on before sign-in");
+
+    mailEditor.Mail = mailService;
+    Check(mailEditor.IsMailSignedIn && mailEditor.IsSendEmailAvailable && !mailEditor.AutoSendEmail,
+        "a signed-in editor offers sending; automatic sending stays off by default");
+    mailEditor.OpenSettingsCommand.Execute(null);
+    mailEditor.PendingAutoSendEmail = true;
+    Check(!mailEditor.PendingAutoSendEmail && mailEditor.ExportStatus.Contains("включите «Экспорт PDF", StringComparison.Ordinal),
+        "automatic sending asks the user to switch on automatic PDF export first");
+    mailEditor.PendingAutoExportPdf = true;
+    mailEditor.PendingAutoSendEmail = true;
+    Check(mailEditor.PendingAutoSendEmail, "automatic sending switches on after automatic PDF export");
+    mailEditor.PendingAutoExportPdf = false;
+    Check(!mailEditor.PendingAutoSendEmail, "switching PDF export off also switches automatic sending off");
+    mailEditor.PendingAutoExportPdf = true;
+    mailEditor.PendingAutoSendEmail = true;
+    mailEditor.SaveSettings(Path.Combine(mailRoot, "Exports"));
+    mailEditor.CloseSettingsCommand.Execute(null);
+    Check(mailEditor.AutoSendEmail && mailService.AutoSend,
+        "settings save the automatic sending toggle");
+
+    var mailDay = new DateTime(2026, 11, 16);
+    mailEditor.ReportDate = new DateTimeOffset(mailDay);
+    mailEditor.SendEmailCommand.Execute(null);
+    Check(!mailEditor.IsSendEmailPromptVisible && transport.Sent.Count == 0 && mailEditor.ExportStatus.Contains("Укажите", StringComparison.Ordinal),
+        "manual sending runs the report checks before asking for confirmation");
+    FillRequiredHeader(mailEditor);
+    mailEditor.First.StartTime = new TimeSpan(8, 0, 0);
+    mailEditor.First.LastJoint = "3";
+    mailEditor.First.StopTime = new TimeSpan(12, 0, 0);
+    mailEditor.First.Repairs = "0";
+    await mailEditor.SaveHistoryCommand.ExecuteAsync(null);
+    Check(mailHistory.Load(mailDay) is not null && transport.Sent.Count == 1 &&
+          transport.Sent[0].To.SequenceEqual(new[] { "director@company.ru" }) && transport.Sent[0].AttachmentName == "Отчёт-16-11-2026.pdf" &&
+          transport.SentAttachmentLengths[0] > 0 && mailEditor.ExportStatus.Contains("отправлен на почту", StringComparison.Ordinal),
+        "saving with automatic sending exports and e-mails the PDF");
+    Check(!Directory.EnumerateFiles(Path.Combine(TbkReport.Common.TemporaryDirectory, "Mail")).Any(),
+        "the temporary PDF for mail is removed after sending");
+
+    mailEditor.ReportDate = new DateTimeOffset(mailDay);
+    Check(!mailEditor.IsSendEmailAvailable, "the send action is grey for a report already sent");
+    mailEditor.SendEmailCommand.Execute(null);
+    Check(!mailEditor.IsSendEmailPromptVisible && mailEditor.ExportStatus.Contains("уже отправлен", StringComparison.Ordinal) &&
+          transport.Sent.Count == 1, "tapping the grey send action for a sent report explains why");
+
+    mailEditor.OpenHistoryCommand.Execute(null);
+    mailEditor.SelectHistoryMonthCommand.Execute(mailEditor.HistoryMonths.Single());
+    mailEditor.SelectHistoryDayCommand.Execute(mailEditor.HistoryDays.Single());
+    Check(!mailEditor.IsSendEmailAvailable, "the sent report is grey in history too");
+    mailEditor.EditHistoryReportCommand.Execute(null);
+    mailEditor.First.LastJoint = "4";
+    mailEditor.AutoSendEmail = false;
+    await mailEditor.SaveHistoryCommand.ExecuteAsync(null);
+    mailEditor.OpenHistoryCommand.Execute(null);
+    mailEditor.SelectHistoryMonthCommand.Execute(mailEditor.HistoryMonths.Single());
+    mailEditor.SelectHistoryDayCommand.Execute(mailEditor.HistoryDays.Single());
+    Check(mailEditor.IsSendEmailAvailable && transport.Sent.Count == 1, "an edited report can be sent again");
+    mailEditor.SendEmailCommand.Execute(null);
+    Check(mailEditor.IsSendEmailPromptVisible && mailEditor.SendEmailPrompt.Contains("director@company.ru", StringComparison.Ordinal) &&
+          transport.Sent.Count == 1, "manual sending asks for confirmation first");
+    mailEditor.CancelSendEmailCommand.Execute(null);
+    Check(!mailEditor.IsSendEmailPromptVisible && transport.Sent.Count == 1, "canceling the confirmation sends nothing");
+    mailEditor.SendEmailCommand.Execute(null);
+    await mailEditor.ConfirmSendEmailCommand.ExecuteAsync(null);
+    Check(transport.Sent.Count == 2 && !mailEditor.IsSendEmailAvailable && mailEditor.ExportStatus.Contains("отправлен", StringComparison.Ordinal),
+        "confirmed manual sending e-mails the visible history report");
+
+    mailEditor.SignOutMailCommand.Execute(null);
+    Check(!mailEditor.IsMailSignedIn && !mailEditor.AutoSendEmail && !mailService.AutoSend &&
+          !File.ReadAllText(mailStore.FilePath).Contains("ProtectedPassword\": \"", StringComparison.Ordinal),
+        "signing out forgets the password and switches automatic sending off");
+}
+finally { if (Directory.Exists(mailRoot)) Directory.Delete(mailRoot, true); }
+
 static string FindTemplate()
 {
     var directory = new DirectoryInfo(AppContext.BaseDirectory);
@@ -1294,4 +1409,33 @@ static string FindTemplate()
     }
     if (latestCandidate is not null) return latestCandidate;
     throw new FileNotFoundException("Could not locate report template from test output directory.");
+}
+
+sealed class FakeProtector : ISecretProtector
+{
+    public byte[] Protect(byte[] data) => data.Select(b => (byte)(b ^ 0x5A)).Reverse().ToArray();
+    public byte[] Unprotect(byte[] data) => data.Reverse().Select(b => (byte)(b ^ 0x5A)).ToArray();
+}
+
+sealed class FakeMailTransport : IMailTransport
+{
+    public bool RejectLogin { get; set; }
+    public string? VerifiedPassword { get; private set; }
+    public System.Collections.Generic.List<OutgoingMail> Sent { get; } = new();
+    public System.Collections.Generic.List<long> SentAttachmentLengths { get; } = new();
+
+    public System.Threading.Tasks.Task VerifyAsync(string address, string password, System.Threading.CancellationToken cancellation = default)
+    {
+        if (RejectLogin) throw new MailException("Google не принял адрес или пароль приложения.");
+        VerifiedPassword = password;
+        return System.Threading.Tasks.Task.CompletedTask;
+    }
+
+    public System.Threading.Tasks.Task SendAsync(OutgoingMail mail, string password, System.Threading.CancellationToken cancellation = default)
+    {
+        if (password != VerifiedPassword) throw new MailException("wrong password");
+        Sent.Add(mail);
+        SentAttachmentLengths.Add(new FileInfo(mail.AttachmentPath).Length);
+        return System.Threading.Tasks.Task.CompletedTask;
+    }
 }

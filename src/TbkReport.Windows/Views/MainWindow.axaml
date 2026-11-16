@@ -1,7 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:vm="using:TbkReport.ViewModels" xmlns:views="using:TbkReport.Views" xmlns:controls="using:TbkReport.Controls" x:Class="TbkReport.Views.MainWindow" x:DataType="vm:MainViewModel" Title="ТБК Отчёт v1.4" Icon="/Assets/tbk-app-icon.png" Width="800" Height="650" MinWidth="620" MinHeight="540">
   <DockPanel>
     <Menu DockPanel.Dock="Top">
-      <MenuItem Header="_Файл"><MenuItem Header="Экспорт в Excel" Command="{Binding ExportCurrentToExcelCommand}" /><MenuItem Header="Экспорт в PDF" Command="{Binding ExportCurrentToPdfCommand}" /><Separator /><MenuItem Header="Выход" Click="ExitClick" /></MenuItem>
+      <MenuItem Header="_Файл"><MenuItem Header="Экспорт в Excel" Command="{Binding ExportCurrentToExcelCommand}" /><MenuItem Header="Экспорт в PDF" Command="{Binding ExportCurrentToPdfCommand}" /><MenuItem Header="Отправить на почту" Command="{Binding SendEmailCommand}" Classes.MailUnavailable="{Binding !IsSendEmailAvailable}" /><Separator /><MenuItem Header="Выход" Click="ExitClick" /></MenuItem>
       <MenuItem Header="История отчётов" Command="{Binding OpenHistoryCommand}" />
       <MenuItem Header="_Параметры" Command="{Binding OpenSettingsCommand}" />
       <MenuItem Header="_Справка">
@@ -16,6 +16,13 @@
         <Button Grid.Column="2" Content="Отмена" Command="{Binding CancelExportReplacementCommand}" />
       </Grid>
     </Border>
+    <Border DockPanel.Dock="Top" IsVisible="{Binding IsSendEmailPromptVisible}" Padding="12,8" Background="#FFFFC107">
+      <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+        <TextBlock Text="{Binding SendEmailPrompt}" Foreground="Black" VerticalAlignment="Center" TextWrapping="Wrap" />
+        <Button Grid.Column="1" Content="Отправить" Command="{Binding ConfirmSendEmailCommand}" />
+        <Button Grid.Column="2" Content="Отмена" Command="{Binding CancelSendEmailCommand}" />
+      </Grid>
+    </Border>
     <Border DockPanel.Dock="Top" IsVisible="{Binding IsNewReportConfirmPromptVisible}" Padding="12,8" Background="#FFFFC107">
       <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
         <TextBlock Text="Текущий отчёт не сохранён. Создать новый и удалить несохранённые изменения?" VerticalAlignment="Center" TextWrapping="Wrap" />
@@ -26,10 +33,12 @@
     <Grid>
     <DockPanel IsVisible="{Binding IsReportViewVisible}">
     <Border DockPanel.Dock="Top" Padding="12,8" Background="#142D4055">
-      <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+      <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8">
         <TextBlock Text="Ежедневный отчёт" FontSize="18" VerticalAlignment="Center" />
         <Button Grid.Column="1" Content="Экспорт в Excel" Command="{Binding ExportCurrentToExcelCommand}" />
         <Button Grid.Column="2" Content="Экспорт в PDF" Command="{Binding ExportCurrentToPdfCommand}" />
+        <Button Grid.Column="3" Content="Отправить на почту" Command="{Binding SendEmailCommand}"
+                Classes.MailUnavailable="{Binding !IsSendEmailAvailable}" />
       </Grid>
     </Border>
     <Border DockPanel.Dock="Top" IsVisible="{Binding IsEditingHistoryReport}" Background="#FFFFC107" Padding="12,8">

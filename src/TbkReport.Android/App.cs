@@ -31,6 +31,11 @@ public sealed class App : Application
         {
             Setters = { new Setter(Avalonia.Controls.Presenters.ContentPresenter.VerticalContentAlignmentProperty, VerticalAlignment.Center) }
         });
+        // «Отправить на почту» stays tappable when unavailable, so a tap can explain why; it only looks grey.
+        Styles.Add(new Style(selector => selector.OfType<MenuItem>().Class("MailUnavailable"))
+        {
+            Setters = { new Setter(Visual.OpacityProperty, 0.45) }
+        });
     }
 
     public override void OnFrameworkInitializationCompleted()

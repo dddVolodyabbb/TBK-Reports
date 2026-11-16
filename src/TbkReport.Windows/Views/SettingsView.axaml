@@ -46,7 +46,7 @@
       <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" ColumnSpacing="16" RowSpacing="14">
         <TextBlock Text="Расчёт по" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" />
         <Border Grid.Column="1" Background="#182D4055" CornerRadius="8" Padding="16,10">
-          <Grid ColumnDefinitions="*,*" MaxWidth="520" HorizontalAlignment="Left">
+          <Grid ColumnDefinitions="*,*">
             <RadioButton Classes="CalculationSegment Left" GroupName="CalculationMode" Content="Номерам стыков"
                          IsChecked="{Binding PendingCalculateByNumbers, Mode=TwoWay}" />
             <RadioButton Grid.Column="1" Classes="CalculationSegment Right" GroupName="CalculationMode" Content="Количеству стыков"
@@ -55,7 +55,7 @@
         </Border>
         <TextBlock Grid.Row="1" Text="Тема" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" />
         <Border Grid.Row="1" Grid.Column="1" Background="#182D4055" CornerRadius="8" Padding="16,10">
-          <Grid ColumnDefinitions="*,*,*" MaxWidth="520" HorizontalAlignment="Left">
+          <Grid ColumnDefinitions="*,*,*">
             <RadioButton Classes="CalculationSegment Left" GroupName="ThemeMode" Content="Как в системе"
                          IsChecked="{Binding PendingThemeSystem, Mode=TwoWay}" />
             <RadioButton Grid.Column="1" Classes="CalculationSegment" GroupName="ThemeMode" Content="Светлая"
@@ -78,6 +78,34 @@
         <TextBox Text="{Binding ExportDirectory, Mode=TwoWay}" VerticalAlignment="Center" />
         <Button Grid.Column="1" Content="Выбрать папку…" Click="BrowseFolderClick" />
         <Button Grid.Column="2" Content="Вернуть папку по умолчанию" Click="ResetExportFolderClick" />
+      </Grid>
+      <Separator />
+      <!-- Mail: laid out like the main settings above (same left edge, toggle in the same column).
+           Sign-in acts at once; the toggle is saved by «Сохранить» with the other settings. -->
+      <TextBlock Text="Почта для отправки отчёта (Gmail)" FontSize="18" FontWeight="SemiBold" />
+      <StackPanel Spacing="14" IsVisible="{Binding IsMailSignedOut}">
+        <TextBlock TextWrapping="Wrap" Opacity="0.8"
+                   Text="Нужен пароль приложения Google, а не обычный пароль: в аккаунте Google включите двухэтапную проверку и создайте пароль на странице «Пароли приложений»." />
+        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" ColumnSpacing="16" RowSpacing="14">
+          <TextBlock Text="Адрес Gmail" VerticalAlignment="Center" />
+          <TextBox Grid.Column="1" Text="{Binding MailAddressInput, Mode=TwoWay}" PlaceholderText="ivanov@gmail.com" />
+          <TextBlock Grid.Row="1" Text="Пароль приложения" VerticalAlignment="Center" />
+          <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding MailPasswordInput, Mode=TwoWay}" PasswordChar="●"
+                   PlaceholderText="16 букв из настроек Google" />
+        </Grid>
+        <Button Content="Войти в почту" Command="{Binding SignInMailCommand}" />
+      </StackPanel>
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16" IsVisible="{Binding IsMailSignedIn}">
+        <TextBlock Text="{Binding MailSignedInText}" VerticalAlignment="Center" TextWrapping="Wrap" FontWeight="SemiBold" />
+        <Button Grid.Column="1" Content="Выйти из почты" Command="{Binding SignOutMailCommand}" />
+      </Grid>
+      <TextBlock Text="{Binding MailManagementText}" Opacity="0.8" TextWrapping="Wrap" />
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+        <StackPanel Spacing="2" VerticalAlignment="Center">
+          <TextBlock Text="Отправка на почту одновременно с сохранением отчёта" TextWrapping="Wrap" />
+          <TextBlock Text="Включается после входа в почту и включения экспорта PDF." Opacity="0.7" TextWrapping="Wrap" />
+        </StackPanel>
+        <ToggleSwitch Grid.Column="1" IsChecked="{Binding PendingAutoSendEmail, Mode=TwoWay}" AutomationProperties.Name="Автоматическая отправка на почту" />
       </Grid>
       <Separator />
       <Border Background="#182D4055" CornerRadius="8" Padding="16">

@@ -12,6 +12,9 @@ using System;
 using TbkReport.Mobile.ViewModels;
 using TbkReport.Mobile.Views;
 
+// Sending the report to the management by e-mail needs network access.
+[assembly: UsesPermission(Android.Manifest.Permission.Internet)]
+
 namespace TbkReport.Mobile;
 
 [Activity(Label = "ТБК Отчёт", MainLauncher = true,
