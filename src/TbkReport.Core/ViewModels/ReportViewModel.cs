@@ -349,7 +349,10 @@ public partial class ReportViewModel : ViewModelBase
         if (!isDraftTrackingReady || isApplyingReport || isChangingReportDate || IsEditingHistoryReport) return;
         try
         {
-            draft.Save(new ReportDraftData(1, CurrentReportDate, First.ToDraftData(), Second.ToDraftData()));
+            var data = new ReportDraftData(1, CurrentReportDate, First.ToDraftData(), Second.ToDraftData());
+            // The date alone is not a draft: with both shifts empty nothing is kept, and an old draft is removed.
+            if (data.First.IsEmpty && data.Second.IsEmpty) draft.Delete();
+            else draft.Save(data);
         }
         catch (Exception ex) { ShowStatus($"Не удалось сохранить черновик: {ex.Message}", isError: true); }
     }

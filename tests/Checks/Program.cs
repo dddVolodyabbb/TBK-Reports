@@ -70,6 +70,15 @@ var draftStore = new ReportDraftStore(Path.Combine(draftDirectory, "draft.json")
 var draftEditor = new MainViewModel(draftHistory, draftDefaults, draftStore);
 var draftDate = new DateTime(2031, 4, 12);
 draftEditor.ReportDate = new DateTimeOffset(draftDate);
+draftEditor.First.NewCommentTime = new TimeSpan(9, 0, 0);
+draftEditor.Second.IsCommentTimeRange = true;
+Check(!File.Exists(draftStore.FilePath), "a date (or an automatic comment time) alone does not create a draft");
+draftEditor.Second.Repairs = "1";
+Check(File.Exists(draftStore.FilePath), "any field typed in a shift creates a draft");
+draftEditor.Second.Repairs = "";
+Check(!File.Exists(draftStore.FilePath), "clearing every shift field removes the draft");
+draftEditor.First.NewCommentTime = null;
+draftEditor.Second.IsCommentTimeRange = false;
 draftEditor.First.StartTime = new TimeSpan(7, 10, 0);
 draftEditor.First.Repairs = "0";
 draftEditor.First.FirstJoint = "41";

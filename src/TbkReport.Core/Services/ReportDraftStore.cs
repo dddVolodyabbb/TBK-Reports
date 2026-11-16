@@ -15,7 +15,18 @@ public sealed record ShiftDraftData(
     bool IsCommentTimeRange,
     int EditingCommentIndex = -1,
     string? WeldedCountText = null,
-    bool? FirstManuallyEdited = null);
+    bool? FirstManuallyEdited = null)
+{
+    /// <summary>
+    /// Nothing typed in the shift. A comment time without comment text does not count: the program fills it in
+    /// automatically when the comment field is opened.
+    /// </summary>
+    public bool IsEmpty =>
+        string.IsNullOrWhiteSpace(Report.FirstJoint) && string.IsNullOrWhiteSpace(Report.LastJoint) &&
+        Report.StartTime is null && Report.StopTime is null && Report.Comments.Count == 0 &&
+        string.IsNullOrWhiteSpace(RepairsText) && string.IsNullOrWhiteSpace(NewCommentText) &&
+        string.IsNullOrWhiteSpace(WeldedCountText) && EditingCommentIndex < 0;
+}
 
 public sealed record ReportDraftData(int Version, DateTime Date, ShiftDraftData First, ShiftDraftData Second);
 
