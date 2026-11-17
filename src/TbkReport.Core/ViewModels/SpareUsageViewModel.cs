@@ -24,6 +24,12 @@ public partial class SpareUsageViewModel : ViewModelBase
     public ObservableCollection<SpareUsage> Items { get; } = new();
     public ObservableCollection<SpareChoice> Choices { get; } = new();
     [ObservableProperty] private SpareChoice? selectedChoice;
+    /// <summary>Narrows <see cref="Choices"/> by name or article; a single match is selected at once.</summary>
+    [ObservableProperty] private string choiceSearch = "";
+    /// <summary>The search finds nothing (a part chosen earlier may still be listed).</summary>
+    public bool HasNoMatches => hasStock && matchCount == 0;
+    private bool hasStock;
+    private int matchCount;
     [ObservableProperty] private string draftQuantity = "";
     [ObservableProperty] private string validation = "";
     [ObservableProperty] private SpareUsage? editingItem;
@@ -43,6 +49,8 @@ public partial class SpareUsageViewModel : ViewModelBase
 
     public bool HasItems => Items.Count > 0;
     public bool HasChoices => Choices.Count > 0;
+    /// <summary>The stock list is empty: nothing can be chosen whatever is searched.</summary>
+    public bool IsStockEmpty => !hasStock;
     public string Header => Items.Count > 0 ? $"Расход ЗИП ({Items.Count})" : "Расход ЗИП";
     public bool IsEditing => EditingItem is not null;
     public string ActionText => IsEditing ? "Сохранить изменения" : "Добавить в расход";
@@ -60,6 +68,7 @@ public partial class SpareUsageViewModel : ViewModelBase
         IsPartInvalid = false;
         Validation = "";
     }
+    partial void OnChoiceSearchChanged(string value) => RefreshChoices();
     partial void OnDraftQuantityChanged(string value)
     {
         IsQuantityInvalid = false;
@@ -85,17 +94,28 @@ public partial class SpareUsageViewModel : ViewModelBase
         try
         {
             Choices.Clear();
+            var all = new List<SpareChoice>();
             if (Store is { } store)
                 foreach (var stock in store.Stock)
                     if (store.FindPart(stock.PartId) is { } part)
-                        Choices.Add(new SpareChoice(part.Id, part.Name, part.Article, Math.Max(0, Free(part.Id))));
+                        all.Add(new SpareChoice(part.Id, part.Name, part.Article, Math.Max(0, Free(part.Id))));
             // A line being edited stays selectable even when its part has left the stock list.
-            if (EditingItem is { } editing && Choices.All(choice => choice.PartId != editing.PartId))
-                Choices.Add(new SpareChoice(editing.PartId, editing.Name, editing.Article, Math.Max(0, Free(editing.PartId))));
-            SelectedChoice = Choices.FirstOrDefault(choice => choice.PartId == selectedId);
+            if (EditingItem is { } editing && all.All(choice => choice.PartId != editing.PartId))
+                all.Add(new SpareChoice(editing.PartId, editing.Name, editing.Article, Math.Max(0, Free(editing.PartId))));
+            hasStock = all.Count > 0;
+            matchCount = all.Count(choice => SpareSearch.Matches(ChoiceSearch, choice.Name, choice.Article));
+            // The chosen part stays in the list even when the search no longer matches it.
+            foreach (var choice in all.Where(choice => choice.PartId == selectedId ||
+                             SpareSearch.Matches(ChoiceSearch, choice.Name, choice.Article))
+                         .OrderBy(choice => choice.Name, StringComparer.CurrentCultureIgnoreCase).ThenBy(choice => choice.Article))
+                Choices.Add(choice);
+            SelectedChoice = Choices.FirstOrDefault(choice => choice.PartId == selectedId) ??
+                (Choices.Count == 1 && ChoiceSearch.Trim().Length > 0 ? Choices[0] : null);
         }
         finally { refreshingChoices = false; }
         OnPropertyChanged(nameof(HasChoices));
+        OnPropertyChanged(nameof(IsStockEmpty));
+        OnPropertyChanged(nameof(HasNoMatches));
     }
 
     [RelayCommand]
@@ -141,6 +161,7 @@ public partial class SpareUsageViewModel : ViewModelBase
     {
         EditingItem = null; SelectedChoice = null; DraftQuantity = ""; Validation = "";
         IsPartInvalid = IsQuantityInvalid = false;
+        ChoiceSearch = "";
     }
 
     private int IndexOf(SpareUsage item)

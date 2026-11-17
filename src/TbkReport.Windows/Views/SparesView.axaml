@@ -1,7 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:TbkReport.ViewModels" xmlns:data="using:TbkReport.Services"
              x:Class="TbkReport.Views.SparesView" x:DataType="vm:SparesViewModel">
-  <!-- Both tabs look the same: a table with «Изменить» / «Удалить» and an entry form below it. -->
+  <!-- Both tabs look the same: search, «Добавить», the entry form (only while adding or editing) and the list. -->
   <TabControl Margin="12,8,12,0">
     <TabItem Header="В наличии">
       <ScrollViewer>
@@ -9,6 +9,41 @@
           <TextBlock Text="ЗИП в наличии" FontSize="20" FontWeight="SemiBold" />
           <TextBlock Text="Заполняется один раз. Дальше количество уменьшается само, когда расход ЗИП сохраняется вместе с отчётом."
                      TextWrapping="Wrap" Opacity="0.75" />
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+            <TextBox Text="{Binding StockSearch, Mode=TwoWay}" PlaceholderText="Поиск по наименованию или артикулу" />
+            <Button Grid.Column="1" Content="+ Добавить" Command="{Binding OpenStockFormCommand}" IsVisible="{Binding !IsStockFormOpen}" />
+          </Grid>
+          <Border IsVisible="{Binding IsStockFormOpen}" BorderBrush="#FF0078D4" BorderThickness="1" CornerRadius="6" Padding="14">
+            <StackPanel Spacing="10">
+              <TextBlock Text="{Binding StockFormTitle}" FontSize="16" FontWeight="SemiBold" />
+              <StackPanel Spacing="4" IsVisible="{Binding IsAddingStock}">
+                <TextBlock Text="Комплектующая" />
+                <TextBox Text="{Binding StockChoiceSearch, Mode=TwoWay}" PlaceholderText="Найти в справочнике" />
+                <Grid>
+                  <ComboBox ItemsSource="{Binding StockChoices}" SelectedItem="{Binding SelectedStockPart, Mode=TwoWay}"
+                            PlaceholderText="Выберите из справочника" HorizontalAlignment="Stretch" MaxDropDownHeight="320">
+                    <ComboBox.ItemTemplate>
+                      <DataTemplate x:DataType="data:SparePart"><TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" /></DataTemplate>
+                    </ComboBox.ItemTemplate>
+                  </ComboBox>
+                  <Border IsVisible="{Binding IsStockPartInvalid}" BorderBrush="Red" BorderThickness="2" CornerRadius="4" IsHitTestVisible="False" />
+                </Grid>
+                <TextBlock Text="{Binding StockHint}" IsVisible="{Binding HasStockHint}" TextWrapping="Wrap" Foreground="OrangeRed" />
+              </StackPanel>
+              <!-- While a row is edited its part cannot be changed, only the quantity. -->
+              <TextBlock Text="{Binding EditingStockLabel}" IsVisible="{Binding IsEditingStock}" FontWeight="SemiBold" TextWrapping="Wrap" />
+              <StackPanel Spacing="4" Width="160" HorizontalAlignment="Left"><TextBlock Text="Количество, шт." />
+                <Grid><TextBox Text="{Binding StockQuantity, Mode=TwoWay}" />
+                  <Border IsVisible="{Binding IsStockQuantityInvalid}" BorderBrush="Red" BorderThickness="2" CornerRadius="4" IsHitTestVisible="False" /></Grid></StackPanel>
+              <TextBlock Text="{Binding StockValidation}" Foreground="OrangeRed" TextWrapping="Wrap"
+                         IsVisible="{Binding StockValidation, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button Content="{Binding StockActionText}" Command="{Binding AddOrSaveStockCommand}" />
+                <Button Content="Отмена" Command="{Binding CancelStockEditCommand}" />
+              </StackPanel>
+            </StackPanel>
+          </Border>
+          <TextBlock Text="{Binding StockSummary}" Opacity="0.75" />
           <Grid ColumnDefinitions="*,170,80,190" ColumnSpacing="8" IsVisible="{Binding HasStockRows}">
             <TextBlock Text="Наименование" FontWeight="SemiBold" />
             <TextBlock Grid.Column="1" Text="Артикул" FontWeight="SemiBold" />
@@ -31,32 +66,6 @@
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>
-          <TextBlock Text="{Binding StockHint}" IsVisible="{Binding HasStockHint}" TextWrapping="Wrap" Foreground="OrangeRed" />
-          <Grid ColumnDefinitions="*,130" ColumnSpacing="8">
-            <StackPanel Spacing="4"><TextBlock Text="Комплектующая" />
-              <Grid>
-                <ComboBox ItemsSource="{Binding StockChoices}" SelectedItem="{Binding SelectedStockPart, Mode=TwoWay}"
-                          IsVisible="{Binding IsAddingStock}" PlaceholderText="Выберите из справочника"
-                          HorizontalAlignment="Stretch" MaxDropDownHeight="320">
-                  <ComboBox.ItemTemplate>
-                    <DataTemplate x:DataType="data:SparePart"><TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" /></DataTemplate>
-                  </ComboBox.ItemTemplate>
-                </ComboBox>
-                <!-- While a row is edited its part cannot be changed, only the quantity. -->
-                <TextBlock Text="{Binding EditingStockLabel}" IsVisible="{Binding IsEditingStock}" FontWeight="SemiBold"
-                           TextWrapping="Wrap" VerticalAlignment="Center" />
-                <Border IsVisible="{Binding IsStockPartInvalid}" BorderBrush="Red" BorderThickness="2" CornerRadius="4" IsHitTestVisible="False" />
-              </Grid></StackPanel>
-            <StackPanel Grid.Column="1" Spacing="4"><TextBlock Text="Количество, шт." />
-              <Grid><TextBox Text="{Binding StockQuantity, Mode=TwoWay}" />
-                <Border IsVisible="{Binding IsStockQuantityInvalid}" BorderBrush="Red" BorderThickness="2" CornerRadius="4" IsHitTestVisible="False" /></Grid></StackPanel>
-          </Grid>
-          <TextBlock Text="{Binding StockValidation}" Foreground="OrangeRed" TextWrapping="Wrap"
-                     IsVisible="{Binding StockValidation, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-          <StackPanel Orientation="Horizontal" Spacing="8">
-            <Button Content="{Binding StockActionText}" Command="{Binding AddOrSaveStockCommand}" />
-            <Button Content="Отмена" Command="{Binding CancelStockEditCommand}" IsVisible="{Binding IsEditingStock}" />
-          </StackPanel>
         </StackPanel>
       </ScrollViewer>
     </TabItem>
@@ -66,6 +75,31 @@
           <TextBlock Text="Справочник комплектующих" FontSize="20" FontWeight="SemiBold" />
           <TextBlock Text="Все комплектующие, которые вообще бывают. Количество здесь не указывается: оно ведётся на вкладке «В наличии»."
                      TextWrapping="Wrap" Opacity="0.75" />
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+            <TextBox Text="{Binding PartsSearch, Mode=TwoWay}" PlaceholderText="Поиск по наименованию или артикулу" />
+            <Button Grid.Column="1" Content="+ Добавить" Command="{Binding OpenPartFormCommand}" IsVisible="{Binding !IsPartFormOpen}" />
+          </Grid>
+          <Border IsVisible="{Binding IsPartFormOpen}" BorderBrush="#FF0078D4" BorderThickness="1" CornerRadius="6" Padding="14">
+            <StackPanel Spacing="10">
+              <TextBlock Text="{Binding PartFormTitle}" FontSize="16" FontWeight="SemiBold" />
+              <Grid ColumnDefinitions="*,220" ColumnSpacing="8">
+                <StackPanel Spacing="4"><TextBlock Text="Наименование" />
+                  <Grid><TextBox Text="{Binding PartName, Mode=TwoWay}" />
+                    <Border IsVisible="{Binding IsPartNameInvalid}" BorderBrush="Red" BorderThickness="2" CornerRadius="4" IsHitTestVisible="False" /></Grid></StackPanel>
+                <StackPanel Grid.Column="1" Spacing="4"><TextBlock Text="Артикул (каталожный номер)" />
+                  <TextBox Text="{Binding PartArticle, Mode=TwoWay}" /></StackPanel>
+              </Grid>
+              <TextBlock Text="{Binding PartValidation}" Foreground="OrangeRed" TextWrapping="Wrap"
+                         IsVisible="{Binding PartValidation, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button Content="{Binding PartActionText}" Command="{Binding AddOrSavePartCommand}" />
+                <Button Content="Отмена" Command="{Binding CancelPartEditCommand}" />
+              </StackPanel>
+            </StackPanel>
+          </Border>
+          <!-- An error of «Удалить» (part still in stock) shows here while the form is closed. -->
+          <TextBlock Text="{Binding PartValidation}" Foreground="OrangeRed" TextWrapping="Wrap" IsVisible="{Binding !IsPartFormOpen}" />
+          <TextBlock Text="{Binding PartsSummary}" Opacity="0.75" />
           <Grid ColumnDefinitions="*,170,80,190" ColumnSpacing="8" IsVisible="{Binding HasParts}">
             <TextBlock Text="Наименование" FontWeight="SemiBold" />
             <TextBlock Grid.Column="1" Text="Артикул" FontWeight="SemiBold" />
@@ -86,19 +120,6 @@
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>
-          <Grid ColumnDefinitions="*,220" ColumnSpacing="8">
-            <StackPanel Spacing="4"><TextBlock Text="Наименование" />
-              <Grid><TextBox Text="{Binding PartName, Mode=TwoWay}" />
-                <Border IsVisible="{Binding IsPartNameInvalid}" BorderBrush="Red" BorderThickness="2" CornerRadius="4" IsHitTestVisible="False" /></Grid></StackPanel>
-            <StackPanel Grid.Column="1" Spacing="4"><TextBlock Text="Артикул (каталожный номер)" />
-              <TextBox Text="{Binding PartArticle, Mode=TwoWay}" /></StackPanel>
-          </Grid>
-          <TextBlock Text="{Binding PartValidation}" Foreground="OrangeRed" TextWrapping="Wrap"
-                     IsVisible="{Binding PartValidation, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-          <StackPanel Orientation="Horizontal" Spacing="8">
-            <Button Content="{Binding PartActionText}" Command="{Binding AddOrSavePartCommand}" />
-            <Button Content="Отмена" Command="{Binding CancelPartEditCommand}" IsVisible="{Binding IsEditingPart}" />
-          </StackPanel>
         </StackPanel>
       </ScrollViewer>
     </TabItem>

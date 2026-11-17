@@ -77,6 +77,14 @@
                 </Button>
               </StackPanel>
             </Border>
+            <Button Content="ЗИП ▾" Command="{Binding ToggleSparesMenuCommand}" HorizontalAlignment="Stretch" MinHeight="48" />
+            <Border IsVisible="{Binding IsSparesMenuOpen}" Margin="16,0,0,0" Padding="12,0,0,0"
+                    BorderBrush="#FF0078D4" BorderThickness="3,0,0,0">
+              <StackPanel Spacing="8">
+                <Button Content="В наличии" Command="{Binding NavigateCommand}" CommandParameter="В наличии" HorizontalAlignment="Stretch" MinHeight="48" />
+                <Button Content="Комплектующие" Command="{Binding NavigateCommand}" CommandParameter="Комплектующие" HorizontalAlignment="Stretch" MinHeight="48" />
+              </StackPanel>
+            </Border>
             <Button Content="История отчётов" Command="{Binding NavigateCommand}" CommandParameter="История отчётов" HorizontalAlignment="Stretch" MinHeight="48" />
           </StackPanel>
         </ScrollViewer>
@@ -119,6 +127,11 @@
             <DatePicker SelectedDate="{Binding Report.ReportDate, Mode=TwoWay}" IsEnabled="{Binding Report.IsReportDateEditable}" DayFormat="dd" MonthFormat="MMMM" YearFormat="yyyy" HorizontalAlignment="Left" />
           </StackPanel>
         </Border>
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center" Margin="0,8,0,0"
+                    IsVisible="{Binding IsSparesSectionVisible}">
+          <Ellipse Classes="section-indicator" Classes.active="{Binding IsSpareStockVisible}" />
+          <Ellipse Classes="section-indicator" Classes.active="{Binding IsSparePartsVisible}" />
+        </StackPanel>
         <Border Grid.Row="2" IsVisible="{Binding Report.IsEditingHistoryReport}" Background="#FFFFC107" Padding="12" Margin="12,0,12,8">
           <StackPanel Spacing="8">
             <TextBlock Text="{Binding Report.EditingHistoryNotice}" Foreground="Black" FontWeight="SemiBold" TextWrapping="Wrap" />
@@ -151,6 +164,8 @@
               <Grid IsVisible="{Binding IsMonthlyOpeningVisible}"><views:MonthlyOpeningView DataContext="{Binding Report}" /></Grid>
             </Grid>
           </Grid>
+          <Grid IsVisible="{Binding IsSpareStockVisible}"><views:SpareStockView DataContext="{Binding Report.Spares}" /></Grid>
+          <Grid IsVisible="{Binding IsSparePartsVisible}"><views:SparePartsView DataContext="{Binding Report.Spares}" /></Grid>
           <views:HistoryView IsVisible="{Binding IsHistoryVisible}" />
           <views:SettingsView IsVisible="{Binding IsSettingsVisible}" />
           <Border Name="SwipeInputBlocker" IsVisible="False" Background="Transparent" ZIndex="100" />

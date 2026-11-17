@@ -112,9 +112,11 @@
           </ItemsControl.ItemTemplate>
         </ItemsControl>
         <TextBlock Text="В наличии нет ЗИП. Заполните список «В наличии» в разделе «ЗИП»." TextWrapping="Wrap"
-                   IsVisible="{Binding !Spares.HasChoices}" Foreground="OrangeRed" />
+                   IsVisible="{Binding Spares.IsStockEmpty}" Foreground="OrangeRed" />
+        <TextBlock Text="Ничего не найдено." IsVisible="{Binding Spares.HasNoMatches}" Foreground="OrangeRed" />
         <Grid ColumnDefinitions="*,130" ColumnSpacing="8">
           <StackPanel Spacing="4"><TextBlock Text="Комплектующая" />
+            <TextBox Text="{Binding Spares.ChoiceSearch, Mode=TwoWay}" PlaceholderText="Найти в наличии по наименованию или артикулу" />
             <Grid><ComboBox ItemsSource="{Binding Spares.Choices}" SelectedItem="{Binding Spares.SelectedChoice, Mode=TwoWay}"
                             PlaceholderText="Выберите из наличия" HorizontalAlignment="Stretch" MaxDropDownHeight="320">
                 <ComboBox.ItemTemplate>
@@ -122,7 +124,7 @@
                 </ComboBox.ItemTemplate>
               </ComboBox>
               <Border IsVisible="{Binding Spares.IsPartInvalid}" BorderBrush="Red" BorderThickness="2" CornerRadius="4" IsHitTestVisible="False" /></Grid></StackPanel>
-          <StackPanel Grid.Column="1" Spacing="4"><TextBlock Text="Количество, шт." />
+          <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Bottom"><TextBlock Text="Количество, шт." />
             <Grid><TextBox Text="{Binding Spares.DraftQuantity, Mode=TwoWay}" TextChanged="DigitsOnlyTextChanged" />
               <Border IsVisible="{Binding Spares.IsQuantityInvalid}" BorderBrush="Red" BorderThickness="2" CornerRadius="4" IsHitTestVisible="False" /></Grid></StackPanel>
         </Grid>

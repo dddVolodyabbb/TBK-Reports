@@ -1,0 +1,52 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:TbkReport.ViewModels" xmlns:data="using:TbkReport.Services"
+             x:Class="TbkReport.Mobile.Views.SparePartsView" x:DataType="vm:SparesViewModel"
+             GotFocus="FormGotFocus" LostFocus="FormLostFocus">
+  <!-- Same as the Windows «Комплектующие» tab: search, «Добавить», the form while adding or editing, and the list as cards. -->
+  <ScrollViewer Name="FormScrollViewer" Focusable="True">
+    <StackPanel Margin="16" Spacing="12">
+      <TextBlock Text="Все комплектующие, которые вообще бывают. Количество здесь не указывается: оно ведётся в разделе «В наличии»."
+                 TextWrapping="Wrap" Opacity="0.75" />
+      <TextBox Text="{Binding PartsSearch, Mode=TwoWay}" PlaceholderText="Поиск по наименованию или артикулу" MinHeight="48" />
+      <Button Content="+ Добавить" Command="{Binding OpenPartFormCommand}" IsVisible="{Binding !IsPartFormOpen}"
+              HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" MinHeight="56" />
+      <Border Name="PartForm" IsVisible="{Binding IsPartFormOpen}" BorderBrush="#FF0078D4" BorderThickness="2" CornerRadius="8" Padding="12">
+        <StackPanel Spacing="10">
+          <TextBlock Text="{Binding PartFormTitle}" FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap" />
+          <TextBlock Text="Наименование" />
+          <Grid><TextBox Name="PartNameTextBox" Text="{Binding PartName, Mode=TwoWay}" MinHeight="48" TextWrapping="Wrap" />
+            <Border IsVisible="{Binding IsPartNameInvalid}" BorderBrush="Red" BorderThickness="2" CornerRadius="4" IsHitTestVisible="False" /></Grid>
+          <TextBlock Text="Артикул (каталожный номер)" />
+          <TextBox Text="{Binding PartArticle, Mode=TwoWay}" MinHeight="48" />
+          <TextBlock Text="{Binding PartValidation}" Foreground="OrangeRed" TextWrapping="Wrap"
+                     IsVisible="{Binding PartValidation, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+          <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+            <Button Content="{Binding PartActionText}" Command="{Binding AddOrSavePartCommand}" MinHeight="56"
+                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
+            <Button Grid.Column="1" Content="Отмена" Command="{Binding CancelPartEditCommand}" MinHeight="56"
+                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
+          </Grid>
+        </StackPanel>
+      </Border>
+      <!-- An error of «Удалить» (part still in stock) shows here while the form is closed. -->
+      <TextBlock Text="{Binding PartValidation}" Foreground="OrangeRed" TextWrapping="Wrap" IsVisible="{Binding !IsPartFormOpen}" />
+      <TextBlock Text="{Binding PartsSummary}" Opacity="0.75" TextWrapping="Wrap" />
+      <ItemsControl ItemsSource="{Binding Parts}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="data:SparePart">
+            <Border BorderBrush="#40808080" BorderThickness="0,0,0,1" Padding="0,10">
+              <StackPanel Spacing="4">
+                <TextBlock Text="{Binding Name}" TextWrapping="Wrap" FontSize="16" FontWeight="SemiBold" />
+                <TextBlock Text="{Binding Article}" TextWrapping="Wrap" Opacity="0.7" />
+                <WrapPanel Margin="0,4,0,0">
+                  <Button Content="Изменить" Click="EditClick" MinHeight="44" Margin="0,0,8,0" />
+                  <Button Content="Удалить" Click="RemoveClick" MinHeight="44" />
+                </WrapPanel>
+              </StackPanel>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

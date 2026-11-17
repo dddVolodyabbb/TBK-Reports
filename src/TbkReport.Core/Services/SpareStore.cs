@@ -50,8 +50,15 @@ public sealed class SpareStore
     /// <summary>Raised after every change of the catalogue, the stock or the history.</summary>
     public event Action? Changed;
 
-    public SpareStore(string filePath) => FilePath =
-        Path.GetFullPath(filePath ?? throw new ArgumentNullException(nameof(filePath)));
+    private readonly SparePart[] initialCatalog;
+
+    /// <param name="initialCatalog">The catalogue of a fresh installation, used while `zip.json` does not exist
+    /// (the applications pass <see cref="StandardSpares.Catalog"/>). The first change writes it to the file.</param>
+    public SpareStore(string filePath, SparePart[]? initialCatalog = null)
+    {
+        FilePath = Path.GetFullPath(filePath ?? throw new ArgumentNullException(nameof(filePath)));
+        this.initialCatalog = initialCatalog ?? Array.Empty<SparePart>();
+    }
 
     public IReadOnlyList<SparePart> Catalog => Data.Catalog;
     public IReadOnlyList<SpareStockItem> Stock => Data.Stock;
@@ -286,8 +293,8 @@ public sealed class SpareStore
 
     private SpareFileData Read()
     {
-        var empty = new SpareFileData(1, Array.Empty<SparePart>(), Array.Empty<SpareStockItem>(), Array.Empty<SpareHistoryEntry>());
-        if (!File.Exists(FilePath)) return empty;
+        if (!File.Exists(FilePath))
+            return new SpareFileData(1, initialCatalog.ToArray(), Array.Empty<SpareStockItem>(), Array.Empty<SpareHistoryEntry>());
         try
         {
             using var stream = File.OpenRead(FilePath);

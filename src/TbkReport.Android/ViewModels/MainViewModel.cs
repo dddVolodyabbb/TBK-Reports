@@ -21,7 +21,9 @@ public partial class MainViewModel : ObservableObject
         DraftStore = new ReportDraftStore(storagePaths);
         Report = new ReportViewModel(HistoryStore, DefaultsStore, DraftStore,
             storagePaths.DataDirectory, defaultExportLocation,
-            () => templatePath, location => location, calculateByCountByDefault: true);
+            () => templatePath, location => location, calculateByCountByDefault: true,
+            // A fresh installation starts with the built-in parts catalogue.
+            spares: new SpareStore(Path.Combine(storagePaths.DataDirectory, "zip.json"), StandardSpares.Catalog));
         ExportService = exportService;
         Report.AutoExportSavedReport = AutoExportSavedReportAsync;
         // Mail is switched off until the sign-in method is chosen: the screens have no mail controls, and without
@@ -74,6 +76,7 @@ public partial class MainViewModel : ObservableObject
     public void ShowExitNotification(string message) => SetStatus(message);
     // The «Данные отчёта» group of the side menu is expanded by default.
     [ObservableProperty] private bool isDataMenuOpen = true;
+    [ObservableProperty] private bool isSparesMenuOpen = true;
 
     // Swiping moves only inside the current gallery: the two shifts form one gallery and the
     // report data pages another. Switching between galleries (and opening history) goes
@@ -81,10 +84,12 @@ public partial class MainViewModel : ObservableObject
     private static readonly string[] ShiftGallery = ["Первая смена", "Вторая смена"];
     private static readonly string[] DataGallery =
         ["Проблемы", "Оборудование", "Шапка отчёта", "Приём начатого коллектора"];
+    private static readonly string[] SparesGallery = ["В наличии", "Комплектующие"];
 
     private string[]? CurrentGallery =>
         Array.IndexOf(ShiftGallery, CurrentSection) >= 0 ? ShiftGallery :
-        Array.IndexOf(DataGallery, CurrentSection) >= 0 ? DataGallery : null;
+        Array.IndexOf(DataGallery, CurrentSection) >= 0 ? DataGallery :
+        Array.IndexOf(SparesGallery, CurrentSection) >= 0 ? SparesGallery : null;
 
     public bool CanSwipeSections => CurrentGallery is not null;
 
@@ -112,7 +117,10 @@ public partial class MainViewModel : ObservableObject
     public bool IsMonthlyOpeningVisible => CurrentSection == "Приём начатого коллектора";
     public bool IsDataSectionVisible => IsProblemsVisible || IsEquipmentVisible || IsHeaderVisible || IsMonthlyOpeningVisible;
     public bool IsRegularDataSectionVisible => IsDataSectionVisible && !IsMonthlyOpeningVisible;
-    public bool IsReportVisible => CurrentSection is not ("История отчётов" or "Настройки");
+    public bool IsSpareStockVisible => CurrentSection == "В наличии";
+    public bool IsSparePartsVisible => CurrentSection == "Комплектующие";
+    public bool IsSparesSectionVisible => IsSpareStockVisible || IsSparePartsVisible;
+    public bool IsReportVisible => CurrentSection is not ("История отчётов" or "Настройки") && !IsSparesSectionVisible;
     public bool IsHistoryVisible => CurrentSection == "История отчётов";
     public bool IsSettingsVisible => CurrentSection == "Настройки";
     [ObservableProperty]
@@ -132,6 +140,9 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(IsMonthlyOpeningVisible));
         OnPropertyChanged(nameof(IsDataSectionVisible));
         OnPropertyChanged(nameof(IsRegularDataSectionVisible));
+        OnPropertyChanged(nameof(IsSpareStockVisible));
+        OnPropertyChanged(nameof(IsSparePartsVisible));
+        OnPropertyChanged(nameof(IsSparesSectionVisible));
         OnPropertyChanged(nameof(IsReportVisible));
         OnPropertyChanged(nameof(IsHistoryVisible));
         OnPropertyChanged(nameof(IsSettingsVisible));
@@ -139,6 +150,9 @@ public partial class MainViewModel : ObservableObject
 
     [RelayCommand]
     private void ToggleDataMenu() => IsDataMenuOpen = !IsDataMenuOpen;
+
+    [RelayCommand]
+    private void ToggleSparesMenu() => IsSparesMenuOpen = !IsSparesMenuOpen;
 
     [RelayCommand]
     private void ToggleNavigation() => IsNavigationOpen = !IsNavigationOpen;
@@ -154,6 +168,8 @@ public partial class MainViewModel : ObservableObject
                 Report.Header.CancelSecondShiftSignatureEditCommand.Execute(null);
         }
         if (IsSettingsVisible && section != "Настройки") Report.DiscardSettingsEdit();
+        // An unsaved spare parts form is closed when its page is left.
+        if (IsSparesSectionVisible && section != CurrentSection) Report.Spares?.CloseForms();
         if (section == "История отчётов") Report.OpenHistoryCommand.Execute(null);
         else if (IsHistoryVisible) Report.CloseHistoryCommand.Execute(null);
         CurrentSection = section;
@@ -319,6 +335,8 @@ public partial class MainViewModel : ObservableObject
             Report.Header.CancelSecondShiftSignatureEditCommand.Execute(null);
             return true;
         }
+
+        if (IsSparesSectionVisible && Report.Spares?.CloseForms() == true) return true;
 
         if (IsHistoryVisible)
         {

@@ -13,14 +13,17 @@ public sealed record SpareStockRow(string PartId, string Name, string Article, i
 
 /// <summary>
 /// The «ЗИП» section: the parts catalogue («Комплектующие») and the stock («В наличии»).
-/// Both lists work the same way: a table with «Изменить» / «Удалить» and an entry form below it.
-/// Every change is written to the file at once.
+/// Both lists work the same way: a search field, the list with «Изменить» / «Удалить», and an entry form that
+/// opens with «Добавить» or «Изменить» and closes after saving or «Отмена». Every change is written to the file at once.
 /// </summary>
 public partial class SparesViewModel : ViewModelBase
 {
     private readonly SpareStore store;
 
+    /// <summary>Catalogue parts matching <see cref="PartsSearch"/>.</summary>
     public ObservableCollection<SparePart> Parts { get; } = new();
+    [ObservableProperty] private string partsSearch = "";
+    [ObservableProperty] private bool isPartFormOpen;
     [ObservableProperty] private string partName = "";
     [ObservableProperty] private string partArticle = "";
     [ObservableProperty] private string partValidation = "";
@@ -29,10 +32,20 @@ public partial class SparesViewModel : ViewModelBase
     public bool IsEditingPart => EditingPart is not null;
     public bool HasParts => Parts.Count > 0;
     public string PartActionText => IsEditingPart ? "Сохранить изменения" : "Добавить комплектующую";
+    public string PartFormTitle => IsEditingPart ? "Изменение комплектующей" : "Новая комплектующая";
+    public string PartsSummary => store.Catalog.Count == 0
+        ? "Справочник пуст. Нажмите «Добавить»."
+        : Parts.Count == 0 ? "Ничего не найдено."
+        : Parts.Count == store.Catalog.Count ? $"Всего комплектующих: {store.Catalog.Count}"
+        : $"Найдено: {Parts.Count} из {store.Catalog.Count}";
 
+    /// <summary>Stock rows matching <see cref="StockSearch"/>.</summary>
     public ObservableCollection<SpareStockRow> StockRows { get; } = new();
-    /// <summary>Catalogue parts that are not in the stock list yet.</summary>
+    [ObservableProperty] private string stockSearch = "";
+    [ObservableProperty] private bool isStockFormOpen;
+    /// <summary>Catalogue parts that are not in the stock list yet and match <see cref="StockChoiceSearch"/>.</summary>
     public ObservableCollection<SparePart> StockChoices { get; } = new();
+    [ObservableProperty] private string stockChoiceSearch = "";
     [ObservableProperty] private SparePart? selectedStockPart;
     [ObservableProperty] private string stockQuantity = "";
     [ObservableProperty] private string stockValidation = "";
@@ -45,11 +58,17 @@ public partial class SparesViewModel : ViewModelBase
     public string EditingStockLabel => EditingStock is { } row
         ? string.IsNullOrEmpty(row.Article) ? row.Name : $"{row.Name} · {row.Article}" : "";
     public string StockActionText => IsEditingStock ? "Сохранить изменения" : "Добавить в наличие";
-    public string StockHint => Parts.Count == 0
-        ? "Справочник пуст. Сначала добавьте комплектующие на вкладке «Комплектующие»."
-        : StockChoices.Count == 0 && !IsEditingStock
+    public string StockFormTitle => IsEditingStock ? "Изменение количества" : "Добавление в наличие";
+    public string StockSummary => store.Stock.Count == 0
+        ? "Список пуст. Нажмите «Добавить»."
+        : StockRows.Count == 0 ? "Ничего не найдено."
+        : StockRows.Count == store.Stock.Count ? $"Всего позиций: {store.Stock.Count}"
+        : $"Найдено: {StockRows.Count} из {store.Stock.Count}";
+    public string StockHint => store.Catalog.Count == 0
+        ? "Справочник пуст. Сначала добавьте комплектующие в разделе «Комплектующие»."
+        : !IsEditingStock && store.Catalog.All(part => store.Stock.Any(item => item.PartId == part.Id))
             ? "Все комплектующие из справочника уже есть в этом списке. Количество меняется кнопкой «Изменить»."
-            : "";
+            : !IsEditingStock && StockChoices.Count == 0 ? "Ничего не найдено." : "";
     public bool HasStockHint => StockHint.Length > 0;
 
     public SparesViewModel(SpareStore store)
@@ -60,12 +79,16 @@ public partial class SparesViewModel : ViewModelBase
         catch (Exception ex) { PartValidation = StockValidation = ex.Message; }
     }
 
+    partial void OnPartsSearchChanged(string value) => Refresh();
+    partial void OnStockSearchChanged(string value) => Refresh();
+    partial void OnStockChoiceSearchChanged(string value) => Refresh();
     partial void OnPartNameChanged(string value) { IsPartNameInvalid = false; PartValidation = ""; }
     partial void OnPartArticleChanged(string value) => PartValidation = "";
     partial void OnEditingPartChanged(SparePart? value)
     {
         OnPropertyChanged(nameof(IsEditingPart));
         OnPropertyChanged(nameof(PartActionText));
+        OnPropertyChanged(nameof(PartFormTitle));
     }
     partial void OnSelectedStockPartChanged(SparePart? value) { IsStockPartInvalid = false; if (value is not null) StockValidation = ""; }
     partial void OnStockQuantityChanged(string value) { IsStockQuantityInvalid = false; StockValidation = ""; }
@@ -75,27 +98,46 @@ public partial class SparesViewModel : ViewModelBase
         OnPropertyChanged(nameof(IsAddingStock));
         OnPropertyChanged(nameof(EditingStockLabel));
         OnPropertyChanged(nameof(StockActionText));
+        OnPropertyChanged(nameof(StockFormTitle));
         OnPropertyChanged(nameof(StockHint));
         OnPropertyChanged(nameof(HasStockHint));
     }
 
     private void Refresh()
     {
-        var selectedId = SelectedStockPart?.Id;
+        var selected = SelectedStockPart;
         Parts.Clear();
-        foreach (var part in store.Catalog.OrderBy(part => part.Name, StringComparer.CurrentCultureIgnoreCase)) Parts.Add(part);
+        foreach (var part in store.Catalog.Where(part => SpareSearch.Matches(PartsSearch, part.Name, part.Article))
+                     .OrderBy(part => part.Name, StringComparer.CurrentCultureIgnoreCase).ThenBy(part => part.Article))
+            Parts.Add(part);
         StockRows.Clear();
         foreach (var row in store.Stock
                      .Select(item => store.FindPart(item.PartId) is { } part ? new SpareStockRow(part.Id, part.Name, part.Article, item.Quantity) : null)
-                     .Where(row => row is not null).OrderBy(row => row!.Name, StringComparer.CurrentCultureIgnoreCase))
+                     .Where(row => row is not null && SpareSearch.Matches(StockSearch, row.Name, row.Article))
+                     .OrderBy(row => row!.Name, StringComparer.CurrentCultureIgnoreCase).ThenBy(row => row!.Article))
             StockRows.Add(row!);
         StockChoices.Clear();
-        foreach (var part in Parts.Where(part => StockRows.All(row => row.PartId != part.Id))) StockChoices.Add(part);
-        SelectedStockPart = StockChoices.FirstOrDefault(part => part.Id == selectedId);
+        // The chosen part stays in the list even when the search no longer matches it.
+        foreach (var part in store.Catalog
+                     .Where(part => store.Stock.All(item => item.PartId != part.Id) &&
+                         (part.Id == selected?.Id || SpareSearch.Matches(StockChoiceSearch, part.Name, part.Article)))
+                     .OrderBy(part => part.Name, StringComparer.CurrentCultureIgnoreCase).ThenBy(part => part.Article))
+            StockChoices.Add(part);
+        SelectedStockPart = StockChoices.FirstOrDefault(part => part.Id == selected?.Id) ??
+            (StockChoices.Count == 1 && StockChoiceSearch.Trim().Length > 0 ? StockChoices[0] : null);
         OnPropertyChanged(nameof(HasParts));
+        OnPropertyChanged(nameof(PartsSummary));
         OnPropertyChanged(nameof(HasStockRows));
+        OnPropertyChanged(nameof(StockSummary));
         OnPropertyChanged(nameof(StockHint));
         OnPropertyChanged(nameof(HasStockHint));
+    }
+
+    [RelayCommand]
+    private void OpenPartForm()
+    {
+        CancelPartEdit();
+        IsPartFormOpen = true;
     }
 
     [RelayCommand]
@@ -120,11 +162,13 @@ public partial class SparesViewModel : ViewModelBase
     private void CancelPartEdit()
     {
         EditingPart = null; PartName = ""; PartArticle = ""; PartValidation = ""; IsPartNameInvalid = false;
+        IsPartFormOpen = false;
     }
 
     public void BeginEditPart(SparePart part)
     {
         EditingPart = part; PartName = part.Name; PartArticle = part.Article; PartValidation = ""; IsPartNameInvalid = false;
+        IsPartFormOpen = true;
     }
 
     public void RemovePart(SparePart part)
@@ -136,6 +180,13 @@ public partial class SparesViewModel : ViewModelBase
             PartValidation = "";
         }
         catch (Exception ex) { PartValidation = ex.Message; }
+    }
+
+    [RelayCommand]
+    private void OpenStockForm()
+    {
+        CancelStockEdit();
+        IsStockFormOpen = true;
     }
 
     [RelayCommand]
@@ -164,6 +215,8 @@ public partial class SparesViewModel : ViewModelBase
     {
         EditingStock = null; SelectedStockPart = null; StockQuantity = ""; StockValidation = "";
         IsStockPartInvalid = IsStockQuantityInvalid = false;
+        IsStockFormOpen = false;
+        StockChoiceSearch = "";
     }
 
     public void BeginEditStock(SpareStockRow row)
@@ -172,6 +225,7 @@ public partial class SparesViewModel : ViewModelBase
         StockQuantity = row.Quantity.ToString(CultureInfo.InvariantCulture);
         StockValidation = "";
         IsStockPartInvalid = IsStockQuantityInvalid = false;
+        IsStockFormOpen = true;
     }
 
     public void RemoveStock(SpareStockRow row)
@@ -183,5 +237,14 @@ public partial class SparesViewModel : ViewModelBase
             StockValidation = "";
         }
         catch (Exception ex) { StockValidation = ex.Message; }
+    }
+
+    /// <summary>Closes an open entry form without saving; returns whether one was open (Android Back).</summary>
+    public bool CloseForms()
+    {
+        var open = IsPartFormOpen || IsStockFormOpen;
+        if (IsPartFormOpen) CancelPartEdit();
+        if (IsStockFormOpen) CancelStockEdit();
+        return open;
     }
 }

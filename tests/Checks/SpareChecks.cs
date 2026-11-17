@@ -9,6 +9,17 @@ public static class SpareChecks
 {
     public static void Run(Action<bool, string> check, Action<MainViewModel> fillHeader)
     {
+        var standard = StandardSpares.Catalog;
+        check(standard.Length == 141 && standard.Select(part => part.Id).Distinct().Count() == standard.Length &&
+              standard.Any(part => part.Article == "ТТ552-26") && standard.Any(part => part.Name.Contains("18х8,2х1")),
+            "standard spares: the built-in catalogue is complete and has unique ids");
+        var freshFile = Path.Combine(Path.GetTempPath(), $"tbk-spares-fresh-{Guid.NewGuid():N}", "zip.json");
+        var fresh = new SpareStore(freshFile, standard);
+        check(fresh.Catalog.Count == 141 && fresh.Stock.Count == 0 && !File.Exists(freshFile),
+            "standard spares: a fresh installation starts with the built-in catalogue");
+        fresh.RemovePart(standard[0].Id);
+        check(new SpareStore(freshFile, standard).Catalog.Count == 140,
+            "standard spares: once the file exists, a deleted part does not come back");
         var root = Path.Combine(Path.GetTempPath(), $"tbk-spares-{Guid.NewGuid():N}");
         var zipFile = Path.Combine(root, "zip.json");
         var store = new SpareStore(zipFile);
@@ -25,9 +36,33 @@ public static class SpareChecks
         check(new SpareStore(zipFile).Available(tip.Id) == 5 && new SpareStore(zipFile).Catalog.Count == 2,
             "spares: catalogue and stock survive a restart");
 
+        check(SpareSearch.Matches("тт552", "Наконечник", "ТТ 552-2101") && SpareSearch.Matches("нак 2101", "Наконечник", "ТТ 552-2101") &&
+              !SpareSearch.Matches("сопло", "Наконечник", "ТТ 552-2101") && SpareSearch.Matches("  ", "Х", ""),
+            "spares search: name or article, any case, spaces ignored, every word must match");
         var section = new SparesViewModel(store);
+        check(!section.IsPartFormOpen && !section.IsStockFormOpen, "spares section: entry forms are closed until «Добавить»");
+        section.PartsSearch = "сопло";
+        check(section.Parts.Count == 1 && section.Parts[0].Id == nozzle.Id && section.PartsSummary == "Найдено: 1 из 2",
+            "spares section: catalogue search narrows the list");
+        section.PartsSearch = "zzz";
+        check(section.Parts.Count == 0 && section.PartsSummary == "Ничего не найдено.", "spares section: empty search result is explained");
+        section.PartsSearch = "";
+        section.OpenPartFormCommand.Execute(null);
+        check(section.IsPartFormOpen && !section.IsEditingPart, "spares section: «Добавить» opens an empty form");
+        section.CancelPartEditCommand.Execute(null);
+        check(!section.IsPartFormOpen, "spares section: «Отмена» closes the form");
+        section.BeginEditPart(section.Parts[0]);
+        check(section.IsPartFormOpen && section.IsEditingPart, "spares section: «Изменить» opens the form");
+        check(section.CloseForms() && !section.IsPartFormOpen && !section.CloseForms(), "spares section: Back closes an open form");
+        section.OpenStockFormCommand.Execute(null);
+        section.StockChoiceSearch = "сопло";
+        check(section.SelectedStockPart?.Id == nozzle.Id, "spares section: a single search match is chosen at once");
+        section.CancelStockEditCommand.Execute(null);
+        check(section.StockChoiceSearch == "" && section.SelectedStockPart is null && !section.IsStockFormOpen,
+            "spares section: cancelling clears the stock form");
         check(section.Parts.Count == 2 && section.StockRows.Count == 1 && section.StockChoices.Count == 1 &&
               section.StockChoices[0].Id == nozzle.Id, "spares section: stock form offers only parts not in stock yet");
+        section.OpenStockFormCommand.Execute(null);
         section.SelectedStockPart = section.StockChoices[0];
         section.StockQuantity = "x";
         section.AddOrSaveStockCommand.Execute(null);
@@ -84,6 +119,17 @@ public static class SpareChecks
         first.DraftQuantity = "1";
         first.AddOrSaveCommand.Execute(null);
         check(first.Items.Count == 1 && first.Items[0].Quantity == 3, "spares in shift: the same part is kept as one line");
+        first.ChoiceSearch = "сопло";
+        check(first.Choices.Count == 1 && first.SelectedChoice?.PartId == nozzle.Id && !first.HasNoMatches,
+            "spares in shift: search narrows the stock list and picks a single match");
+        first.ChoiceSearch = "zzz";
+        check(first.HasNoMatches && !first.IsStockEmpty && first.SelectedChoice?.PartId == nozzle.Id,
+            "spares in shift: the chosen part stays while the search finds nothing");
+        first.CancelEditCommand.Execute(null);
+        check(first.ChoiceSearch == "" && first.Choices.Count == 2, "spares in shift: cancelling clears the search");
+        editor.First.ShowSparesCommand.Execute(null);
+        check(editor.First.IsSparesPageOpen && !editor.First.IsCommentsPageOpen, "spares in shift: the switch opens the spare parts page");
+        editor.First.ShowCommentsCommand.Execute(null);
 
         var restored = new MainViewModel(history, new ReportDefaultsStore(Path.Combine(root, "settings.json")),
             new ReportDraftStore(Path.Combine(root, "draft.json")), spares: new SpareStore(zipFile));

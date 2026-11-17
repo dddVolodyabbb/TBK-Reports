@@ -36,6 +36,22 @@ public partial class ShiftView : UserControl
         }
     }
 
+    private async void EditSpareClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is ShiftViewModel viewModel && sender is Button { DataContext: TbkReport.Services.SpareUsage item })
+        {
+            viewModel.Spares.BeginEdit(item);
+            await Task.Delay(100);
+            await keyboardScroll.SmoothScrollTo(SpareFormTitle);
+        }
+    }
+
+    private void RemoveSpareClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is ShiftViewModel viewModel && sender is Button { DataContext: TbkReport.Services.SpareUsage item })
+            viewModel.Spares.Remove(item);
+    }
+
     private void FormGotFocus(object? sender, RoutedEventArgs e) => keyboardScroll.HandleGotFocus(e);
 
     private void FormLostFocus(object? sender, RoutedEventArgs e) => keyboardScroll.HandleLostFocus();

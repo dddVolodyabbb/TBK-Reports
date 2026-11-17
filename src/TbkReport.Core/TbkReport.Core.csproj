@@ -13,5 +13,8 @@
       <LogicalName>TbkReport.PdfFonts.%(Filename)%(Extension)</LogicalName>
     </EmbeddedResource>
     <EmbeddedResource Include="Resources\Fonts\*-OFL.txt" />
+    <EmbeddedResource Include="Resources\standard-spares.json">
+      <LogicalName>TbkReport.StandardSpares.json</LogicalName>
+    </EmbeddedResource>
   </ItemGroup>
 </Project>

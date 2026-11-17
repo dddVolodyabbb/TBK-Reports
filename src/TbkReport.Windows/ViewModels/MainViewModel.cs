@@ -7,7 +7,9 @@ namespace TbkReport.ViewModels;
 public sealed class MainViewModel : ReportViewModel
 {
     public MainViewModel() : this(new ReportHistoryStore(Common.Current),
-        new ReportDefaultsStore(Common.Current), new ReportDraftStore(Common.Current), true)
+        new ReportDefaultsStore(Common.Current), new ReportDraftStore(Common.Current), true,
+        // Only the real application starts a fresh installation with the built-in parts catalogue.
+        new SpareStore(Path.Combine(Common.Current.DataDirectory, "zip.json"), StandardSpares.Catalog))
     {
         // Mail is switched off until the sign-in method is chosen: the screens have no mail controls, and without
         // Mail nothing is ever sent. To bring it back, restore this line and the controls in the views.

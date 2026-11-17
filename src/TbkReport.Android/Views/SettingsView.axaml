@@ -84,7 +84,7 @@
       <Border Background="#182D4055" CornerRadius="8" Padding="12">
         <StackPanel Spacing="10">
           <TextBlock Text="Что включить в резервную копию" FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap" />
-          <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="10">
+          <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="10">
             <CheckBox Content="История" IsChecked="{Binding Report.DataTransfer.ExportHistory, Mode=TwoWay}" />
             <CheckBox Grid.Column="1" Content="Проблемы" IsChecked="{Binding Report.DataTransfer.ExportProblems, Mode=TwoWay}" />
             <CheckBox Grid.Row="1" Content="Оборудование" IsChecked="{Binding Report.DataTransfer.ExportEquipment, Mode=TwoWay}" />
@@ -92,6 +92,10 @@
             <CheckBox Grid.Row="2" Content="Настройки" IsChecked="{Binding Report.DataTransfer.ExportSettings, Mode=TwoWay}" />
             <CheckBox Grid.Row="2" Grid.Column="1" Content="Шапка" IsChecked="{Binding Report.DataTransfer.ExportHeader, Mode=TwoWay}" />
             <CheckBox Grid.Row="3" Grid.ColumnSpan="2" Content="Техники и подписи" IsChecked="{Binding Report.DataTransfer.ExportTechnicians, Mode=TwoWay}" />
+            <CheckBox Grid.Row="4" Content="Справочник ЗИП" IsChecked="{Binding Report.DataTransfer.ExportSpareCatalog, Mode=TwoWay}"
+                      IsVisible="{Binding Report.DataTransfer.SupportsSpares}" />
+            <CheckBox Grid.Row="4" Grid.Column="1" Content="ЗИП в наличии" IsChecked="{Binding Report.DataTransfer.ExportSpareStock, Mode=TwoWay}"
+                      IsVisible="{Binding Report.DataTransfer.SupportsSpares}" />
           </Grid>
           <TextBlock Text="Папка экспорта остаётся своей на каждом устройстве." Opacity="0.7" TextWrapping="Wrap" />
         </StackPanel>

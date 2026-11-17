@@ -44,6 +44,13 @@ public partial class ShiftViewModel : ViewModelBase
     public bool HasComments => Comments.Count > 0;
     /// <summary>Spare parts (ЗИП) used in this shift.</summary>
     public SpareUsageViewModel Spares { get; } = new();
+    /// <summary>Which half of the lower part of the shift is shown on a phone: comments or spare parts.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsCommentsPageOpen))]
+    private bool isSparesPageOpen;
+    public bool IsCommentsPageOpen => !IsSparesPageOpen;
+    [RelayCommand] private void ShowComments() => IsSparesPageOpen = false;
+    [RelayCommand] private void ShowSpares() => IsSparesPageOpen = true;
     private bool automatic;
     public bool FirstManuallyEdited { get; private set; }
     public int Welded => int.TryParse(FirstJoint, out var first) && int.TryParse(LastJoint, out var last) && first > 0 && last >= first ? last - first + 1 : 0;
