@@ -24,6 +24,9 @@ public sealed record SpareUsage(string PartId, string Name, string Article, int 
 public sealed record SpareHistoryEntry(DateTime Date, int? CollectorNumber, int Shift, string PartId, string Name,
     string Article, int Quantity);
 
+/// <summary>A stock line in a data transfer file: the part's name and article travel with it.</summary>
+public sealed record TransferSpareStock(string PartId, string Name, string Article, int Quantity);
+
 public sealed record SpareFileData(int Version, SparePart[] Catalog, SpareStockItem[] Stock, SpareHistoryEntry[] History);
 
 /// <summary>
@@ -163,6 +166,108 @@ public sealed class SpareStore
             new(date.Date, collectorNumber, shift, usage.PartId, usage.Name, usage.Article, usage.Quantity);
     }
 
+    /// <summary>The stock with each part's name and article, so a backup can rebuild missing catalogue lines.</summary>
+    public TransferSpareStock[] StockForTransfer() => Data.Stock
+        .Select(item => FindPart(item.PartId) is { } part ? new TransferSpareStock(part.Id, part.Name, part.Article, item.Quantity) : null)
+        .Where(item => item is not null).Select(item => item!).ToArray();
+
+    /// <summary>
+    /// The file contents after a data import; nothing is written. A section given as null keeps the local data.
+    /// The catalogue is replaced by the file's one; a local part with the same name and article becomes the
+    /// imported part, so local stock and history follow it. Local parts still listed in the stock are kept.
+    /// The stock is replaced by the file's one; a stock line whose part is missing adds that part to the catalogue.
+    /// Usage history is replaced only for the given reports (the reports the import replaces).
+    /// </summary>
+    public SpareFileData PlanImport(IReadOnlyList<SparePart>? catalog, IReadOnlyList<TransferSpareStock>? stock,
+        IReadOnlyCollection<HistoryReportKey>? replacedReports, IReadOnlyList<SpareHistoryEntry>? history)
+    {
+        var data = Data;
+        var parts = data.Catalog.ToList();
+        var stockItems = data.Stock.ToList();
+        var entries = data.History.ToList();
+        static string Key(string name, string article) => (name.Trim() + "\n" + article.Trim()).ToUpperInvariant();
+        void Remap(string from, string to)
+        {
+            stockItems = stockItems.Select(item => item.PartId == from ? item with { PartId = to } : item).ToList();
+            entries = entries.Select(entry => entry.PartId == from ? entry with { PartId = to } : entry).ToList();
+        }
+        string Resolve(string id, string name, string article)
+        {
+            if (parts.Any(part => part.Id == id)) return id;
+            var same = parts.FirstOrDefault(part => Key(part.Name, part.Article) == Key(name, article));
+            if (same is not null) return same.Id;
+            parts.Add(new SparePart(id, name.Trim(), article.Trim()));
+            return id;
+        }
+
+        if (catalog is not null)
+        {
+            var imported = new List<SparePart>();
+            foreach (var source in catalog)
+            {
+                var part = source with { Name = source.Name.Trim(), Article = (source.Article ?? "").Trim() };
+                if (imported.Any(item => item.Id == part.Id || Key(item.Name, item.Article) == Key(part.Name, part.Article)))
+                    continue;
+                foreach (var local in data.Catalog.Where(local => local.Id != part.Id &&
+                             Key(local.Name, local.Article) == Key(part.Name, part.Article)))
+                    Remap(local.Id, part.Id);
+                imported.Add(part);
+            }
+            parts = imported;
+        }
+        if (stock is not null)
+            stockItems = stock.Select(item => new SpareStockItem(Resolve(item.PartId, item.Name, item.Article ?? ""), item.Quantity)).ToList();
+
+        // Every stock line needs its catalogue part; parts are looked up in the local catalogue, lines without one are dropped.
+        foreach (var item in stockItems.ToArray())
+            if (parts.All(part => part.Id != item.PartId))
+            {
+                var local = data.Catalog.FirstOrDefault(part => part.Id == item.PartId);
+                if (local is not null) parts.Add(local);
+                else stockItems.Remove(item);
+            }
+        stockItems = stockItems.GroupBy(item => item.PartId)
+            .Select(group => new SpareStockItem(group.Key, group.Sum(item => item.Quantity))).ToList();
+
+        if (replacedReports is not null && history is not null)
+        {
+            var keys = replacedReports.ToHashSet();
+            entries.RemoveAll(entry => keys.Contains(new HistoryReportKey(entry.Date.Date, entry.CollectorNumber)));
+            foreach (var entry in history.Where(entry => keys.Contains(new HistoryReportKey(entry.Date.Date, entry.CollectorNumber))))
+            {
+                var same = parts.FirstOrDefault(part => part.Id == entry.PartId) ??
+                    parts.FirstOrDefault(part => Key(part.Name, part.Article) == Key(entry.Name, entry.Article));
+                entries.Add(entry with { Date = entry.Date.Date, PartId = same?.Id ?? entry.PartId });
+            }
+        }
+        return new SpareFileData(1, parts.ToArray(), stockItems.ToArray(), entries
+            .OrderBy(entry => entry.Date).ThenBy(entry => entry.CollectorNumber ?? -1).ThenBy(entry => entry.Shift).ToArray());
+    }
+
+    /// <summary>Writes a spare parts file at any path, for example a data import's staging folder.</summary>
+    public static void WriteFile(string path, SpareFileData data)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
+        var temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
+        try
+        {
+            using (var stream = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            {
+                JsonSerializer.Serialize(stream, data with { Version = 1 }, JsonOptions);
+                stream.Flush(flushToDisk: true);
+            }
+            File.Move(temporary, path, overwrite: true);
+        }
+        finally { if (File.Exists(temporary)) File.Delete(temporary); }
+    }
+
+    /// <summary>Reads the file again after it was replaced directly on disk.</summary>
+    public void Reload()
+    {
+        cache = null;
+        Changed?.Invoke();
+    }
+
     private static string CleanName(string name) => string.IsNullOrWhiteSpace(name)
         ? throw new InvalidOperationException("Введите наименование комплектующей.")
         : name.Trim();
@@ -205,18 +310,7 @@ public sealed class SpareStore
     // The file is written to a temporary file and then replaced, like the other data files.
     private void Write(SpareFileData data)
     {
-        Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
-        var temporary = FilePath + "." + Guid.NewGuid().ToString("N") + ".tmp";
-        try
-        {
-            using (var stream = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None))
-            {
-                JsonSerializer.Serialize(stream, data with { Version = 1 }, JsonOptions);
-                stream.Flush(flushToDisk: true);
-            }
-            File.Move(temporary, FilePath, overwrite: true);
-        }
-        finally { if (File.Exists(temporary)) File.Delete(temporary); }
+        WriteFile(FilePath, data);
         cache = data;
         Changed?.Invoke();
     }

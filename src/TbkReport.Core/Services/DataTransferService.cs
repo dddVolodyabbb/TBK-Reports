@@ -17,10 +17,14 @@ public sealed record TransferSelection(
     bool Openings = true,
     bool Settings = true,
     bool Header = true,
-    bool Technicians = true)
+    bool Technicians = true,
+    // Spare parts sections default to false: files made before them simply do not contain them.
+    bool SpareCatalog = false,
+    bool SpareStock = false)
 {
-    public static TransferSelection All { get; } = new();
-    public bool HasAny => History || Problems || Equipment || Openings || Settings || Header || Technicians;
+    public static TransferSelection All { get; } = new(SpareCatalog: true, SpareStock: true);
+    public bool HasAny => History || Problems || Equipment || Openings || Settings || Header || Technicians ||
+        SpareCatalog || SpareStock;
 }
 
 // Theme is optional: backups made before it existed keep the current theme on import.
@@ -51,10 +55,17 @@ public sealed record TransferDocument(
     TransferTechnicians? Technicians = null,
     EquipmentData[]? Equipment = null,
     string[]? Problems = null,
-    TransferSettings? Settings = null);
+    TransferSettings? Settings = null,
+    SparePart[]? SpareCatalog = null,
+    TransferSpareStock[]? SpareStock = null,
+    // Spare parts usage travels with «История»: it belongs to the reports.
+    SpareHistoryEntry[]? SpareHistory = null);
 
-public sealed class DataTransferService(ReportHistoryStore history, ReportDefaultsStore defaults)
+public sealed class DataTransferService(ReportHistoryStore history, ReportDefaultsStore defaults, SpareStore? spares = null)
 {
+    /// <summary>Whether this application keeps spare parts; without it the spare parts sections are skipped.</summary>
+    public bool SupportsSpares => spares is not null;
+
     private static readonly JsonSerializerOptions Options = new()
     {
         WriteIndented = true, IgnoreReadOnlyProperties = true,
@@ -66,6 +77,7 @@ public sealed class DataTransferService(ReportHistoryStore history, ReportDefaul
 
     public byte[] Export(TransferSelection selection)
     {
+        if (spares is null) selection = selection with { SpareCatalog = false, SpareStock = false };
         if (!selection.HasAny)
             throw new InvalidOperationException("Выберите хотя бы один раздел для экспорта.");
 
@@ -91,7 +103,10 @@ public sealed class DataTransferService(ReportHistoryStore history, ReportDefaul
                 saved?.CalculateByCount ?? true,
                 saved?.AutoExportExcel ?? false,
                 saved?.AutoExportPdf ?? false,
-                saved?.Theme ?? AppTheme.System) : null);
+                saved?.Theme ?? AppTheme.System) : null,
+            selection.SpareCatalog ? spares!.Catalog.ToArray() : null,
+            selection.SpareStock ? spares!.StockForTransfer() : null,
+            selection.History && spares is not null ? spares.History.ToArray() : null);
         Validate(document);
         return JsonSerializer.SerializeToUtf8Bytes(document, Options);
     }
@@ -151,6 +166,28 @@ public sealed class DataTransferService(ReportHistoryStore history, ReportDefaul
         if (selection.Equipment || selection.Problems)
             ValidateLists(document.Equipment ?? Array.Empty<EquipmentData>(), document.Problems ?? Array.Empty<string>());
         ValidateHeader(document.Header, "Некорректный номер коллектора в шапке.");
+        ValidateSpares(document, selection);
+    }
+
+    private static void ValidateSpares(TransferDocument document, TransferSelection selection)
+    {
+        if (selection.SpareCatalog != document.SpareCatalog is not null ||
+            selection.SpareStock != document.SpareStock is not null ||
+            !selection.History && document.SpareHistory is not null)
+            throw new InvalidDataException("Состав файла переноса не совпадает с выбранными разделами.");
+        var catalog = document.SpareCatalog ?? Array.Empty<SparePart>();
+        if (catalog.Any(part => part is null || string.IsNullOrWhiteSpace(part.Id) || string.IsNullOrWhiteSpace(part.Name)) ||
+            catalog.Select(part => part.Id).Distinct().Count() != catalog.Length)
+            throw new InvalidDataException("В файле некорректный справочник ЗИП.");
+        var stock = document.SpareStock ?? Array.Empty<TransferSpareStock>();
+        if (stock.Any(item => item is null || string.IsNullOrWhiteSpace(item.PartId) || string.IsNullOrWhiteSpace(item.Name) ||
+                item.Quantity < 0) ||
+            stock.Select(item => item.PartId).Distinct().Count() != stock.Length)
+            throw new InvalidDataException("В файле некорректный список ЗИП в наличии.");
+        if ((document.SpareHistory ?? Array.Empty<SpareHistoryEntry>()).Any(entry => entry is null ||
+                string.IsNullOrWhiteSpace(entry.PartId) || entry.Name is null || entry.Quantity <= 0 ||
+                entry.Shift is not (1 or 2) || entry.Date == default || entry.CollectorNumber is < 0 or > 999))
+            throw new InvalidDataException("В файле некорректная история расхода ЗИП.");
     }
 
     private static void ValidateHeader(ReportHeaderData? header, string message)
@@ -221,6 +258,18 @@ public sealed class DataTransferService(ReportHistoryStore history, ReportDefaul
                 replacements.Add((source, defaults.FilePath));
             }
 
+            if (spares is not null && (selection.SpareCatalog || selection.SpareStock || document.SpareHistory is not null))
+            {
+                var source = Path.Combine(stage, "zip.json");
+                SpareStore.WriteFile(source, spares.PlanImport(
+                    selection.SpareCatalog ? document.SpareCatalog : null,
+                    selection.SpareStock ? document.SpareStock : null,
+                    document.SpareHistory is null ? null
+                        : reports.Select(report => new HistoryReportKey(report.Date.Date, report.Header?.CollectorNumber)).ToArray(),
+                    document.SpareHistory));
+                replacements.Add((source, spares.FilePath));
+            }
+
             foreach (var entry in replacements)
             {
                 originals[entry.Target] = File.Exists(entry.Target) ? File.ReadAllBytes(entry.Target) : null;
@@ -251,6 +300,7 @@ public sealed class DataTransferService(ReportHistoryStore history, ReportDefaul
         {
             // History files were replaced directly on disk; make the store read them again.
             history.InvalidateCache();
+            spares?.Reload();
             if (!preserveRecovery)
             {
                 try { Directory.Delete(stage, recursive: true); }

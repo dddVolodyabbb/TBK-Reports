@@ -983,7 +983,7 @@ public partial class ReportViewModel : ViewModelBase
 
     private DataTransferViewModel? dataTransfer;
     public DataTransferViewModel DataTransfer => dataTransfer ??= new(
-        new DataTransferService(history, defaults), RefreshHistory);
+        new DataTransferService(history, defaults, spareStore), RefreshHistory);
 
     private void RefreshHistory()
     {

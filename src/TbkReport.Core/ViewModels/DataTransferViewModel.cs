@@ -25,11 +25,16 @@ public partial class DataTransferViewModel(DataTransferService service, Action r
     [ObservableProperty] private bool exportSettings = true;
     [ObservableProperty] private bool exportHeader = true;
     [ObservableProperty] private bool exportTechnicians = true;
+    [ObservableProperty] private bool exportSpareCatalog = true;
+    [ObservableProperty] private bool exportSpareStock = true;
+    /// <summary>The spare parts check boxes are shown only where the application keeps spare parts.</summary>
+    public bool SupportsSpares => service.SupportsSpares;
     partial void OnStatusChanged(string value) => OnPropertyChanged(nameof(HasStatus));
 
     public byte[] Export() => service.Export(new TransferSelection(
         ExportHistory, ExportProblems, ExportEquipment, ExportOpenings,
-        ExportSettings, ExportHeader, ExportTechnicians));
+        ExportSettings, ExportHeader, ExportTechnicians,
+        SupportsSpares && ExportSpareCatalog, SupportsSpares && ExportSpareStock));
     private void SetStatus(string message, bool isError = false, TimeSpan? hideAfter = null)
     {
         var sequence = System.Threading.Interlocked.Increment(ref statusSequence);
@@ -72,7 +77,13 @@ public partial class DataTransferViewModel(DataTransferService service, Action r
         if (selection.Settings && pending.Version == 3) sections.Add("настройки");
         if (selection.Header) sections.Add("шапка");
         if (selection.Technicians) sections.Add("техники и подписи");
+        if (selection.SpareCatalog) sections.Add("справочник ЗИП");
+        if (selection.SpareStock) sections.Add("ЗИП в наличии");
+        var hasSpares = selection.SpareCatalog || selection.SpareStock || pending.SpareHistory is { Length: > 0 };
         Confirmation = "Импортировать разделы: " + string.Join(", ", sections) + "." +
+            (selection.SpareCatalog && SupportsSpares ? $" Комплектующих: {pending.SpareCatalog!.Length}; справочник будет заменён." : "") +
+            (selection.SpareStock && SupportsSpares ? $" Позиций в наличии: {pending.SpareStock!.Length}; количество будет заменено." : "") +
+            (hasSpares && !SupportsSpares ? " Учёт ЗИП в этой версии программы не ведётся, разделы ЗИП будут пропущены." : "") +
             (selection.History ? $" Отчётов: {pending.Reports.Length}. Совпадающих дат: {conflicts}." : "") +
             (conflicts > 0 ? " Отчёты с совпадающими датами будут заменены." : "") +
             (selection.Openings && pending.Openings is { Length: > 0 }

@@ -149,6 +149,7 @@ try
         Require(draftStore.Load()!.Date == date.AddMonths(4), "Existing draft date was not updated.");
     }
     CollectorChecks.Run(root);
+    SpareTransferChecks.Run(root);
     Console.WriteLine("Data transfer, draft and collector checks passed.");
 }
 finally { Directory.Delete(root, recursive: true); }
