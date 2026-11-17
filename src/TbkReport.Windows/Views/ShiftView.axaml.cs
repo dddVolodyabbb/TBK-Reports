@@ -27,6 +27,18 @@ public partial class ShiftView : UserControl
             viewModel.BeginEditComment(comment);
     }
 
+    private void EditSpareClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is ShiftViewModel viewModel && sender is Button { DataContext: TbkReport.Services.SpareUsage item })
+            viewModel.Spares.BeginEdit(item);
+    }
+
+    private void RemoveSpareClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is ShiftViewModel viewModel && sender is Button { DataContext: TbkReport.Services.SpareUsage item })
+            viewModel.Spares.Remove(item);
+    }
+
     private static void DigitsOnlyTextChanged(object? sender, TextChangedEventArgs e)
     {
         if (sender is not TextBox textBox || string.IsNullOrEmpty(textBox.Text)) return;

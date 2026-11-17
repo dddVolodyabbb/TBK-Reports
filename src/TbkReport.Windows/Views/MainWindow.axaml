@@ -1,9 +1,30 @@
-<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:vm="using:TbkReport.ViewModels" xmlns:views="using:TbkReport.Views" xmlns:controls="using:TbkReport.Controls" x:Class="TbkReport.Views.MainWindow" x:DataType="vm:MainViewModel" Title="ТБК Отчёт v1.4" Icon="/Assets/tbk-app-icon.png" Width="800" Height="650" MinWidth="620" MinHeight="540">
+<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:vm="using:TbkReport.ViewModels" xmlns:views="using:TbkReport.Views" xmlns:controls="using:TbkReport.Controls" x:Class="TbkReport.Views.MainWindow" x:DataType="vm:MainViewModel" Title="ТБК Отчёт v1.4" Icon="/Assets/tbk-app-icon.png" Width="940" Height="680" MinWidth="780" MinHeight="540">
+  <Window.Styles>
+    <!-- Left section buttons: an icon with a caption; the open section is filled with blue. -->
+    <Style Selector="Button.Nav">
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+      <Setter Property="HorizontalContentAlignment" Value="Left" />
+      <Setter Property="Padding" Value="10,14" />
+      <Setter Property="FontSize" Value="15" />
+      <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="Button.Nav.Selected">
+      <Setter Property="Background" Value="#FF0078D4" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="Button.Nav.Selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#FF0078D4" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="Button.Nav TextBlock.Icon">
+      <Setter Property="FontFamily" Value="Segoe MDL2 Assets" />
+      <Setter Property="FontSize" Value="20" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+  </Window.Styles>
   <DockPanel>
     <Menu DockPanel.Dock="Top">
-      <MenuItem Header="_Файл"><MenuItem Header="Экспорт в Excel" Command="{Binding ExportCurrentToExcelCommand}" /><MenuItem Header="Экспорт в PDF" Command="{Binding ExportCurrentToPdfCommand}" /><MenuItem Header="Отправить на почту" Command="{Binding SendEmailCommand}" Classes.MailUnavailable="{Binding !IsSendEmailAvailable}" /><Separator /><MenuItem Header="Выход" Click="ExitClick" /></MenuItem>
-      <MenuItem Header="История отчётов" Command="{Binding OpenHistoryCommand}" />
-      <MenuItem Header="_Параметры" Command="{Binding OpenSettingsCommand}" />
+      <MenuItem Header="_Файл"><MenuItem Header="Экспорт в Excel" Command="{Binding ExportCurrentToExcelCommand}" /><MenuItem Header="Экспорт в PDF" Command="{Binding ExportCurrentToPdfCommand}" /><Separator /><MenuItem Header="Выход" Click="ExitClick" /></MenuItem>
       <MenuItem Header="_Справка">
         <MenuItem Header="ТБК Отчёт · v1.4" IsEnabled="False" />
         <MenuItem Header="Разработчик: Логно Владимир В." IsEnabled="False" />
@@ -30,6 +51,22 @@
         <Button Grid.Column="2" Content="Отмена" Command="{Binding CancelNewReportCommand}" />
       </Grid>
     </Border>
+    <Border DockPanel.Dock="Left" Width="156" Padding="6" Background="#142D4055">
+      <StackPanel Spacing="4">
+        <Button Classes="Nav" Classes.Selected="{Binding IsReportViewVisible}" Command="{Binding OpenReportCommand}">
+          <StackPanel Orientation="Horizontal" Spacing="10"><TextBlock Classes="Icon" Text="&#xE8A5;" /><TextBlock Text="Отчёт" VerticalAlignment="Center" /></StackPanel>
+        </Button>
+        <Button Classes="Nav" Classes.Selected="{Binding IsHistoryViewVisible}" Command="{Binding OpenHistoryCommand}">
+          <StackPanel Orientation="Horizontal" Spacing="10"><TextBlock Classes="Icon" Text="&#xE81C;" /><TextBlock Text="История" VerticalAlignment="Center" /></StackPanel>
+        </Button>
+        <Button Classes="Nav" Classes.Selected="{Binding IsSparesViewVisible}" Command="{Binding OpenSparesCommand}">
+          <StackPanel Orientation="Horizontal" Spacing="10"><TextBlock Classes="Icon" Text="&#xE90F;" /><TextBlock Text="ЗИП" VerticalAlignment="Center" /></StackPanel>
+        </Button>
+        <Button Classes="Nav" Classes.Selected="{Binding IsSettingsViewVisible}" Command="{Binding OpenSettingsCommand}">
+          <StackPanel Orientation="Horizontal" Spacing="10"><TextBlock Classes="Icon" Text="&#xE713;" /><TextBlock Text="Параметры" VerticalAlignment="Center" /></StackPanel>
+        </Button>
+      </StackPanel>
+    </Border>
     <Grid>
     <DockPanel IsVisible="{Binding IsReportViewVisible}">
     <Border DockPanel.Dock="Top" Padding="12,8" Background="#142D4055">
@@ -37,8 +74,6 @@
         <TextBlock Text="Ежедневный отчёт" FontSize="18" VerticalAlignment="Center" />
         <Button Grid.Column="1" Content="Экспорт в Excel" Command="{Binding ExportCurrentToExcelCommand}" />
         <Button Grid.Column="2" Content="Экспорт в PDF" Command="{Binding ExportCurrentToPdfCommand}" />
-        <Button Grid.Column="3" Content="Отправить на почту" Command="{Binding SendEmailCommand}"
-                Classes.MailUnavailable="{Binding !IsSendEmailAvailable}" />
       </Grid>
     </Border>
     <Border DockPanel.Dock="Top" IsVisible="{Binding IsEditingHistoryReport}" Background="#FFFFC107" Padding="12,8">
@@ -156,6 +191,7 @@
     </DockPanel>
     <views:HistoryView IsVisible="{Binding IsHistoryViewVisible}" />
     <views:SettingsView IsVisible="{Binding IsSettingsViewVisible}" />
+    <Border IsVisible="{Binding IsSparesViewVisible}"><views:SparesView DataContext="{Binding Spares}" /></Border>
     <Border Background="Black" CornerRadius="18" Padding="16,10" Margin="16"
             MaxWidth="720" HorizontalAlignment="Center" VerticalAlignment="Bottom"
             IsVisible="{Binding HasExportStatus}" Opacity="{Binding ExportStatusOpacity}"

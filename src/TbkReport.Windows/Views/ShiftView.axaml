@@ -1,4 +1,4 @@
-<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:vm="using:TbkReport.ViewModels" xmlns:models="using:TbkReport.Models" xmlns:views="using:TbkReport.Views" x:Class="TbkReport.Views.ShiftView" x:DataType="vm:ShiftViewModel">
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:vm="using:TbkReport.ViewModels" xmlns:models="using:TbkReport.Models" xmlns:views="using:TbkReport.Views" xmlns:data="using:TbkReport.Services" x:Class="TbkReport.Views.ShiftView" x:DataType="vm:ShiftViewModel">
   <ScrollViewer HorizontalScrollBarVisibility="Disabled">
     <StackPanel Margin="28" Spacing="22" HorizontalAlignment="Stretch">
       <TextBlock Text="Сварочно-монтажные работы" FontSize="22" FontWeight="SemiBold" />
@@ -51,8 +51,10 @@
           <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding LastJointDisplay}" FontSize="32" FontWeight="SemiBold" TextWrapping="Wrap" />
         </Grid>
       </Border>
-      <Separator />
-      <TextBlock Text="Комментарии смены" FontSize="20" FontWeight="SemiBold" />
+      <!-- Comments and spare parts share the lower part of the shift: only one of them is on screen. -->
+      <TabControl Padding="0,12,0,0">
+      <TabItem Header="Комментарии смены">
+      <StackPanel Spacing="22">
       <ItemsControl IsVisible="{Binding HasComments}" ItemsSource="{Binding Comments}">
         <ItemsControl.ItemTemplate>
           <DataTemplate x:DataType="models:ReportComment">
@@ -88,6 +90,51 @@
           <Button Content="Отмена" Command="{Binding CancelCommentEditCommand}" IsVisible="{Binding IsEditingComment}" />
         </StackPanel>
       </Grid>
+      </StackPanel>
+      </TabItem>
+      <TabItem Header="{Binding Spares.Header}">
+      <StackPanel Spacing="12">
+        <TextBlock Text="Что израсходовано за смену. Количество сразу сверяется с наличием, а списывается при сохранении отчёта."
+                   TextWrapping="Wrap" Opacity="0.75" />
+        <ItemsControl IsVisible="{Binding Spares.HasItems}" ItemsSource="{Binding Spares.Items}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="data:SpareUsage">
+              <Border BorderBrush="#40808080" BorderThickness="0,0,0,1" Padding="4,8">
+                <Grid ColumnDefinitions="*,150,70,Auto,Auto" ColumnSpacing="8">
+                  <TextBlock Text="{Binding Name}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                  <TextBlock Grid.Column="1" Text="{Binding Article}" TextWrapping="Wrap" VerticalAlignment="Center" Opacity="0.75" />
+                  <TextBlock Grid.Column="2" Text="{Binding Quantity, StringFormat='{}{0} шт.'}" VerticalAlignment="Center" />
+                  <Button Grid.Column="3" Content="Изменить" Padding="8,4" Click="EditSpareClick" />
+                  <Button Grid.Column="4" Content="Удалить" Padding="8,4" Click="RemoveSpareClick" />
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <TextBlock Text="В наличии нет ЗИП. Заполните список «В наличии» в разделе «ЗИП»." TextWrapping="Wrap"
+                   IsVisible="{Binding !Spares.HasChoices}" Foreground="OrangeRed" />
+        <Grid ColumnDefinitions="*,130" ColumnSpacing="8">
+          <StackPanel Spacing="4"><TextBlock Text="Комплектующая" />
+            <Grid><ComboBox ItemsSource="{Binding Spares.Choices}" SelectedItem="{Binding Spares.SelectedChoice, Mode=TwoWay}"
+                            PlaceholderText="Выберите из наличия" HorizontalAlignment="Stretch" MaxDropDownHeight="320">
+                <ComboBox.ItemTemplate>
+                  <DataTemplate x:DataType="vm:SpareChoice"><TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" /></DataTemplate>
+                </ComboBox.ItemTemplate>
+              </ComboBox>
+              <Border IsVisible="{Binding Spares.IsPartInvalid}" BorderBrush="Red" BorderThickness="2" CornerRadius="4" IsHitTestVisible="False" /></Grid></StackPanel>
+          <StackPanel Grid.Column="1" Spacing="4"><TextBlock Text="Количество, шт." />
+            <Grid><TextBox Text="{Binding Spares.DraftQuantity, Mode=TwoWay}" TextChanged="DigitsOnlyTextChanged" />
+              <Border IsVisible="{Binding Spares.IsQuantityInvalid}" BorderBrush="Red" BorderThickness="2" CornerRadius="4" IsHitTestVisible="False" /></Grid></StackPanel>
+        </Grid>
+        <TextBlock Text="{Binding Spares.Validation}" Foreground="OrangeRed" TextWrapping="Wrap"
+                   IsVisible="{Binding Spares.Validation, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Button Content="{Binding Spares.ActionText}" Command="{Binding Spares.AddOrSaveCommand}" />
+          <Button Content="Отмена" Command="{Binding Spares.CancelEditCommand}" IsVisible="{Binding Spares.IsEditing}" />
+        </StackPanel>
+      </StackPanel>
+      </TabItem>
+      </TabControl>
     </StackPanel>
   </ScrollViewer>
 </UserControl>

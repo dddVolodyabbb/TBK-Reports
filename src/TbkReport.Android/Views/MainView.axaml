@@ -48,7 +48,6 @@
               <MenuItem Header="Отменить редактирование" Command="{Binding CancelHistoryEditCommand}" IsVisible="{Binding Report.IsEditingHistoryReport}" MinHeight="56" MinWidth="260" FontSize="18" Padding="16,12" />
               <MenuItem Header="Экспортировать Excel" Command="{Binding ExportReportCommand}" MinHeight="56" MinWidth="260" FontSize="18" Padding="16,12" />
               <MenuItem Header="Экспортировать PDF" Command="{Binding ExportPdfReportCommand}" MinHeight="56" MinWidth="260" FontSize="18" Padding="16,12" />
-              <MenuItem Header="Отправить на почту" Command="{Binding Report.SendEmailCommand}" Classes.MailUnavailable="{Binding !Report.IsSendEmailAvailable}" MinHeight="56" MinWidth="260" FontSize="18" Padding="16,12" />
               <Separator />
               <MenuItem Header="Настройки" Command="{Binding OpenSettingsCommand}" MinHeight="56" MinWidth="260" FontSize="18" Padding="16,12" />
             </MenuFlyout>

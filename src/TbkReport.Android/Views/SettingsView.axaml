@@ -79,34 +79,6 @@
       </Border>
       <Button Content="Выбрать папку…" Command="{Binding ChooseExportFolderCommand}" MinHeight="56" HorizontalAlignment="Stretch" />
       <Button Content="Вернуть папку по умолчанию" Command="{Binding ResetExportFolderCommand}" MinHeight="56" HorizontalAlignment="Stretch" />
-      <Separator />
-      <!-- Mail: sign-in acts at once; addresses and the toggle are saved by «Сохранить» with the other settings. -->
-      <Border Background="#182D4055" CornerRadius="8" Padding="12">
-        <StackPanel Spacing="10">
-          <TextBlock Text="Почта для отправки отчёта (Gmail)" FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap" />
-          <StackPanel Spacing="10" IsVisible="{Binding Report.IsMailSignedOut}">
-            <TextBlock TextWrapping="Wrap" Opacity="0.8"
-                       Text="Нужен пароль приложения Google, а не обычный пароль: в аккаунте Google включите двухэтапную проверку и создайте пароль на странице «Пароли приложений»." />
-            <TextBlock Text="Адрес Gmail" />
-            <TextBox Text="{Binding Report.MailAddressInput, Mode=TwoWay}" PlaceholderText="ivanov@gmail.com" MinHeight="48" />
-            <TextBlock Text="Пароль приложения" />
-            <TextBox Text="{Binding Report.MailPasswordInput, Mode=TwoWay}" PasswordChar="●" PlaceholderText="16 букв из настроек Google" MinHeight="48" />
-            <Button Content="Войти в почту" Command="{Binding Report.SignInMailCommand}" MinHeight="56" HorizontalAlignment="Stretch" />
-          </StackPanel>
-          <StackPanel Spacing="8" IsVisible="{Binding Report.IsMailSignedIn}">
-            <TextBlock Text="{Binding Report.MailSignedInText}" TextWrapping="Wrap" FontWeight="SemiBold" />
-            <Button Content="Выйти из почты" Command="{Binding Report.SignOutMailCommand}" MinHeight="48" HorizontalAlignment="Stretch" />
-          </StackPanel>
-          <TextBlock Text="{Binding Report.MailManagementText}" Opacity="0.8" TextWrapping="Wrap" />
-          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-            <StackPanel Spacing="2">
-              <TextBlock Text="Отправка на почту одновременно с сохранением отчёта" TextWrapping="Wrap" />
-              <TextBlock Text="Включается после входа в почту и включения экспорта PDF." Opacity="0.7" TextWrapping="Wrap" />
-            </StackPanel>
-            <ToggleSwitch Grid.Column="1" IsChecked="{Binding Report.PendingAutoSendEmail, Mode=TwoWay}" AutomationProperties.Name="Автоматическая отправка на почту" />
-          </Grid>
-        </StackPanel>
-      </Border>
       <Button Content="Сохранить" Command="{Binding SaveExportFolderCommand}" MinHeight="56" HorizontalAlignment="Stretch" />
       <Separator />
       <Border Background="#182D4055" CornerRadius="8" Padding="12">

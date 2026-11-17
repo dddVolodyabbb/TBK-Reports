@@ -25,6 +25,7 @@ void FillRequiredHeader(MainViewModel editor, bool includeSecondShift = false)
     editor.Header.SecondShiftSignature = "[[[0.1,0.5],[0.9,0.5]]]";
 }
 Check(vm.First.Welded == 0 && vm.First.FirstJoint == "" && vm.Second.FirstJoint == "", "new report keeps joint fields empty until a shift starts");
+SpareChecks.Run(Check, editor => FillRequiredHeader(editor));
 var newReportEditor = new MainViewModel(
     new ReportHistoryStore(Path.Combine(Path.GetTempPath(), $"tbk-new-report-check-{Guid.NewGuid():N}")),
     new ReportDefaultsStore(Path.Combine(Path.GetTempPath(), $"tbk-new-report-settings-{Guid.NewGuid():N}.json")));

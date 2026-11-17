@@ -9,9 +9,10 @@ public sealed class MainViewModel : ReportViewModel
     public MainViewModel() : this(new ReportHistoryStore(Common.Current),
         new ReportDefaultsStore(Common.Current), new ReportDraftStore(Common.Current), true)
     {
-        // Only the real application signs in to mail; test editors built with other constructors never touch mail.json.
-        Mail = new ReportMailService(new MailSettingsStore(Path.Combine(Common.Current.DataDirectory, "mail.json")),
-            new WindowsSecretProtector(), new GmailTransport());
+        // Mail is switched off until the sign-in method is chosen: the screens have no mail controls, and without
+        // Mail nothing is ever sent. To bring it back, restore this line and the controls in the views.
+        // Mail = new ReportMailService(new MailSettingsStore(Path.Combine(Common.Current.DataDirectory, "mail.json")),
+        //     new WindowsSecretProtector(), new GmailTransport());
     }
 
     public MainViewModel(ReportHistoryStore history) : this(history,
@@ -21,10 +22,12 @@ public sealed class MainViewModel : ReportViewModel
         new ReportDraftStore(Path.Combine(history.DirectoryPath, "draft.json"))) { }
 
     public MainViewModel(ReportHistoryStore history, ReportDefaultsStore defaults, ReportDraftStore draft,
-        bool calculateByCountByDefault = false)
+        bool calculateByCountByDefault = false, SpareStore? spares = null)
         : base(history, defaults, draft, Common.DefaultExportDirectory, Common.DefaultExportDirectory,
             Common.FindExcelTemplate, Common.ResolveExportLocation, calculateByCountByDefault,
-            Path.Combine(Common.TemporaryDirectory, "PdfFonts"))
+            Path.Combine(Common.TemporaryDirectory, "PdfFonts"),
+            // Spare parts live in zip.json next to the draft: the data folder in the real application.
+            spares ?? new SpareStore(Path.Combine(Path.GetDirectoryName(draft.FilePath)!, "zip.json")))
     {
         AutoExportSavedReport = ExportSavedReportAsync;
     }

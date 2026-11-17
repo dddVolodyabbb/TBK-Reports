@@ -24,8 +24,10 @@ public partial class MainViewModel : ObservableObject
             () => templatePath, location => location, calculateByCountByDefault: true);
         ExportService = exportService;
         Report.AutoExportSavedReport = AutoExportSavedReportAsync;
-        Report.Mail = new ReportMailService(new MailSettingsStore(Path.Combine(storagePaths.DataDirectory, "mail.json")),
-            new AndroidSecretProtector(), new GmailTransport());
+        // Mail is switched off until the sign-in method is chosen: the screens have no mail controls, and without
+        // Report.Mail nothing is ever sent. To bring it back, restore this line and the controls in the views.
+        // Report.Mail = new ReportMailService(new MailSettingsStore(Path.Combine(storagePaths.DataDirectory, "mail.json")),
+        //     new AndroidSecretProtector(), new GmailTransport());
         pendingExportLocation = Report.ExportDirectory;
     }
 

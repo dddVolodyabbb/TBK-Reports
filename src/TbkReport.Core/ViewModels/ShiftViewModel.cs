@@ -42,6 +42,8 @@ public partial class ShiftViewModel : ViewModelBase
     [ObservableProperty] private bool isRepairsInvalid;
     public ObservableCollection<ReportComment> Comments { get; } = new();
     public bool HasComments => Comments.Count > 0;
+    /// <summary>Spare parts (ЗИП) used in this shift.</summary>
+    public SpareUsageViewModel Spares { get; } = new();
     private bool automatic;
     public bool FirstManuallyEdited { get; private set; }
     public int Welded => int.TryParse(FirstJoint, out var first) && int.TryParse(LastJoint, out var last) && first > 0 && last >= first ? last - first + 1 : 0;
@@ -329,6 +331,7 @@ public partial class ShiftViewModel : ViewModelBase
         try
         {
         CancelCommentEdit();
+        Spares.Load(null);
         automatic = true;
         FirstJoint = data.FirstJoint;
         LastJoint = data.LastJoint;
@@ -351,11 +354,12 @@ public partial class ShiftViewModel : ViewModelBase
         new ShiftReportData(FirstJoint, LastJoint, StartTime, StopTime, RepairCount, Comments.ToArray()),
         Repairs, NewCommentTime, NewCommentEndTime, NewCommentText, IsCommentTimeRange,
         EditingComment is null ? -1 : Comments.IndexOf(EditingComment),
-        IsCountMode ? WeldedCountText : null, FirstManuallyEdited);
+        IsCountMode ? WeldedCountText : null, FirstManuallyEdited, Spares.ToData());
 
     public void LoadDraft(ShiftDraftData data)
     {
         LoadReport(data.Report);
+        Spares.Load(data.Spares);
         FirstManuallyEdited = data.FirstManuallyEdited ?? FirstManuallyEdited;
         if (IsCountMode && data.WeldedCountText is not null) WeldedCountText = data.WeldedCountText;
         Repairs = data.RepairsText;

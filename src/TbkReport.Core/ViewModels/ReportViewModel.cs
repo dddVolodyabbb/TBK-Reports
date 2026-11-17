@@ -185,7 +185,7 @@ public partial class ReportViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(IsMonthlyOpeningSectionSelected))]
     private int selectedReportDataSectionIndex;
     public bool IsMonthlyOpeningSectionSelected => SelectedReportDataSectionIndex == 3;
-    public bool IsReportViewVisible => !IsHistoryViewVisible && !IsSettingsViewVisible;
+    public bool IsReportViewVisible => !IsHistoryViewVisible && !IsSettingsViewVisible && !IsSparesViewVisible;
     public bool IsReportDateEditable => !IsEditingHistoryReport;
     public string StatusForeground => IsErrorStatus ? "#FFFF3B30" : "#FF4CAF50";
     public bool HasExportStatus => !string.IsNullOrWhiteSpace(ExportStatus);
@@ -214,7 +214,11 @@ public partial class ReportViewModel : ViewModelBase
     partial void OnIsSettingsViewVisibleChanged(bool value) => OnPropertyChanged(nameof(IsReportViewVisible));
     partial void OnIsErrorStatusChanged(bool value) => OnPropertyChanged(nameof(StatusForeground));
     partial void OnExportStatusChanged(string value) => OnPropertyChanged(nameof(HasExportStatus));
-    partial void OnIsEditingHistoryReportChanged(bool value) => OnPropertyChanged(nameof(IsReportDateEditable));
+    partial void OnIsEditingHistoryReportChanged(bool value)
+    {
+        OnPropertyChanged(nameof(IsReportDateEditable));
+        RefreshSpareChoices();
+    }
     partial void OnReportDateChanged(DateTimeOffset? value)
     {
         NotifySendEmailAvailability();
@@ -261,7 +265,7 @@ public partial class ReportViewModel : ViewModelBase
     public ReportViewModel(ReportHistoryStore history, ReportDefaultsStore defaults, ReportDraftStore draft,
         string rootDirectory, string defaultExportDirectory, Func<string> findExcelTemplate,
         Func<string, string> resolveExportLocation, bool calculateByCountByDefault = false,
-        string? pdfFontDirectory = null)
+        string? pdfFontDirectory = null, SpareStore? spares = null)
     {
         this.rootDirectory = rootDirectory;
         // Extracted PDF fonts are application temporary files and must not land in the export folder.
@@ -319,6 +323,8 @@ public partial class ReportViewModel : ViewModelBase
         };
         First.Comments.CollectionChanged += (_, _) => SaveDraftIfReady();
         Second.Comments.CollectionChanged += (_, _) => SaveDraftIfReady();
+        try { InitializeSpares(spares); }
+        catch (Exception ex) { ShowStatus(ex.Message, isError: true); }
         try
         {
             if (defaults.Load() is { } storedDefaults) ApplyDefaults(storedDefaults);
@@ -391,7 +397,8 @@ public partial class ReportViewModel : ViewModelBase
         { Header = Header.ToData(), Problems = Problems.ToData(), Equipment = Equipment.ToData() };
     private string ShiftSnapshot() => JsonSerializer.Serialize(new { ReportDate, First = ToReportData(First), Second = ToReportData(Second),
         FirstCountInput = CalculateByCount && First.CountValidation.Length > 0 ? First.WeldedCountText : null,
-        SecondCountInput = CalculateByCount && Second.CountValidation.Length > 0 ? Second.WeldedCountText : null });
+        SecondCountInput = CalculateByCount && Second.CountValidation.Length > 0 ? Second.WeldedCountText : null,
+        FirstSpares = First.Spares.ToData(), SecondSpares = Second.Spares.ToData() });
     private string ReportDataSnapshot() => JsonSerializer.Serialize(new { Header = Header.ToData(), Problems = Problems.ToData(), Equipment = Equipment.ToData() });
     private void MarkCurrentStateSaved()
     {
@@ -423,6 +430,8 @@ public partial class ReportViewModel : ViewModelBase
             throw new InvalidOperationException("В смене без времени старта должны быть только комментарии. Укажите время старта или очистите поля, выделенные красным.");
         if (First.NewCommentText.Trim().Length > 0 || Second.NewCommentText.Trim().Length > 0)
             throw new InvalidOperationException("Сначала добавьте комментарий или сохраните его изменения.");
+        if (First.Spares.HasDraft || Second.Spares.HasDraft)
+            throw new InvalidOperationException("Сначала добавьте расход ЗИП в отчёт или очистите его поля.");
     }
 
     private void ValidateHeader()
@@ -462,6 +471,8 @@ public partial class ReportViewModel : ViewModelBase
         {
             ValidateReport();
             savedReport = CurrentReport();
+            var firstSpares = First.Spares.ToData();
+            var secondSpares = Second.Spares.ToData();
             if (IsEditingHistoryReport)
             {
                 // A changed report may be sent to the management again.
@@ -473,7 +484,10 @@ public partial class ReportViewModel : ViewModelBase
                     throw new InvalidOperationException("Дату отчёта при редактировании истории изменять нельзя.");
                 if (Header.CollectorNumber != editingHistoryCollector)
                     throw new InvalidOperationException("Номер ГК при редактировании истории изменять нельзя.");
+                // The stock is checked before the report is written and changed right after it.
+                spareStore?.EnsureAvailable(editedDate, editingHistoryCollector, firstSpares, secondSpares);
                 history.Update(savedReport);
+                spareStore?.ApplyReportUsage(editedDate, editingHistoryCollector, firstSpares, secondSpares);
                 RestoreDraftAfterHistoryEdit();
                 RefreshHistory();
             }
@@ -483,7 +497,9 @@ public partial class ReportViewModel : ViewModelBase
                     throw new InvalidOperationException(Header.CollectorNumber is { } number
                         ? $"Отчёт за {CurrentReportDate:dd-MM-yyyy} для ГК {number} уже сохранён. Повторное сохранение запрещено."
                         : $"Отчёт за {CurrentReportDate:dd-MM-yyyy} уже сохранён. Повторное сохранение запрещено.");
+                spareStore?.EnsureAvailable(CurrentReportDate, Header.CollectorNumber, firstSpares, secondSpares);
                 history.Save(savedReport);
+                spareStore?.ApplyReportUsage(CurrentReportDate, Header.CollectorNumber, firstSpares, secondSpares);
                 draft.Delete();
                 MarkCurrentStateSaved();
                 RefreshHistory();
@@ -584,6 +600,8 @@ public partial class ReportViewModel : ViewModelBase
         try
         {
             var deleted = history.Delete(date, key.CollectorNumber);
+            // The spare parts of a deleted report go back to the stock.
+            spareStore?.RemoveReportUsage(date, key.CollectorNumber);
             ForgetSentReport(date, key.CollectorNumber);
             CancelHistoryDeletion();
             RefreshHistory();
@@ -626,6 +644,7 @@ public partial class ReportViewModel : ViewModelBase
         CloseHistory();
         ApplyReport(report);
         IsEditingHistoryReport = true;
+        LoadSparesOfEditedReport();
         EditingHistoryNotice = $"Редактируется отчёт из истории за {selected.Date.ToString("dd MMMM yyyy", CultureInfo.GetCultureInfo("ru-RU"))}. После сохранения текущий черновик будет восстановлен.";
     }
 
@@ -673,6 +692,7 @@ public partial class ReportViewModel : ViewModelBase
     {
         RefreshHistory();
         IsSettingsViewVisible = false;
+        IsSparesViewVisible = false;
         IsHistoryViewVisible = true;
     }
 
@@ -687,6 +707,7 @@ public partial class ReportViewModel : ViewModelBase
     private void OpenSettings()
     {
         IsHistoryViewVisible = false;
+        IsSparesViewVisible = false;
         BeginSettingsEdit();
         IsSettingsViewVisible = true;
     }
@@ -875,7 +896,8 @@ public partial class ReportViewModel : ViewModelBase
 
     private bool HasUnsavedChanges() =>
         ShiftSnapshot() != savedShiftSnapshot || ReportDataSnapshot() != savedReportDataSnapshot ||
-        First.NewCommentText.Trim().Length > 0 || Second.NewCommentText.Trim().Length > 0 || Problems.HasDraft || Equipment.HasDraft;
+        First.NewCommentText.Trim().Length > 0 || Second.NewCommentText.Trim().Length > 0 || Problems.HasDraft || Equipment.HasDraft ||
+        First.Spares.HasDraft || Second.Spares.HasDraft;
 
     private void ApplyReport(ReportExportData report)
     {
