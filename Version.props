@@ -10,7 +10,7 @@
   -->
   <PropertyGroup>
     <TbkVersion>2.0.0</TbkVersion>
-    <TbkVersionLabel>тестовая</TbkVersionLabel>
+    <TbkVersionLabel></TbkVersionLabel>
     <TbkAndroidVersionCode>7</TbkAndroidVersionCode>
   </PropertyGroup>
 </Project>
