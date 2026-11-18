@@ -1,12 +1,15 @@
 ﻿param(
     [string]$Directory = $PSScriptRoot,
     [string]$DocumentName = 'ТБК Отчёт — руководство пользователя',
-    # Empty: the installation guide is the same for every version and has no number; other documents are 1.x.
+    # Empty: the installation guide is the same for every version and has no number; a document with «2.x» in its
+    # name is for 2.x, the rest are the frozen 1.x documents.
     [string]$FooterLabel = ''
 )
 $ErrorActionPreference = 'Stop'
 if (-not $FooterLabel) {
-    $FooterLabel = if ($DocumentName -like '*руководство по установке*') { 'ТБК Отчёт' } else { 'ТБК Отчёт · v1.x' }
+    $FooterLabel = if ($DocumentName -like '*руководство по установке*') { 'ТБК Отчёт' }
+        elseif ($DocumentName -like '*2.x*') { 'ТБК Отчёт · v2.x' }
+        else { 'ТБК Отчёт · v1.x' }
 }
 Add-Type -AssemblyName System.IO.Compression
 Add-Type -AssemblyName System.IO.Compression.FileSystem
