@@ -20,9 +20,12 @@ public static class SpareTransferChecks
         var nozzle = sourceSpares.AddPart("Сопло", "ТТ552-30", "Технотрон");
         sourceSpares.SetStock(tip.Id, 10);
         sourceSpares.SetStock(nozzle.Id, 2);
+        sourceSpares.SetStockDate(new DateTime(2026, 4, 1));
         sourceHistory.Save(report);
         sourceSpares.ApplyReportUsage(date, 5, new[] { new SpareUsage(tip.Id, tip.Name, tip.Article, 3) }, Array.Empty<SpareUsage>());
-        var exporter = new DataTransferService(sourceHistory, new ReportDefaultsStore(Path.Combine(root, "spares-source", "settings.json")), sourceSpares);
+        var sourceDefaults = new ReportDefaultsStore(Path.Combine(root, "spares-source", "settings.json"));
+        sourceDefaults.SaveSettings("source-path", true, sparesAccounting: true);
+        var exporter = new DataTransferService(sourceHistory, sourceDefaults, sourceSpares);
         var bytes = exporter.Export();
         var text = Encoding.UTF8.GetString(bytes);
         Require(text.Contains("\"SpareCatalog\"") && text.Contains("ТТ 552-2101") && text.Contains("\"SpareHistory\""),
@@ -42,8 +45,13 @@ public static class SpareTransferChecks
         Require(changed > 0, "The spare parts store was not reloaded after import.");
         Require(targetSpares.Catalog.Select(part => part.Id).OrderBy(id => id).SequenceEqual(new[] { tip.Id, nozzle.Id }.OrderBy(id => id)),
             "Import did not replace the spare parts catalogue.");
-        Require(targetSpares.Available(tip.Id) == 7 && targetSpares.Available(nozzle.Id) == 2 && targetSpares.Stock.Count == 2,
-            "Import did not replace the stock.");
+        Require(targetSpares.Counted(tip.Id) == 10 && targetSpares.Counted(nozzle.Id) == 2 && targetSpares.Stock.Count == 2 &&
+                targetSpares.StockDate == new DateTime(2026, 4, 1),
+            "Import did not replace the stock and its date.");
+        Require(new ReportDefaultsStore(Path.Combine(root, "spares-target", "settings.json")).Load()?.SparesAccounting == true,
+            "«Учёт ЗИП» did not travel with the settings.");
+        targetSpares.AccountingEnabled = true;
+        Require(targetSpares.Available(tip.Id) == 7, "Imported usage is not taken from the imported stock.");
         Require(targetSpares.GetUsage(date, 5, 1).Single().Quantity == 3, "Spare parts usage did not travel with the history.");
         Require(targetSpares.FindPart(nozzle.Id)?.Manufacturer == "Технотрон", "The manufacturer did not travel with the catalogue.");
         Require(File.ReadAllText(targetSpares.FilePath).Contains("Наконечник"), "Imported spare parts file is not readable JSON.");
@@ -77,7 +85,7 @@ public static class SpareTransferChecks
         Require(!File.Exists(Path.Combine(root, "spares-plain", "zip.json")), "An application without spare parts wrote zip.json.");
 
         // A broken stock line is rejected before anything is written.
-        var broken = text.Replace("\"Quantity\": 7", "\"Quantity\": -1");
+        var broken = text.Replace("\"Quantity\": 10", "\"Quantity\": -1");
         Require(broken != text, "Test setup: stock quantity not found.");
         try
         {

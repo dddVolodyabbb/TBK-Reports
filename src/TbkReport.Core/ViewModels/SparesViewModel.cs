@@ -74,6 +74,23 @@ public partial class SparesViewModel : ViewModelBase
             : !IsEditingStock && StockChoices.Count == 0 ? "Ничего не найдено." : "";
     public bool HasStockHint => StockHint.Length > 0;
 
+    /// <summary>«Остатки на дату»: the day «В наличии» was counted; usage of reports from that day on is taken from it.</summary>
+    public DateTimeOffset? StockDate
+    {
+        get => new DateTimeOffset(store.StockDate);
+        set
+        {
+            if (value is not { } date || date.Date == store.StockDate) return;
+            try { store.SetStockDate(date.Date); StockValidation = ""; }
+            catch (Exception ex) { StockValidation = ex.Message; }
+        }
+    }
+
+    public bool IsAccountingEnabled => store.AccountingEnabled;
+    public string AccountingText => store.AccountingEnabled
+        ? "Учёт ЗИП включён: из количества вычитается расход из отчётов начиная с этой даты."
+        : "Учёт ЗИП выключен: количество не уменьшается. Включается в «Параметрах» → «Учёт ЗИП».";
+
     public SparesViewModel(SpareStore store)
     {
         this.store = store;
@@ -122,7 +139,7 @@ public partial class SparesViewModel : ViewModelBase
         }
         StockRows.Clear();
         foreach (var row in store.Stock
-                     .Select(item => store.FindPart(item.PartId) is { } part ? new SpareStockRow(part.Id, part.Name, part.Article, item.Quantity) : null)
+                     .Select(item => store.FindPart(item.PartId) is { } part ? new SpareStockRow(part.Id, part.Name, part.Article, store.Available(part.Id)) : null)
                      .Where(row => row is not null && SpareSearch.Matches(StockSearch, row.Name, row.Article))
                      .OrderBy(row => row!.Name, StringComparer.CurrentCultureIgnoreCase).ThenBy(row => row!.Article))
             StockRows.Add(row!);
@@ -141,6 +158,9 @@ public partial class SparesViewModel : ViewModelBase
         OnPropertyChanged(nameof(StockSummary));
         OnPropertyChanged(nameof(StockHint));
         OnPropertyChanged(nameof(HasStockHint));
+        OnPropertyChanged(nameof(StockDate));
+        OnPropertyChanged(nameof(IsAccountingEnabled));
+        OnPropertyChanged(nameof(AccountingText));
     }
 
     [RelayCommand]

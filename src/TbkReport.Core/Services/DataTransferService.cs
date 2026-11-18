@@ -28,7 +28,9 @@ public sealed record TransferSelection(
 }
 
 // Theme is optional: backups made before it existed keep the current theme on import.
-public sealed record TransferSettings(bool CalculateByCount, bool AutoExportExcel, bool AutoExportPdf, AppTheme? Theme = null);
+// SparesAccounting is optional like Theme: older backups keep the current value.
+public sealed record TransferSettings(bool CalculateByCount, bool AutoExportExcel, bool AutoExportPdf, AppTheme? Theme = null,
+    bool? SparesAccounting = null);
 public sealed record TransferHeader(
     string Customer,
     string Project,
@@ -59,7 +61,9 @@ public sealed record TransferDocument(
     SparePart[]? SpareCatalog = null,
     TransferSpareStock[]? SpareStock = null,
     // Spare parts usage travels with «История»: it belongs to the reports.
-    SpareHistoryEntry[]? SpareHistory = null);
+    SpareHistoryEntry[]? SpareHistory = null,
+    // «Остатки на дату» travels with «ЗИП в наличии».
+    DateTime? SpareStockDate = null);
 
 public sealed class DataTransferService(ReportHistoryStore history, ReportDefaultsStore defaults, SpareStore? spares = null)
 {
@@ -103,10 +107,12 @@ public sealed class DataTransferService(ReportHistoryStore history, ReportDefaul
                 saved?.CalculateByCount ?? true,
                 saved?.AutoExportExcel ?? false,
                 saved?.AutoExportPdf ?? false,
-                saved?.Theme ?? AppTheme.System) : null,
+                saved?.Theme ?? AppTheme.System,
+                saved?.SparesAccounting ?? false) : null,
             selection.SpareCatalog ? spares!.Catalog.ToArray() : null,
             selection.SpareStock ? spares!.StockForTransfer() : null,
-            selection.History && spares is not null ? spares.History.ToArray() : null);
+            selection.History && spares is not null ? spares.History.ToArray() : null,
+            selection.SpareStock ? spares!.StockDateForTransfer : null);
         Validate(document);
         return JsonSerializer.SerializeToUtf8Bytes(document, Options);
     }
@@ -266,7 +272,8 @@ public sealed class DataTransferService(ReportHistoryStore history, ReportDefaul
                     selection.SpareStock ? document.SpareStock : null,
                     document.SpareHistory is null ? null
                         : reports.Select(report => new HistoryReportKey(report.Date.Date, report.Header?.CollectorNumber)).ToArray(),
-                    document.SpareHistory));
+                    document.SpareHistory,
+                    selection.SpareStock ? document.SpareStockDate : null));
                 replacements.Add((source, spares.FilePath));
             }
 
@@ -315,7 +322,8 @@ public sealed class DataTransferService(ReportHistoryStore history, ReportDefaul
         if (imported is null) return null;
         return new ReportDefaultsData(1, imported.Header, imported.Equipment, imported.Problems,
             current?.ExportPath, current?.CalculateByCount ?? true,
-            current?.AutoExportExcel ?? false, current?.AutoExportPdf ?? false, current?.Theme ?? AppTheme.System);
+            current?.AutoExportExcel ?? false, current?.AutoExportPdf ?? false, current?.Theme ?? AppTheme.System,
+            current?.SparesAccounting ?? false);
     }
 
     private static ReportDefaultsData? MergeDefaults(
@@ -339,7 +347,8 @@ public sealed class DataTransferService(ReportHistoryStore history, ReportDefaul
             CalculateByCount = selection.Settings ? settings!.CalculateByCount : current.CalculateByCount,
             AutoExportExcel = selection.Settings ? settings!.AutoExportExcel : current.AutoExportExcel,
             AutoExportPdf = selection.Settings ? settings!.AutoExportPdf : current.AutoExportPdf,
-            Theme = selection.Settings && settings!.Theme is { } theme && Enum.IsDefined(theme) ? theme : current.Theme
+            Theme = selection.Settings && settings!.Theme is { } theme && Enum.IsDefined(theme) ? theme : current.Theme,
+            SparesAccounting = selection.Settings && settings!.SparesAccounting is { } accounting ? accounting : current.SparesAccounting
         };
     }
 

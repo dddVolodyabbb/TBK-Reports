@@ -7,7 +7,6 @@ using System.Text.Json;
 
 namespace TbkReport.Services;
 
-/// <summary>One line of the parts catalogue: a possible spare part with its catalogue number.</summary>
 /// <summary>One line of the parts catalogue. Manufacturer is shown only in the catalogue for now.</summary>
 public sealed record SparePart(string Id, string Name, string Article, string Manufacturer = "")
 {
@@ -15,7 +14,10 @@ public sealed record SparePart(string Id, string Name, string Article, string Ma
     public string Label => string.IsNullOrEmpty(Article) ? Name : $"{Name} · {Article}";
 }
 
-/// <summary>How many pieces of a catalogue part are in stock.</summary>
+/// <summary>
+/// How many pieces of a catalogue part there were on the stock date (<see cref="SpareFileData.StockDate"/>).
+/// What is left now is calculated: this number minus the usage of reports from the stock date on.
+/// </summary>
 public sealed record SpareStockItem(string PartId, int Quantity);
 
 /// <summary>Spare parts used in one shift of a report. Name and article are kept as they were at that moment.</summary>
@@ -25,16 +27,24 @@ public sealed record SpareUsage(string PartId, string Name, string Article, int 
 public sealed record SpareHistoryEntry(DateTime Date, int? CollectorNumber, int Shift, string PartId, string Name,
     string Article, int Quantity);
 
+/// <summary>A part the reports used more of than «В наличии» holds: how many pieces are missing.</summary>
+public sealed record SpareShortage(string PartId, string Label, int Missing);
+
 /// <summary>A stock line in a data transfer file: the part's name and article travel with it.</summary>
 public sealed record TransferSpareStock(string PartId, string Name, string Article, int Quantity);
 
-public sealed record SpareFileData(int Version, SparePart[] Catalog, SpareStockItem[] Stock, SpareHistoryEntry[] History);
+/// <param name="StockDate">«Остатки на дату»: the stock quantities were counted on this day; the usage of reports
+/// dated on or after it is taken from them while spare parts accounting is on.</param>
+public sealed record SpareFileData(int Version, SparePart[] Catalog, SpareStockItem[] Stock, SpareHistoryEntry[] History,
+    DateTime? StockDate = null);
 
 /// <summary>
 /// Spare parts (ЗИП): the catalogue, the stock and the usage history, all in one `zip.json`.
-/// Usage is tied to a report by its date and collector number, the same key as the report history.
-/// Saving a report writes its usage to the history and takes it from the stock; saving an edited report
-/// first returns the previous usage of that report, deleting a report returns it completely.
+/// Usage is tied to a report by its date and collector number, the same key as the report history; saving a report
+/// always writes (replaces) its usage lines, deleting a report removes them. Reports never change the stock itself:
+/// what is left is calculated as the stock quantity minus the usage of reports dated from <see cref="StockDate"/> on,
+/// and only while <see cref="AccountingEnabled"/> is on («Учёт ЗИП» in the settings). So switching the accounting on
+/// later, or moving the stock date, recalculates everything from the saved reports at once.
 /// </summary>
 public sealed class SpareStore
 {
@@ -45,10 +55,11 @@ public sealed class SpareStore
     };
 
     private SpareFileData? cache;
+    private bool accountingEnabled;
 
     public string FilePath { get; }
 
-    /// <summary>Raised after every change of the catalogue, the stock or the history.</summary>
+    /// <summary>Raised after every change of the catalogue, the stock, the history or the accounting switch.</summary>
     public event Action? Changed;
 
     private readonly SparePart[] initialCatalog;
@@ -67,8 +78,50 @@ public sealed class SpareStore
 
     public SparePart? FindPart(string partId) => Data.Catalog.FirstOrDefault(part => part.Id == partId);
 
-    /// <summary>Pieces in stock; a part absent from the stock list has none.</summary>
-    public int Available(string partId) => Data.Stock.FirstOrDefault(item => item.PartId == partId)?.Quantity ?? 0;
+    /// <summary>«Учёт ЗИП»: while off, usage is only recorded with the reports; the stock is neither reduced nor checked.</summary>
+    public bool AccountingEnabled
+    {
+        get => accountingEnabled;
+        set
+        {
+            if (accountingEnabled == value) return;
+            accountingEnabled = value;
+            Changed?.Invoke();
+        }
+    }
+
+    /// <summary>«Остатки на дату»: the day the stock was counted; a stock without a date counts from today.</summary>
+    public DateTime StockDate => (Data.StockDate ?? DateTime.Today).Date;
+
+    /// <summary>Whether the usage of a report on this date is taken from the stock.</summary>
+    public bool CountsAgainstStock(DateTime reportDate) => AccountingEnabled && reportDate.Date >= StockDate;
+
+    /// <summary>Pieces of a part used by reports dated from the stock date on.</summary>
+    public int UsedSinceStockDate(string partId) => Data.History
+        .Where(entry => entry.PartId == partId && entry.Date.Date >= StockDate).Sum(entry => entry.Quantity);
+
+    /// <summary>The stock quantity entered for a part (as of the stock date); a part absent from the stock list has none.</summary>
+    public int Counted(string partId) => Data.Stock.FirstOrDefault(item => item.PartId == partId)?.Quantity ?? 0;
+
+    /// <summary>
+    /// Pieces left: the counted quantity minus the usage since the stock date while the accounting is on, otherwise the
+    /// counted quantity. It may be negative when the reports used more than was counted.
+    /// </summary>
+    public int Available(string partId) => Counted(partId) - (AccountingEnabled ? UsedSinceStockDate(partId) : 0);
+
+    /// <summary>
+    /// What switching the accounting on would leave below zero: every part whose usage in reports from the stock date on
+    /// is larger than its counted quantity (a part used but not in «В наличии» counts as 0), with the missing pieces.
+    /// </summary>
+    public IReadOnlyList<SpareShortage> ShortagesIfAccounting() => Data.History
+        .Where(entry => entry.Date.Date >= StockDate)
+        .GroupBy(entry => entry.PartId)
+        .Select(group => new SpareShortage(group.Key,
+            FindPart(group.Key)?.Name ?? group.Last().Name,
+            group.Sum(entry => entry.Quantity) - Counted(group.Key)))
+        .Where(shortage => shortage.Missing > 0)
+        .OrderBy(shortage => shortage.Label, StringComparer.CurrentCultureIgnoreCase)
+        .ToArray();
 
     public SparePart AddPart(string name, string article, string manufacturer = "")
     {
@@ -93,22 +146,29 @@ public sealed class SpareStore
         Write(Data with { Catalog = Data.Catalog.Where(item => item.Id != partId).ToArray() });
     }
 
-    /// <summary>Adds a catalogue part to the stock list or changes its quantity.</summary>
+    /// <summary>
+    /// Adds a catalogue part to the stock list or changes its quantity. The number is how many pieces lie there now:
+    /// while the accounting is on, the usage since the stock date is added back, so exactly this number is left.
+    /// </summary>
     public void SetStock(string partId, int quantity)
     {
         if (FindPart(partId) is null) throw new InvalidOperationException("Выберите комплектующую из справочника.");
         if (quantity < 0) throw new InvalidOperationException("Количество должно быть целым неотрицательным числом.");
-        var item = new SpareStockItem(partId, quantity);
+        var item = new SpareStockItem(partId, quantity + (AccountingEnabled ? UsedSinceStockDate(partId) : 0));
         Write(Data with
         {
             Stock = Data.Stock.Any(entry => entry.PartId == partId)
                 ? Data.Stock.Select(entry => entry.PartId == partId ? item : entry).ToArray()
-                : Data.Stock.Append(item).ToArray()
+                : Data.Stock.Append(item).ToArray(),
+            StockDate = StockDate
         });
     }
 
     public void RemoveStock(string partId) =>
         Write(Data with { Stock = Data.Stock.Where(item => item.PartId != partId).ToArray() });
+
+    /// <summary>Sets «Остатки на дату»; the counted quantities stay, the usage is counted from the new day.</summary>
+    public void SetStockDate(DateTime date) => Write(Data with { StockDate = date.Date });
 
     /// <summary>Usage recorded for one shift (1 or 2) of a saved report.</summary>
     public SpareUsage[] GetUsage(DateTime date, int? collectorNumber, int shift) => Data.History
@@ -120,74 +180,65 @@ public sealed class SpareStore
         .Where(entry => entry.Date.Date == date.Date && entry.CollectorNumber == collectorNumber && entry.PartId == partId)
         .Sum(entry => entry.Quantity);
 
-    /// <summary>Throws when the stock cannot cover the report's usage; nothing is written.</summary>
+    /// <summary>
+    /// Throws when the stock cannot cover the report's usage; nothing is written. Checked only while the accounting is
+    /// on and the report is dated from the stock date on; the report's own saved usage is available to it again.
+    /// </summary>
     public void EnsureAvailable(DateTime date, int? collectorNumber, IReadOnlyList<SpareUsage> first,
-        IReadOnlyList<SpareUsage> second) => Plan(date, collectorNumber, first, second);
+        IReadOnlyList<SpareUsage> second)
+    {
+        if (first.Concat(second).Any(usage => usage.Quantity <= 0))
+            throw new InvalidOperationException("Количество израсходованного ЗИП должно быть больше нуля.");
+        if (!CountsAgainstStock(date)) return;
+        foreach (var part in first.Concat(second).GroupBy(usage => usage.PartId))
+        {
+            var left = Available(part.Key) + UsedByReport(date, collectorNumber, part.Key) - part.Sum(usage => usage.Quantity);
+            if (left < 0)
+                throw new InvalidOperationException(
+                    $"В наличии не хватает ЗИП «{part.First().Name}»: израсходовано на {-left} больше, чем есть.");
+        }
+    }
 
-    /// <summary>Replaces the usage recorded for a report and corrects the stock by the difference.</summary>
+    /// <summary>Replaces the usage recorded for a report, after the same check as <see cref="EnsureAvailable"/>.</summary>
     public void ApplyReportUsage(DateTime date, int? collectorNumber, IReadOnlyList<SpareUsage> first,
         IReadOnlyList<SpareUsage> second)
     {
-        var planned = Plan(date, collectorNumber, first, second);
-        if (planned is not null) Write(planned);
+        EnsureAvailable(date, collectorNumber, first, second);
+        var data = Data;
+        bool OfReport(SpareHistoryEntry entry) => entry.Date.Date == date.Date && entry.CollectorNumber == collectorNumber;
+        if (!data.History.Any(OfReport) && first.Count == 0 && second.Count == 0) return;
+        SpareHistoryEntry ToEntry(SpareUsage usage, int shift) =>
+            new(date.Date, collectorNumber, shift, usage.PartId, usage.Name, usage.Article, usage.Quantity);
+        var entries = first.Select(usage => ToEntry(usage, 1)).Concat(second.Select(usage => ToEntry(usage, 2)));
+        Write(data with
+        {
+            History = data.History.Where(entry => !OfReport(entry)).Concat(entries)
+                .OrderBy(entry => entry.Date).ThenBy(entry => entry.CollectorNumber ?? -1).ThenBy(entry => entry.Shift).ToArray()
+        });
     }
 
-    /// <summary>Returns the report's spare parts to the stock and removes its history lines.</summary>
+    /// <summary>Removes the report's usage lines; while the accounting is on, its parts count as left again.</summary>
     public void RemoveReportUsage(DateTime date, int? collectorNumber) =>
         ApplyReportUsage(date, collectorNumber, Array.Empty<SpareUsage>(), Array.Empty<SpareUsage>());
 
-    private SpareFileData? Plan(DateTime date, int? collectorNumber, IReadOnlyList<SpareUsage> first,
-        IReadOnlyList<SpareUsage> second)
-    {
-        var data = Data;
-        bool OfReport(SpareHistoryEntry entry) => entry.Date.Date == date.Date && entry.CollectorNumber == collectorNumber;
-        var previous = data.History.Where(OfReport).ToArray();
-        if (previous.Length == 0 && first.Count == 0 && second.Count == 0) return null;
-
-        var stock = data.Stock.ToDictionary(item => item.PartId, item => item.Quantity);
-        var order = data.Stock.Select(item => item.PartId).ToList();
-        void Change(string partId, int delta)
-        {
-            if (!stock.ContainsKey(partId)) { stock[partId] = 0; order.Add(partId); }
-            stock[partId] += delta;
-        }
-        foreach (var entry in previous) Change(entry.PartId, entry.Quantity);
-        foreach (var usage in first.Concat(second))
-        {
-            if (usage.Quantity <= 0) throw new InvalidOperationException("Количество израсходованного ЗИП должно быть больше нуля.");
-            Change(usage.PartId, -usage.Quantity);
-        }
-        foreach (var usage in first.Concat(second))
-            if (stock[usage.PartId] < 0)
-                throw new InvalidOperationException(
-                    $"В наличии не хватает ЗИП «{usage.Name}»: израсходовано на {-stock[usage.PartId]} больше, чем есть.");
-
-        var entries = first.Select(usage => ToEntry(usage, 1)).Concat(second.Select(usage => ToEntry(usage, 2)));
-        return data with
-        {
-            Stock = order.Select(partId => new SpareStockItem(partId, stock[partId])).ToArray(),
-            History = data.History.Where(entry => !OfReport(entry)).Concat(entries)
-                .OrderBy(entry => entry.Date).ThenBy(entry => entry.CollectorNumber ?? -1).ThenBy(entry => entry.Shift).ToArray()
-        };
-
-        SpareHistoryEntry ToEntry(SpareUsage usage, int shift) =>
-            new(date.Date, collectorNumber, shift, usage.PartId, usage.Name, usage.Article, usage.Quantity);
-    }
-
-    /// <summary>The stock with each part's name and article, so a backup can rebuild missing catalogue lines.</summary>
+    /// <summary>The stock (counted quantities) with each part's name and article, so a backup can rebuild missing catalogue lines.</summary>
     public TransferSpareStock[] StockForTransfer() => Data.Stock
         .Select(item => FindPart(item.PartId) is { } part ? new TransferSpareStock(part.Id, part.Name, part.Article, item.Quantity) : null)
         .Where(item => item is not null).Select(item => item!).ToArray();
+
+    /// <summary>The stored stock date, for a data transfer.</summary>
+    public DateTime? StockDateForTransfer => Data.StockDate?.Date;
 
     /// <summary>
     /// The file contents after a data import; nothing is written. A section given as null keeps the local data.
     /// The catalogue is replaced by the file's one; a local part with the same name and article becomes the
     /// imported part, so local stock and history follow it. Local parts still listed in the stock are kept.
-    /// The stock is replaced by the file's one; a stock line whose part is missing adds that part to the catalogue.
-    /// Usage history is replaced only for the given reports (the reports the import replaces).
+    /// The stock is replaced by the file's one together with its stock date; a stock line whose part is missing adds
+    /// that part to the catalogue. Usage history is replaced only for the given reports (the reports the import replaces).
     /// </summary>
     public SpareFileData PlanImport(IReadOnlyList<SparePart>? catalog, IReadOnlyList<TransferSpareStock>? stock,
-        IReadOnlyCollection<HistoryReportKey>? replacedReports, IReadOnlyList<SpareHistoryEntry>? history)
+        IReadOnlyCollection<HistoryReportKey>? replacedReports, IReadOnlyList<SpareHistoryEntry>? history,
+        DateTime? stockDate = null)
     {
         var data = Data;
         var parts = data.Catalog.ToList();
@@ -252,7 +303,9 @@ public sealed class SpareStore
             }
         }
         return new SpareFileData(1, parts.ToArray(), stockItems.ToArray(), entries
-            .OrderBy(entry => entry.Date).ThenBy(entry => entry.CollectorNumber ?? -1).ThenBy(entry => entry.Shift).ToArray());
+                .OrderBy(entry => entry.Date).ThenBy(entry => entry.CollectorNumber ?? -1).ThenBy(entry => entry.Shift).ToArray(),
+            // The stock date travels with the stock: imported quantities were counted on the source's day.
+            stock is not null ? (stockDate ?? data.StockDate)?.Date : data.StockDate);
     }
 
     /// <summary>Writes a spare parts file at any path, for example a data import's staging folder.</summary>
@@ -310,7 +363,8 @@ public sealed class SpareStore
                     .Select(part => part with { Article = part.Article ?? "", Manufacturer = part.Manufacturer ?? "" }).ToArray(),
                 (data.Stock ?? Array.Empty<SpareStockItem>()).Where(item => item is { PartId: not null }).ToArray(),
                 (data.History ?? Array.Empty<SpareHistoryEntry>()).Where(entry => entry is { PartId: not null })
-                    .Select(entry => entry with { Name = entry.Name ?? "", Article = entry.Article ?? "" }).ToArray());
+                    .Select(entry => entry with { Name = entry.Name ?? "", Article = entry.Article ?? "" }).ToArray(),
+                data.StockDate?.Date);
         }
         catch (JsonException ex)
         {

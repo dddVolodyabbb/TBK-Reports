@@ -25,7 +25,9 @@ public sealed record ReportDefaultsData(
     bool CalculateByCount = true,
     bool AutoExportExcel = false,
     bool AutoExportPdf = false,
-    AppTheme Theme = AppTheme.System);
+    AppTheme Theme = AppTheme.System,
+    // «Учёт ЗИП»: off until a technician fills «В наличии» and switches it on.
+    bool SparesAccounting = false);
 
 // Persistent defaults shared by new reports and stored separately from dated history.
 public sealed class ReportDefaultsStore
@@ -65,7 +67,7 @@ public sealed class ReportDefaultsStore
         var current = Load();
         var data = new ReportDefaultsData(1, header, equipment.ToArray(), problems.ToArray(), exportPath,
             current?.CalculateByCount ?? true, current?.AutoExportExcel ?? false, current?.AutoExportPdf ?? false,
-            current?.Theme ?? AppTheme.System);
+            current?.Theme ?? AppTheme.System, current?.SparesAccounting ?? false);
         Write(data);
     }
 
@@ -76,7 +78,7 @@ public sealed class ReportDefaultsStore
     }
 
     public void SaveSettings(string exportPath, bool calculateByCount, bool autoExportExcel = false, bool autoExportPdf = false,
-        AppTheme? theme = null)
+        AppTheme? theme = null, bool? sparesAccounting = null)
     {
         var current = Load() ?? new ReportDefaultsData(1, null, Array.Empty<EquipmentData>(), Array.Empty<string>(), CalculateByCount: true);
         Write(current with
@@ -85,8 +87,9 @@ public sealed class ReportDefaultsStore
             CalculateByCount = calculateByCount,
             AutoExportExcel = autoExportExcel,
             AutoExportPdf = autoExportPdf,
-            // Callers that do not manage the theme keep the stored one.
-            Theme = theme ?? current.Theme
+            // Callers that do not manage the theme or the spare parts accounting keep the stored values.
+            Theme = theme ?? current.Theme,
+            SparesAccounting = sparesAccounting ?? current.SparesAccounting
         });
     }
 

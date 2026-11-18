@@ -15,6 +15,10 @@
       <Setter Property="Foreground" Value="{DynamicResource ButtonForeground}" />
       <Setter Property="Padding" Value="10,10" />
       <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <!-- Segments fill their cells, so they touch each other, share one height and both rows end at the same edges. -->
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+      <Setter Property="VerticalAlignment" Value="Stretch" />
+      <Setter Property="MinHeight" Value="48" />
       <Setter Property="Template">
         <ControlTemplate>
           <Border Name="SegmentBorder" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
@@ -40,9 +44,10 @@
     <StackPanel Margin="16" Spacing="16">
       <Button Content="← Назад" Command="{Binding BackCommand}" MinHeight="48" />
       <TextBlock Text="Параметры" FontSize="22" FontWeight="SemiBold" />
-      <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
-        <TextBlock Text="Расчёт по" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" />
-        <Border Grid.Column="1" Background="#182D4055" CornerRadius="8" Padding="12,10">
+      <!-- Both labels sit above their choices, so the two rows have the same width and edges on a phone. -->
+      <StackPanel Spacing="8">
+        <TextBlock Text="Расчёт по" FontSize="18" FontWeight="SemiBold" />
+        <Border Background="#182D4055" CornerRadius="8" Padding="12,10">
           <Grid ColumnDefinitions="*,*">
             <RadioButton Classes="CalculationSegment Left" GroupName="CalculationMode" Content="Номерам стыков"
                          IsChecked="{Binding Report.PendingCalculateByNumbers, Mode=TwoWay}" />
@@ -50,8 +55,7 @@
                          IsChecked="{Binding Report.PendingCalculateByCount, Mode=TwoWay}" />
           </Grid>
         </Border>
-      </Grid>
-      <!-- Three choices do not fit beside a label on a phone: the label goes above them. -->
+      </StackPanel>
       <StackPanel Spacing="8">
         <TextBlock Text="Тема" FontSize="18" FontWeight="SemiBold" />
         <Border Background="#182D4055" CornerRadius="8" Padding="12,10">
@@ -72,6 +76,14 @@
       <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
         <TextBlock Text="Экспорт PDF одновременно с сохранением отчёта" VerticalAlignment="Center" TextWrapping="Wrap" />
         <ToggleSwitch Grid.Column="1" IsChecked="{Binding Report.PendingAutoExportPdf, Mode=TwoWay}" AutomationProperties.Name="Автоматический экспорт PDF" />
+      </Grid>
+      <!-- «Учёт ЗИП»: off by default; while off, spare parts usage is only recorded with the reports. -->
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" IsVisible="{Binding Report.HasSpares}">
+        <StackPanel Spacing="2" VerticalAlignment="Center">
+          <TextBlock Text="Учёт ЗИП: вычитать расход из «В наличии»" TextWrapping="Wrap" />
+          <TextBlock Text="Пока выключено, расход ЗИП только записывается в отчёты." Opacity="0.7" TextWrapping="Wrap" />
+        </StackPanel>
+        <ToggleSwitch Grid.Column="1" IsChecked="{Binding Report.PendingSparesAccounting, Mode=TwoWay}" AutomationProperties.Name="Учёт ЗИП" />
       </Grid>
       <TextBlock Text="Папка для сохранения отчётов и резервных копий." TextWrapping="Wrap" />
       <Border Padding="12" BorderBrush="#808080" BorderThickness="1" CornerRadius="4">

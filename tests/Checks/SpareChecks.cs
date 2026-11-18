@@ -102,9 +102,23 @@ public static class SpareChecks
         section.RemovePart(section.Parts.First(part => part.Id == tip.Id));
         check(section.Parts.Count == 3 && section.PartValidation.Length > 0, "spares section: removing a part in stock explains why not");
 
+        check(store.StockDate == DateTime.Today, "spares: a stock without a date counts from today");
+        section.StockDate = new DateTimeOffset(new DateTime(2026, 3, 1));
+        check(store.StockDate == new DateTime(2026, 3, 1) && new SpareStore(zipFile).StockDate == new DateTime(2026, 3, 1),
+            "spares section: «Остатки на дату» is stored");
+        check(!section.IsAccountingEnabled && section.AccountingText.Contains("выключен"),
+            "spares section: the stock page says when the accounting is off");
+
         var history = new ReportHistoryStore(Path.Combine(root, "History"));
         var editor = new MainViewModel(history, new ReportDefaultsStore(Path.Combine(root, "settings.json")),
             new ReportDraftStore(Path.Combine(root, "draft.json")), spares: store);
+        check(!editor.SparesAccounting && !store.AccountingEnabled, "spares: the accounting is off after installation");
+        editor.BeginSettingsEdit();
+        editor.PendingSparesAccounting = true;
+        editor.SaveSettings(Path.Combine(root, "Exports"));
+        check(editor.SparesAccounting && store.AccountingEnabled &&
+              new ReportDefaultsStore(Path.Combine(root, "settings.json")).Load()?.SparesAccounting == true,
+            "spares: «Учёт ЗИП» is switched on by «Сохранить» in the settings and stored");
         fillHeader(editor);
         var date = new DateTime(2026, 3, 10);
         editor.ReportDate = new DateTimeOffset(date);
@@ -211,6 +225,61 @@ public static class SpareChecks
         editor.ConfirmHistoryDeletionCommand.Execute(null);
         check(history.Load(date) is null && store.History.Count == 0 && store.Available(tip.Id) == 5 &&
               store.Available(nozzle.Id) == 4, "spares: deleting a report returns its spare parts to stock");
+
+        // Accounting off: any catalogue part, no check, nothing taken from the stock; switching it on recounts from the date.
+        editor.SparesAccounting = false;
+        check(first.Choices.Count == store.Stock.Count && first.Choices.All(choice => !choice.ShowAvailable) &&
+              !first.IsStockEmpty && first.Hint.Contains("выключен"),
+            "spares off: the shift still offers only «В наличии», without stock numbers");
+        var offDate = new DateTime(2026, 3, 11);
+        fillHeader(editor);
+        editor.ReportDate = new DateTimeOffset(offDate);
+        editor.First.StartTime = new TimeSpan(8, 0, 0);
+        editor.First.StopTime = new TimeSpan(19, 0, 0);
+        editor.First.FirstJoint = "11";
+        editor.First.LastJoint = "20";
+        editor.First.Repairs = "0";
+        first.SelectedChoice = first.Choices.First(choice => choice.PartId == tip.Id);
+        first.DraftQuantity = "100";
+        first.AddOrSaveCommand.Execute(null);
+        check(first.Items.Count == 1 && first.Items[0].Quantity == 100 && !first.IsQuantityInvalid,
+            "spares off: any quantity is accepted");
+        editor.SaveHistoryCommand.Execute(null);
+        check(history.Load(offDate) is not null && store.GetUsage(offDate, null, 1).Single().Quantity == 100 &&
+              store.Available(tip.Id) == 5, "spares off: the usage is recorded with the report but the stock stays");
+        store.SetStockDate(new DateTime(2026, 3, 12));
+        store.AccountingEnabled = true;
+        check(store.Available(tip.Id) == 5 && !store.CountsAgainstStock(offDate),
+            "spares on: reports before «Остатки на дату» are not taken from the stock");
+        store.SetStockDate(new DateTime(2026, 3, 1));
+        check(store.Available(tip.Id) == -95 && section.StockRows.First(row => row.PartId == tip.Id).Quantity == -95,
+            "spares on: switching on takes the usage of earlier saved reports from the stock date on");
+        section.BeginEditStock(section.StockRows.First(row => row.PartId == tip.Id));
+        section.StockQuantity = "7";
+        section.AddOrSaveStockCommand.Execute(null);
+        check(store.Available(tip.Id) == 7 && store.Counted(tip.Id) == 107,
+            "spares on: a corrected quantity is what is left now");
+        check(section.IsAccountingEnabled && section.AccountingText.Contains("включён"),
+            "spares section: the stock page says when the accounting is on");
+
+        // Switching the accounting on through the settings is refused while some part is short.
+        // Above the store was switched directly; bring the editor and the store back in step.
+        editor.SparesAccounting = false;
+        store.AccountingEnabled = false;
+        store.SetStock(tip.Id, 50);
+        check(store.ShortagesIfAccounting().Single() is { Missing: 50 } shortage && shortage.Label.Contains("Наконечник сварочный"),
+            "spares: the shortage of a part is counted from the reports since the stock date");
+        editor.BeginSettingsEdit();
+        editor.PendingSparesAccounting = true;
+        var refusal = editor.SaveSettings(Path.Combine(root, "Exports"));
+        check(refusal == "Не хватает ЗИП: Наконечник сварочный — 50 шт." &&
+              !editor.SparesAccounting && !editor.PendingSparesAccounting && !store.AccountingEnabled &&
+              new ReportDefaultsStore(Path.Combine(root, "settings.json")).Load()?.SparesAccounting == false,
+            "spares: «Учёт ЗИП» is not switched on while a part is short, and the message names it");
+        store.SetStock(tip.Id, 100);
+        editor.PendingSparesAccounting = true;
+        check(editor.SaveSettings(Path.Combine(root, "Exports")) is null && editor.SparesAccounting && store.Available(tip.Id) == 0,
+            "spares: with enough parts the accounting is switched on");
 
         editor.OpenSparesCommand.Execute(null);
         check(editor.IsSparesViewVisible && !editor.IsReportViewVisible && !editor.IsHistoryViewVisible,

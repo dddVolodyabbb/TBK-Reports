@@ -7,7 +7,11 @@ using TbkReport.ViewModels;
 namespace TbkReport.Views;
 public partial class ShiftView : UserControl
 {
-    public ShiftView() { InitializeComponent(); }
+    public ShiftView()
+    {
+        InitializeComponent();
+        SearchDropDown.Attach(SpareSearchBox, SpareChoiceList);
+    }
 
     private void RemoveCommentClick(object? sender, RoutedEventArgs e)
     {

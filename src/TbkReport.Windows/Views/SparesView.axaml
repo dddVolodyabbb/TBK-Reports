@@ -7,8 +7,15 @@
       <ScrollViewer>
         <StackPanel Margin="20" Spacing="12">
           <TextBlock Text="ЗИП в наличии" FontSize="20" FontWeight="SemiBold" />
-          <TextBlock Text="Заполняется один раз. Дальше количество уменьшается само, когда расход ЗИП сохраняется вместе с отчётом."
+          <TextBlock Text="Пересчитайте ЗИП и укажите, на какой день он пересчитан. Количество показано за вычетом расхода из отчётов начиная с этого дня, пока включён учёт ЗИП."
                      TextWrapping="Wrap" Opacity="0.75" />
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <TextBlock Text="Остатки на дату" VerticalAlignment="Center" FontWeight="SemiBold" />
+            <DatePicker SelectedDate="{Binding StockDate, Mode=TwoWay}" DayFormat="dd" MonthFormat="MMMM" YearFormat="yyyy" />
+          </StackPanel>
+          <TextBlock Text="{Binding AccountingText}" TextWrapping="Wrap"
+                     Foreground="{DynamicResource AccentTextBrush}" IsVisible="{Binding IsAccountingEnabled}" />
+          <TextBlock Text="{Binding AccountingText}" TextWrapping="Wrap" Foreground="OrangeRed" IsVisible="{Binding !IsAccountingEnabled}" />
           <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
             <TextBox Text="{Binding StockSearch, Mode=TwoWay}" PlaceholderText="Поиск по наименованию или артикулу" />
             <Button Grid.Column="1" Content="+ Добавить" Command="{Binding OpenStockFormCommand}" IsVisible="{Binding !IsStockFormOpen}" />
@@ -18,9 +25,9 @@
               <TextBlock Text="{Binding StockFormTitle}" FontSize="16" FontWeight="SemiBold" />
               <StackPanel Spacing="4" IsVisible="{Binding IsAddingStock}">
                 <TextBlock Text="Комплектующая" />
-                <TextBox Text="{Binding StockChoiceSearch, Mode=TwoWay}" PlaceholderText="Найти в справочнике" />
+                <TextBox x:Name="StockChoiceSearchBox" Text="{Binding StockChoiceSearch, Mode=TwoWay}" PlaceholderText="Найти в справочнике" />
                 <Grid>
-                  <ComboBox ItemsSource="{Binding StockChoices}" SelectedItem="{Binding SelectedStockPart, Mode=TwoWay}"
+                  <ComboBox x:Name="StockChoiceList" ItemsSource="{Binding StockChoices}" SelectedItem="{Binding SelectedStockPart, Mode=TwoWay}"
                             PlaceholderText="Выберите из справочника" HorizontalAlignment="Stretch" MaxDropDownHeight="320">
                     <ComboBox.ItemTemplate>
                       <DataTemplate x:DataType="data:SparePart"><TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" /></DataTemplate>

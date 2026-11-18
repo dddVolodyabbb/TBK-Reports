@@ -98,6 +98,7 @@ public partial class ReportViewModel : ViewModelBase
 
     public void BeginSettingsEdit()
     {
+        PendingSparesAccounting = SparesAccounting;
         PendingCalculateByCount = CalculateByCount;
         PendingAutoExportExcel = AutoExportExcel;
         PendingAutoExportPdf = AutoExportPdf;
@@ -107,6 +108,7 @@ public partial class ReportViewModel : ViewModelBase
 
     public void DiscardSettingsEdit()
     {
+        PendingSparesAccounting = SparesAccounting;
         PendingCalculateByCount = CalculateByCount;
         PendingAutoExportExcel = AutoExportExcel;
         PendingAutoExportPdf = AutoExportPdf;
@@ -114,11 +116,18 @@ public partial class ReportViewModel : ViewModelBase
         ResetPendingMailSettings();
     }
 
-    public void SaveSettings(string exportPath)
+    /// <summary>
+    /// Saves the settings page. Returns a message when something was not applied: «Учёт ЗИП» is not switched on while
+    /// the reports used more of some part than «В наличии» holds; the switch goes back off, the rest is saved.
+    /// </summary>
+    public string? SaveSettings(string exportPath)
     {
+        var warning = RefuseSparesAccountingIfShort();
         SavePendingMailSettings();
-        defaults.SaveSettings(exportPath, PendingCalculateByCount, PendingAutoExportExcel, PendingAutoExportPdf, PendingTheme);
+        defaults.SaveSettings(exportPath, PendingCalculateByCount, PendingAutoExportExcel, PendingAutoExportPdf, PendingTheme,
+            HasSpares ? PendingSparesAccounting : null);
         Theme = PendingTheme;
+        if (HasSpares) SparesAccounting = PendingSparesAccounting;
         if (calculateByCount != PendingCalculateByCount)
         {
             calculateByCount = PendingCalculateByCount;
@@ -129,6 +138,7 @@ public partial class ReportViewModel : ViewModelBase
         AutoExportPdf = PendingAutoExportPdf;
         AutoSendEmail = mail?.AutoSend == true && AutoExportPdf;
         NotifySendEmailAvailability();
+        return warning;
     }
 
     private void ApplyCalculationMode()
@@ -735,9 +745,10 @@ public partial class ReportViewModel : ViewModelBase
                 ? Path.GetFullPath(ExportDirectory)
                 : Path.GetFullPath(Path.Combine(rootDirectory, ExportDirectory));
             Directory.CreateDirectory(path);
-            SaveSettings(path);
+            var warning = SaveSettings(path);
             ExportDirectory = path;
-            await ShowStatusAsync("Данные сохранены.");
+            if (warning is not null) ShowStatus(warning, isError: true);
+            else await ShowStatusAsync("Данные сохранены.");
         }
         catch (Exception ex) { ShowStatus($"Не удалось сохранить настройки: {ex.Message}", isError: true); }
     }
@@ -973,6 +984,8 @@ public partial class ReportViewModel : ViewModelBase
         PendingAutoExportPdf = AutoExportPdf;
         Theme = storedDefaults.Theme;
         PendingTheme = Theme;
+        SparesAccounting = storedDefaults.SparesAccounting;
+        PendingSparesAccounting = SparesAccounting;
         ApplyCalculationMode();
         Header.Load(storedDefaults.Header);
         Problems.Load(storedDefaults.Problems);

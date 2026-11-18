@@ -5,8 +5,13 @@
   <!-- Same as the Windows «В наличии» tab: search, «Добавить», the form while adding or editing, and the list as cards. -->
   <ScrollViewer Name="FormScrollViewer" Focusable="True">
     <StackPanel Margin="16" Spacing="12">
-      <TextBlock Text="Заполняется один раз. Дальше количество уменьшается само, когда расход ЗИП сохраняется вместе с отчётом."
+      <TextBlock Text="Пересчитайте ЗИП и укажите, на какой день он пересчитан. Количество показано за вычетом расхода из отчётов начиная с этого дня, пока включён учёт ЗИП."
                  TextWrapping="Wrap" Opacity="0.75" />
+      <TextBlock Text="Остатки на дату" FontWeight="SemiBold" />
+      <DatePicker SelectedDate="{Binding StockDate, Mode=TwoWay}" DayFormat="dd" MonthFormat="MMMM" YearFormat="yyyy" HorizontalAlignment="Left" />
+      <TextBlock Text="{Binding AccountingText}" TextWrapping="Wrap"
+                 Foreground="{DynamicResource AccentTextBrush}" IsVisible="{Binding IsAccountingEnabled}" />
+      <TextBlock Text="{Binding AccountingText}" TextWrapping="Wrap" Foreground="OrangeRed" IsVisible="{Binding !IsAccountingEnabled}" />
       <TextBox Text="{Binding StockSearch, Mode=TwoWay}" PlaceholderText="Поиск по наименованию или артикулу" MinHeight="48" />
       <Button Content="+ Добавить" Command="{Binding OpenStockFormCommand}" IsVisible="{Binding !IsStockFormOpen}"
               HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" MinHeight="56" />

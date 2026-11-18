@@ -9,15 +9,20 @@ using TbkReport.Services;
 
 namespace TbkReport.ViewModels;
 
-/// <summary>A stock position offered in the shift's list, with the pieces this shift may still take.</summary>
-public sealed record SpareChoice(string PartId, string Name, string Article, int Available)
+/// <summary>
+/// A part offered in the shift's list. With the stock checked it shows the pieces this shift may still take;
+/// without the check (accounting off, or a report before «Остатки на дату») no number is shown.
+/// </summary>
+public sealed record SpareChoice(string PartId, string Name, string Article, int Available, bool ShowAvailable = true)
 {
-    public string Label => (string.IsNullOrEmpty(Article) ? Name : $"{Name} · {Article}") + $" (в наличии {Available})";
+    public string Label => (string.IsNullOrEmpty(Article) ? Name : $"{Name} · {Article}") +
+        (ShowAvailable ? $" (в наличии {Available})" : "");
 }
 
 /// <summary>
-/// Spare parts (ЗИП) used in one shift. A line is accepted only when the stock covers it, so the check
-/// happens at once, when the line is added to the report, not when the report is saved.
+/// Spare parts (ЗИП) used in one shift, always chosen from «В наличии». With «Учёт ЗИП» on, a line is accepted only
+/// when the stock covers it, so the check happens at once, when the line is added to the report. With it off, nothing
+/// is checked and no numbers are shown: the usage is only recorded with the report.
 /// </summary>
 public partial class SpareUsageViewModel : ViewModelBase
 {
@@ -47,10 +52,21 @@ public partial class SpareUsageViewModel : ViewModelBase
     /// </summary>
     public Func<string, int>? ReservedElsewhere { get; set; }
 
+    /// <summary>Whether this report's usage is checked against the stock (accounting on and the report from the stock date on).</summary>
+    public Func<bool>? ChecksStock { get; set; }
+
+    /// <summary>Parts always come from «В наличии»; the accounting only decides whether the stock is reduced and checked.</summary>
+    public bool ChoosesFromStock => Store is not null;
+    public string Hint => Store?.AccountingEnabled == true
+        ? "Что израсходовано за смену. Количество сразу сверяется с наличием, а списывается при сохранении отчёта."
+        : "Что израсходовано за смену. Учёт ЗИП выключен: расход записывается в отчёт, но из наличия не вычитается.";
+    public string SearchPlaceholder => "Найти в наличии";
+    public string ChoicePlaceholder => "Выберите из наличия";
+
     public bool HasItems => Items.Count > 0;
     public bool HasChoices => Choices.Count > 0;
-    /// <summary>The stock list is empty: nothing can be chosen whatever is searched.</summary>
-    public bool IsStockEmpty => !hasStock;
+    /// <summary>The stock list is empty while parts come from it: nothing can be chosen whatever is searched.</summary>
+    public bool IsStockEmpty => !hasStock && ChoosesFromStock;
     public string Header => Items.Count > 0 ? $"Расход ЗИП ({Items.Count})" : "Расход ЗИП";
     public bool IsEditing => EditingItem is not null;
     public string ActionText => IsEditing ? "Сохранить изменения" : "Добавить в расход";
@@ -95,13 +111,19 @@ public partial class SpareUsageViewModel : ViewModelBase
         {
             Choices.Clear();
             var all = new List<SpareChoice>();
+            var checks = ChecksStock?.Invoke() == true;
             if (Store is { } store)
-                foreach (var stock in store.Stock)
-                    if (store.FindPart(stock.PartId) is { } part)
-                        all.Add(new SpareChoice(part.Id, part.Name, part.Article, Math.Max(0, Free(part.Id))));
-            // A line being edited stays selectable even when its part has left the stock list.
+            {
+                var parts = ChoosesFromStock
+                    ? store.Stock.Select(stock => store.FindPart(stock.PartId)).Where(part => part is not null).Select(part => part!)
+                    : store.Catalog;
+                foreach (var part in parts)
+                    all.Add(new SpareChoice(part.Id, part.Name, part.Article, checks ? Math.Max(0, Free(part.Id)) : 0, checks));
+            }
+            // A line being edited stays selectable even when its part has left the list.
             if (EditingItem is { } editing && all.All(choice => choice.PartId != editing.PartId))
-                all.Add(new SpareChoice(editing.PartId, editing.Name, editing.Article, Math.Max(0, Free(editing.PartId))));
+                all.Add(new SpareChoice(editing.PartId, editing.Name, editing.Article,
+                    checks ? Math.Max(0, Free(editing.PartId)) : 0, checks));
             hasStock = all.Count > 0;
             matchCount = all.Count(choice => SpareSearch.Matches(ChoiceSearch, choice.Name, choice.Article));
             // The chosen part stays in the list even when the search no longer matches it.
@@ -116,6 +138,10 @@ public partial class SpareUsageViewModel : ViewModelBase
         OnPropertyChanged(nameof(HasChoices));
         OnPropertyChanged(nameof(IsStockEmpty));
         OnPropertyChanged(nameof(HasNoMatches));
+        OnPropertyChanged(nameof(ChoosesFromStock));
+        OnPropertyChanged(nameof(Hint));
+        OnPropertyChanged(nameof(SearchPlaceholder));
+        OnPropertyChanged(nameof(ChoicePlaceholder));
     }
 
     [RelayCommand]
@@ -132,7 +158,7 @@ public partial class SpareUsageViewModel : ViewModelBase
             return;
         }
         var free = Free(choice!.PartId);
-        if (quantity > free)
+        if (ChecksStock?.Invoke() == true && quantity > free)
         {
             IsQuantityInvalid = true;
             Validation = free <= 0

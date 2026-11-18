@@ -112,7 +112,7 @@
       </StackPanel>
       </StackPanel>
       <StackPanel Spacing="12" IsVisible="{Binding IsSparesPageOpen}">
-        <TextBlock Text="Что израсходовано за смену. Количество сразу сверяется с наличием, а списывается при сохранении отчёта."
+        <TextBlock Text="{Binding Spares.Hint}"
                    TextWrapping="Wrap" Opacity="0.75" />
         <ItemsControl IsVisible="{Binding Spares.HasItems}" ItemsSource="{Binding Spares.Items}">
           <ItemsControl.ItemTemplate>
@@ -134,11 +134,11 @@
         <TextBlock Text="В наличии нет ЗИП. Заполните раздел «В наличии» в меню «ЗИП»." TextWrapping="Wrap"
                    IsVisible="{Binding Spares.IsStockEmpty}" Foreground="OrangeRed" />
         <TextBlock Name="SpareFormTitle" Text="{Binding Spares.ActionText}" FontSize="16" FontWeight="SemiBold" />
-        <TextBox Text="{Binding Spares.ChoiceSearch, Mode=TwoWay}" PlaceholderText="Найти в наличии" MinHeight="48" />
+        <TextBox Text="{Binding Spares.ChoiceSearch, Mode=TwoWay}" PlaceholderText="{Binding Spares.SearchPlaceholder}" MinHeight="48" />
         <TextBlock Text="Ничего не найдено." IsVisible="{Binding Spares.HasNoMatches}" Foreground="OrangeRed" />
         <Grid>
           <ComboBox ItemsSource="{Binding Spares.Choices}" SelectedItem="{Binding Spares.SelectedChoice, Mode=TwoWay}"
-                    PlaceholderText="Выберите из наличия" HorizontalAlignment="Stretch" MinHeight="48" MaxDropDownHeight="420">
+                    PlaceholderText="{Binding Spares.ChoicePlaceholder}" HorizontalAlignment="Stretch" MinHeight="48" MaxDropDownHeight="420">
             <ComboBox.ItemTemplate>
               <DataTemplate x:DataType="vm:SpareChoice"><TextBlock Text="{Binding Label}" TextWrapping="Wrap" /></DataTemplate>
             </ComboBox.ItemTemplate>

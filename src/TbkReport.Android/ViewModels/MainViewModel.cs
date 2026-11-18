@@ -204,9 +204,10 @@ public partial class MainViewModel : ObservableObject
     {
         try
         {
-            Report.SaveSettings(PendingExportLocation);
+            var warning = Report.SaveSettings(PendingExportLocation);
             Report.ExportDirectory = PendingExportLocation;
-            SetStatus("Настройки сохранены.");
+            // «Учёт ЗИП» refused for missing parts: say which ones instead of «saved».
+            SetStatus(warning ?? "Настройки сохранены.", isError: warning is not null);
         }
         catch (Exception ex) { SetStatus($"Не удалось сохранить настройки: {ex.Message}", isError: true); }
     }

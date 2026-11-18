@@ -94,7 +94,7 @@
       </TabItem>
       <TabItem Header="{Binding Spares.Header}">
       <StackPanel Spacing="12">
-        <TextBlock Text="Что израсходовано за смену. Количество сразу сверяется с наличием, а списывается при сохранении отчёта."
+        <TextBlock Text="{Binding Spares.Hint}"
                    TextWrapping="Wrap" Opacity="0.75" />
         <ItemsControl IsVisible="{Binding Spares.HasItems}" ItemsSource="{Binding Spares.Items}">
           <ItemsControl.ItemTemplate>
@@ -116,9 +116,9 @@
         <TextBlock Text="Ничего не найдено." IsVisible="{Binding Spares.HasNoMatches}" Foreground="OrangeRed" />
         <Grid ColumnDefinitions="*,130" ColumnSpacing="8">
           <StackPanel Spacing="4"><TextBlock Text="Комплектующая" />
-            <TextBox Text="{Binding Spares.ChoiceSearch, Mode=TwoWay}" PlaceholderText="Найти в наличии по наименованию или артикулу" />
-            <Grid><ComboBox ItemsSource="{Binding Spares.Choices}" SelectedItem="{Binding Spares.SelectedChoice, Mode=TwoWay}"
-                            PlaceholderText="Выберите из наличия" HorizontalAlignment="Stretch" MaxDropDownHeight="320">
+            <TextBox x:Name="SpareSearchBox" Text="{Binding Spares.ChoiceSearch, Mode=TwoWay}" PlaceholderText="{Binding Spares.SearchPlaceholder}" />
+            <Grid><ComboBox x:Name="SpareChoiceList" ItemsSource="{Binding Spares.Choices}" SelectedItem="{Binding Spares.SelectedChoice, Mode=TwoWay}"
+                            PlaceholderText="{Binding Spares.ChoicePlaceholder}" HorizontalAlignment="Stretch" MaxDropDownHeight="320">
                 <ComboBox.ItemTemplate>
                   <DataTemplate x:DataType="vm:SpareChoice"><TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" /></DataTemplate>
                 </ComboBox.ItemTemplate>

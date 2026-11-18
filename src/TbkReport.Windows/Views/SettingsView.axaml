@@ -75,6 +75,14 @@
         <TextBlock Text="Экспорт PDF одновременно с сохранением отчёта" VerticalAlignment="Center" TextWrapping="Wrap" />
         <ToggleSwitch Grid.Column="1" IsChecked="{Binding PendingAutoExportPdf, Mode=TwoWay}" AutomationProperties.Name="Автоматический экспорт PDF" />
       </Grid>
+      <!-- «Учёт ЗИП»: off by default; while off, spare parts usage is only recorded with the reports. -->
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16" IsVisible="{Binding HasSpares}">
+        <StackPanel Spacing="2" VerticalAlignment="Center">
+          <TextBlock Text="Учёт ЗИП: вычитать расход из «В наличии»" TextWrapping="Wrap" />
+          <TextBlock Text="Пока выключено, расход ЗИП только записывается в отчёты. Остаток считается с даты «Остатки на дату» в разделе «ЗИП»." Opacity="0.7" TextWrapping="Wrap" />
+        </StackPanel>
+        <ToggleSwitch Grid.Column="1" IsChecked="{Binding PendingSparesAccounting, Mode=TwoWay}" AutomationProperties.Name="Учёт ЗИП" />
+      </Grid>
       <TextBlock Text="Папка для сохранения отчётов и резервных копий." TextWrapping="Wrap" />
       <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
         <TextBox Text="{Binding ExportDirectory, Mode=TwoWay}" VerticalAlignment="Center" />
