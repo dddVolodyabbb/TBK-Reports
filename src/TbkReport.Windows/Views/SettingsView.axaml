@@ -79,7 +79,6 @@
       <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16" IsVisible="{Binding HasSpares}">
         <StackPanel Spacing="2" VerticalAlignment="Center">
           <TextBlock Text="Учёт ЗИП: вычитать расход из «В наличии»" TextWrapping="Wrap" />
-          <TextBlock Text="Пока выключено, расход ЗИП только записывается в отчёты. Остаток считается с даты «Остатки на дату» в разделе «ЗИП»." Opacity="0.7" TextWrapping="Wrap" />
         </StackPanel>
         <ToggleSwitch Grid.Column="1" IsChecked="{Binding PendingSparesAccounting, Mode=TwoWay}" AutomationProperties.Name="Учёт ЗИП" />
       </Grid>
