@@ -1,9 +1,13 @@
 ﻿param(
     [string]$Directory = $PSScriptRoot,
     [string]$DocumentName = 'ТБК Отчёт — руководство пользователя',
-    [string]$FooterLabel = 'ТБК Отчёт · v1.4'
+    # Empty: the installation guide is the same for every version and has no number; other documents are 1.x.
+    [string]$FooterLabel = ''
 )
 $ErrorActionPreference = 'Stop'
+if (-not $FooterLabel) {
+    $FooterLabel = if ($DocumentName -like '*руководство по установке*') { 'ТБК Отчёт' } else { 'ТБК Отчёт · v1.x' }
+}
 Add-Type -AssemblyName System.IO.Compression
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $source = Join-Path $Directory ($DocumentName + '.md')
@@ -20,7 +24,7 @@ $bookmarkNumber = 1
 foreach ($headingLine in $lines) {
     if (-not $headingLine.StartsWith('## ')) { continue }
     $headingText = $headingLine.Substring(3)
-    # The subtitle under the title ("… · версия 1.4") and the contents are not sections.
+    # The subtitle under the title ("… · версия 1.x") and the contents are not sections.
     if ($headingText.Contains('·') -or $headingText -eq 'Содержание') { continue }
     $headingBookmarks[$headingText] = "section$bookmarkNumber"
     $slugBookmarks[(Get-HeadingSlug $headingText)] = "section$bookmarkNumber"

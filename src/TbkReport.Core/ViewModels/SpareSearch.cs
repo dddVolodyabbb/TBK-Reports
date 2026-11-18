@@ -9,10 +9,10 @@ namespace TbkReport.ViewModels;
 /// </summary>
 public static class SpareSearch
 {
-    public static bool Matches(string? query, string name, string article)
+    public static bool Matches(string? query, string name, string article, string? manufacturer = null)
     {
         if (string.IsNullOrWhiteSpace(query)) return true;
-        var text = Normalize(name) + "\n" + Normalize(article);
+        var text = Normalize(name) + "\n" + Normalize(article) + "\n" + Normalize(manufacturer);
         return query.Split(' ', StringSplitOptions.RemoveEmptyEntries).All(word => text.Contains(Normalize(word), StringComparison.Ordinal));
     }
 

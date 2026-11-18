@@ -1,11 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <!-- The version number lives only in Version.props at the repository root. -->
+  <Import Project="..\..\Version.props" />
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
-    <Version>1.4.0</Version>
-    <AssemblyVersion>1.4.0.0</AssemblyVersion>
-    <FileVersion>1.4.0.0</FileVersion>
+    <Version>$(TbkVersion)</Version>
+    <AssemblyVersion>$(TbkVersion).0</AssemblyVersion>
+    <FileVersion>$(TbkVersion).0</FileVersion>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\tbk-app-icon.ico</ApplicationIcon>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>

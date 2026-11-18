@@ -8,7 +8,8 @@ using System.Text.Json;
 namespace TbkReport.Services;
 
 /// <summary>One line of the parts catalogue: a possible spare part with its catalogue number.</summary>
-public sealed record SparePart(string Id, string Name, string Article)
+/// <summary>One line of the parts catalogue. Manufacturer is shown only in the catalogue for now.</summary>
+public sealed record SparePart(string Id, string Name, string Article, string Manufacturer = "")
 {
     [System.Text.Json.Serialization.JsonIgnore]
     public string Label => string.IsNullOrEmpty(Article) ? Name : $"{Name} · {Article}";
@@ -69,18 +70,18 @@ public sealed class SpareStore
     /// <summary>Pieces in stock; a part absent from the stock list has none.</summary>
     public int Available(string partId) => Data.Stock.FirstOrDefault(item => item.PartId == partId)?.Quantity ?? 0;
 
-    public SparePart AddPart(string name, string article)
+    public SparePart AddPart(string name, string article, string manufacturer = "")
     {
-        var part = new SparePart(Guid.NewGuid().ToString("N"), CleanName(name), CleanArticle(article));
+        var part = new SparePart(Guid.NewGuid().ToString("N"), CleanName(name), CleanArticle(article), CleanArticle(manufacturer));
         EnsureUnique(part);
         Write(Data with { Catalog = Data.Catalog.Append(part).ToArray() });
         return part;
     }
 
-    public void UpdatePart(string partId, string name, string article)
+    public void UpdatePart(string partId, string name, string article, string manufacturer = "")
     {
         if (FindPart(partId) is not { } existing) throw new InvalidOperationException("Эта комплектующая уже удалена.");
-        var part = existing with { Name = CleanName(name), Article = CleanArticle(article) };
+        var part = existing with { Name = CleanName(name), Article = CleanArticle(article), Manufacturer = CleanArticle(manufacturer) };
         EnsureUnique(part);
         Write(Data with { Catalog = Data.Catalog.Select(item => item.Id == partId ? part : item).ToArray() });
     }
@@ -212,7 +213,10 @@ public sealed class SpareStore
             var imported = new List<SparePart>();
             foreach (var source in catalog)
             {
-                var part = source with { Name = source.Name.Trim(), Article = (source.Article ?? "").Trim() };
+                var part = source with
+                {
+                    Name = source.Name.Trim(), Article = (source.Article ?? "").Trim(), Manufacturer = (source.Manufacturer ?? "").Trim()
+                };
                 if (imported.Any(item => item.Id == part.Id || Key(item.Name, item.Article) == Key(part.Name, part.Article)))
                     continue;
                 foreach (var local in data.Catalog.Where(local => local.Id != part.Id &&
@@ -303,7 +307,7 @@ public sealed class SpareStore
                 throw new InvalidDataException("Файл учёта ЗИП имеет неверный формат.");
             return new SpareFileData(1,
                 (data.Catalog ?? Array.Empty<SparePart>()).Where(part => part is { Id: not null, Name: not null })
-                    .Select(part => part with { Article = part.Article ?? "" }).ToArray(),
+                    .Select(part => part with { Article = part.Article ?? "", Manufacturer = part.Manufacturer ?? "" }).ToArray(),
                 (data.Stock ?? Array.Empty<SpareStockItem>()).Where(item => item is { PartId: not null }).ToArray(),
                 (data.History ?? Array.Empty<SpareHistoryEntry>()).Where(entry => entry is { PartId: not null })
                     .Select(entry => entry with { Name = entry.Name ?? "", Article = entry.Article ?? "" }).ToArray());

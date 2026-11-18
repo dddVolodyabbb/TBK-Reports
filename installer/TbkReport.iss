@@ -1,5 +1,15 @@
 #define AppName "ТБК Отчёт"
-#define AppVersion "1.4.0"
+; The version comes from Version.props: scripts/Build-WindowsInstaller.ps1 passes
+; /DAppVersion (2.0.0), /DAppVersionShort (2.0) and /DSetupSuffix («-test» for a labelled build).
+#ifndef AppVersion
+  #error Build the installer with scripts/Build-WindowsInstaller.ps1: it supplies the version from Version.props.
+#endif
+#ifndef AppVersionShort
+  #define AppVersionShort AppVersion
+#endif
+#ifndef SetupSuffix
+  #define SetupSuffix ""
+#endif
 #define AppPublisher "ТБК"
 #define AppExeName "TbkReport.exe"
 
@@ -7,7 +17,7 @@
 AppId={{8A663E3D-A9EE-4D3D-A32D-53D1E4D93F17}
 AppName={#AppName}
 AppVersion={#AppVersion}
-AppVerName={#AppName} v{#AppVersion}
+AppVerName={#AppName} v{#AppVersionShort}
 AppPublisher={#AppPublisher}
 DefaultDirName={autopf}\ТБК Отчёт
 DefaultGroupName=ТБК Отчёт
@@ -20,7 +30,7 @@ PrivilegesRequired=admin
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 OutputDir=..\artifacts\installer
-OutputBaseFilename=TBK-Report-v1.4-Setup
+OutputBaseFilename=TBK-Report-v{#AppVersionShort}-Setup{#SetupSuffix}
 SetupIconFile=..\src\TbkReport.Windows\Assets\tbk-app-icon.ico
 UninstallDisplayIcon={app}\{#AppExeName}
 Compression=lzma2/ultra64

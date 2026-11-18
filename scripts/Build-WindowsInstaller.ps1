@@ -13,6 +13,16 @@ $installedCompilers = @(
 $compiler = $installedCompilers | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
 if (-not $compiler) { throw 'Inno Setup compiler was not found.' }
 
+# The version lives only in Version.props; the installer name and its version info are built from it.
+[xml]$versionProps = Get-Content -LiteralPath (Join-Path $projectRoot 'Version.props') -Encoding UTF8
+$versionGroup = $versionProps.Project.PropertyGroup
+$appVersion = ([string]$versionGroup.TbkVersion).Trim()
+if ($appVersion -notmatch '^\d+\.\d+\.\d+$') { throw "Version.props: TbkVersion must look like 2.0.0, not '$appVersion'." }
+$parts = $appVersion.Split('.')
+$appVersionShort = if ($parts[2] -eq '0') { "$($parts[0]).$($parts[1])" } else { $appVersion }
+$setupSuffix = if (([string]$versionGroup.TbkVersionLabel).Trim()) { '-test' } else { '' }
+$setupName = "TBK-Report-v$appVersionShort-Setup$setupSuffix.exe"
+
 if (Test-Path -LiteralPath $publishDirectory) {
     Remove-Item -LiteralPath $publishDirectory -Recurse -Force
 }
@@ -50,11 +60,11 @@ try {
     Get-ChildItem -LiteralPath $publishDirectory -Recurse -File -Filter '*.pdb' |
         Remove-Item -Force
 
-    & $compiler $installerScript
+    & $compiler "/DAppVersion=$appVersion" "/DAppVersionShort=$appVersionShort" "/DSetupSuffix=$setupSuffix" $installerScript
     if ($LASTEXITCODE -ne 0) { throw 'Windows installer compilation failed.' }
 } finally {
     Pop-Location
 }
 
-Get-Item (Join-Path $projectRoot 'artifacts/installer/TBK-Report-v1.4-Setup.exe') |
+Get-Item (Join-Path $projectRoot "artifacts/installer/$setupName") |
     Select-Object FullName, Length, LastWriteTime

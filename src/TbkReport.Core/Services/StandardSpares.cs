@@ -26,7 +26,10 @@ public static class StandardSpares
             ?? throw new InvalidDataException("Стандартный набор ЗИП повреждён.");
         return (data.Catalog ?? Array.Empty<SparePart>())
             .Where(part => part is { Id: not null, Name: not null } && part.Name.Trim().Length > 0)
-            .Select(part => part with { Name = part.Name.Trim(), Article = (part.Article ?? "").Trim() })
+            .Select(part => part with
+            {
+                Name = part.Name.Trim(), Article = (part.Article ?? "").Trim(), Manufacturer = (part.Manufacturer ?? "").Trim()
+            })
             .ToArray();
     }
 }

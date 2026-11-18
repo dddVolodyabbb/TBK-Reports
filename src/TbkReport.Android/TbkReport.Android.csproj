@@ -1,12 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <!-- The version number and version code live only in Version.props at the repository root. -->
+  <Import Project="..\..\Version.props" />
   <PropertyGroup>
     <TargetFramework>net10.0-android36.0</TargetFramework>
     <OutputType>Exe</OutputType>
     <Nullable>enable</Nullable>
     <ApplicationId>com.tbkreport.android</ApplicationId>
     <ApplicationTitle>ТБК Отчёт</ApplicationTitle>
-    <ApplicationVersion>6</ApplicationVersion>
-    <ApplicationDisplayVersion>1.4</ApplicationDisplayVersion>
+    <ApplicationVersion>$(TbkAndroidVersionCode)</ApplicationVersion>
+    <ApplicationDisplayVersion>$(TbkVersion)</ApplicationDisplayVersion>
     <SupportedOSPlatformVersion>23</SupportedOSPlatformVersion>
     <AndroidPackageFormats>apk</AndroidPackageFormats>
     <RuntimeIdentifiers>android-arm64</RuntimeIdentifiers>

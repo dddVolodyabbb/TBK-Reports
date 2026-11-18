@@ -26,6 +26,9 @@ public partial class SparesViewModel : ViewModelBase
     [ObservableProperty] private bool isPartFormOpen;
     [ObservableProperty] private string partName = "";
     [ObservableProperty] private string partArticle = "";
+    [ObservableProperty] private string partManufacturer = "";
+    /// <summary>Manufacturers already in the catalogue, offered while typing in the manufacturer field.</summary>
+    public ObservableCollection<string> Manufacturers { get; } = new();
     [ObservableProperty] private string partValidation = "";
     [ObservableProperty] private SparePart? editingPart;
     [ObservableProperty] private bool isPartNameInvalid;
@@ -107,9 +110,16 @@ public partial class SparesViewModel : ViewModelBase
     {
         var selected = SelectedStockPart;
         Parts.Clear();
-        foreach (var part in store.Catalog.Where(part => SpareSearch.Matches(PartsSearch, part.Name, part.Article))
+        foreach (var part in store.Catalog.Where(part => SpareSearch.Matches(PartsSearch, part.Name, part.Article, part.Manufacturer))
                      .OrderBy(part => part.Name, StringComparer.CurrentCultureIgnoreCase).ThenBy(part => part.Article))
             Parts.Add(part);
+        var manufacturers = store.Catalog.Select(part => part.Manufacturer.Trim()).Where(name => name.Length > 0)
+            .Distinct(StringComparer.CurrentCultureIgnoreCase).OrderBy(name => name, StringComparer.CurrentCultureIgnoreCase).ToArray();
+        if (!manufacturers.SequenceEqual(Manufacturers))
+        {
+            Manufacturers.Clear();
+            foreach (var name in manufacturers) Manufacturers.Add(name);
+        }
         StockRows.Clear();
         foreach (var row in store.Stock
                      .Select(item => store.FindPart(item.PartId) is { } part ? new SpareStockRow(part.Id, part.Name, part.Article, item.Quantity) : null)
@@ -151,8 +161,8 @@ public partial class SparesViewModel : ViewModelBase
         }
         try
         {
-            if (EditingPart is { } part) store.UpdatePart(part.Id, PartName, PartArticle);
-            else store.AddPart(PartName, PartArticle);
+            if (EditingPart is { } part) store.UpdatePart(part.Id, PartName, PartArticle, PartManufacturer);
+            else store.AddPart(PartName, PartArticle, PartManufacturer);
             CancelPartEdit();
         }
         catch (Exception ex) { PartValidation = ex.Message; }
@@ -161,13 +171,14 @@ public partial class SparesViewModel : ViewModelBase
     [RelayCommand]
     private void CancelPartEdit()
     {
-        EditingPart = null; PartName = ""; PartArticle = ""; PartValidation = ""; IsPartNameInvalid = false;
+        EditingPart = null; PartName = ""; PartArticle = ""; PartManufacturer = ""; PartValidation = ""; IsPartNameInvalid = false;
         IsPartFormOpen = false;
     }
 
     public void BeginEditPart(SparePart part)
     {
-        EditingPart = part; PartName = part.Name; PartArticle = part.Article; PartValidation = ""; IsPartNameInvalid = false;
+        EditingPart = part; PartName = part.Name; PartArticle = part.Article; PartManufacturer = part.Manufacturer;
+        PartValidation = ""; IsPartNameInvalid = false;
         IsPartFormOpen = true;
     }
 

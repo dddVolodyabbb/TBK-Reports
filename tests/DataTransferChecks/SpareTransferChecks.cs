@@ -17,7 +17,7 @@ public static class SpareTransferChecks
         var sourceHistory = new ReportHistoryStore(Path.Combine(root, "spares-source", "History"));
         var sourceSpares = new SpareStore(Path.Combine(root, "spares-source", "zip.json"));
         var tip = sourceSpares.AddPart("Наконечник", "ТТ 552-2101");
-        var nozzle = sourceSpares.AddPart("Сопло", "ТТ552-30");
+        var nozzle = sourceSpares.AddPart("Сопло", "ТТ552-30", "Технотрон");
         sourceSpares.SetStock(tip.Id, 10);
         sourceSpares.SetStock(nozzle.Id, 2);
         sourceHistory.Save(report);
@@ -45,6 +45,7 @@ public static class SpareTransferChecks
         Require(targetSpares.Available(tip.Id) == 7 && targetSpares.Available(nozzle.Id) == 2 && targetSpares.Stock.Count == 2,
             "Import did not replace the stock.");
         Require(targetSpares.GetUsage(date, 5, 1).Single().Quantity == 3, "Spare parts usage did not travel with the history.");
+        Require(targetSpares.FindPart(nozzle.Id)?.Manufacturer == "Технотрон", "The manufacturer did not travel with the catalogue.");
         Require(File.ReadAllText(targetSpares.FilePath).Contains("Наконечник"), "Imported spare parts file is not readable JSON.");
 
         // Only the catalogue: the local stock keeps its parts, a local part missing from the file stays because it is in stock.

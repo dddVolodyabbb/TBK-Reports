@@ -9,16 +9,20 @@ public static class SpareChecks
 {
     public static void Run(Action<bool, string> check, Action<MainViewModel> fillHeader)
     {
+        check(AppVersion.Number == "2.0" && AppVersion.Text.StartsWith("v2.0") && AppVersion.WindowTitle.StartsWith("ТБК Отчёт v2.0"),
+            "version: the window title is built from Version.props");
         var standard = StandardSpares.Catalog;
-        check(standard.Length == 141 && standard.Select(part => part.Id).Distinct().Count() == standard.Length &&
-              standard.Any(part => part.Article == "ТТ552-26") && standard.Any(part => part.Name.Contains("18х8,2х1")),
+        check(standard.Length == 147 && standard.Select(part => part.Id).Distinct().Count() == standard.Length &&
+              standard.Any(part => part.Article == "ТТ552-26") && standard.Any(part => part.Name.Contains("18х8,2х1")) &&
+              standard.Count(part => part.Manufacturer == "Технотрон") == 140 &&
+              standard.Count(part => part.Manufacturer == "Xionggu Electrical") == 7,
             "standard spares: the built-in catalogue is complete and has unique ids");
         var freshFile = Path.Combine(Path.GetTempPath(), $"tbk-spares-fresh-{Guid.NewGuid():N}", "zip.json");
         var fresh = new SpareStore(freshFile, standard);
-        check(fresh.Catalog.Count == 141 && fresh.Stock.Count == 0 && !File.Exists(freshFile),
+        check(fresh.Catalog.Count == 147 && fresh.Stock.Count == 0 && !File.Exists(freshFile),
             "standard spares: a fresh installation starts with the built-in catalogue");
         fresh.RemovePart(standard[0].Id);
-        check(new SpareStore(freshFile, standard).Catalog.Count == 140,
+        check(new SpareStore(freshFile, standard).Catalog.Count == 146,
             "standard spares: once the file exists, a deleted part does not come back");
         var root = Path.Combine(Path.GetTempPath(), $"tbk-spares-{Guid.NewGuid():N}");
         var zipFile = Path.Combine(root, "zip.json");
@@ -75,9 +79,24 @@ public static class SpareChecks
         section.StockQuantity = "4";
         section.AddOrSaveStockCommand.Execute(null);
         check(store.Available(nozzle.Id) == 4 && !section.IsEditingStock, "spares section: stock quantity is edited");
+        section.OpenPartFormCommand.Execute(null);
         section.PartName = "Диффузор";
         section.PartArticle = "D-7";
+        section.PartManufacturer = " Технотрон ";
         section.AddOrSavePartCommand.Execute(null);
+        var diffuser = store.Catalog.Single(part => part.Name == "Диффузор");
+        check(diffuser.Manufacturer == "Технотрон" && new SpareStore(zipFile).FindPart(diffuser.Id)?.Manufacturer == "Технотрон",
+            "spares section: the manufacturer is stored with the part");
+        check(section.Manufacturers.SequenceEqual(new[] { "Технотрон" }), "spares section: known manufacturers are offered for the field");
+        var spareNozzle = store.AddPart("Сопло запасное", "S-2", "технотрон");
+        check(section.Manufacturers.Count == 1, "spares section: the manufacturer list has no case duplicates");
+        store.RemovePart(spareNozzle.Id);
+        section.PartsSearch = "технотрон";
+        check(section.Parts.Count == 1 && section.Parts[0].Id == diffuser.Id, "spares section: search finds the manufacturer");
+        section.PartsSearch = "";
+        section.BeginEditPart(section.Parts.First(part => part.Id == diffuser.Id));
+        check(section.PartManufacturer == "Технотрон", "spares section: editing shows the manufacturer");
+        section.CancelPartEditCommand.Execute(null);
         check(section.Parts.Count == 3 && section.PartName == "" && section.StockChoices.Count == 1,
             "spares section: a catalogue part is added");
         section.RemovePart(section.Parts.First(part => part.Id == tip.Id));

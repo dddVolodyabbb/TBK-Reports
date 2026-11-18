@@ -1,0 +1,16 @@
+<Project>
+  <!--
+    The only place with the application version. Both applications, the shared Core, the Windows installer
+    (scripts/Build-WindowsInstaller.ps1 passes it to Inno Setup) and the window title take it from here.
+
+    TbkVersion            MAJOR.MINOR.PATCH: bug fixes raise PATCH, new features MINOR, big changes MAJOR.
+    TbkVersionLabel       empty for a release; while work is in progress, e.g. «тестовая» — shown after the number
+                          in the window title and makes the installer name end with «-test».
+    TbkAndroidVersionCode must grow by 1 with every APK that is given to people, otherwise Android refuses to update.
+  -->
+  <PropertyGroup>
+    <TbkVersion>2.0.0</TbkVersion>
+    <TbkVersionLabel>тестовая</TbkVersionLabel>
+    <TbkAndroidVersionCode>7</TbkAndroidVersionCode>
+  </PropertyGroup>
+</Project>

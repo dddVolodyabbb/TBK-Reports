@@ -1,8 +1,16 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <!-- Core carries the version too: AppVersion reads it, so both applications show the same number. -->
+  <Import Project="..\..\Version.props" />
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
+    <Version>$(TbkVersion)</Version>
+    <AssemblyVersion>$(TbkVersion).0</AssemblyVersion>
+    <FileVersion>$(TbkVersion).0</FileVersion>
   </PropertyGroup>
+  <ItemGroup>
+    <AssemblyMetadata Include="TbkVersionLabel" Value="$(TbkVersionLabel)" />
+  </ItemGroup>
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     <PackageReference Include="GemBox.Spreadsheet" Version="2026.9.128" />

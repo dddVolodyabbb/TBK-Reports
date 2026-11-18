@@ -48,9 +48,9 @@
           <DataTemplate x:DataType="vm:SpareStockRow">
             <Border BorderBrush="#40808080" BorderThickness="0,0,0,1" Padding="0,10">
               <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="4">
-                <TextBlock Text="{Binding Name}" TextWrapping="Wrap" FontSize="16" FontWeight="SemiBold" />
+                <SelectableTextBlock Text="{Binding Name}" TextWrapping="Wrap" FontSize="16" FontWeight="SemiBold" />
                 <TextBlock Grid.Column="1" Text="{Binding Quantity, StringFormat='{}{0} шт.'}" FontSize="18" FontWeight="SemiBold" />
-                <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding Article}" TextWrapping="Wrap" Opacity="0.7" />
+                <SelectableTextBlock Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding Article}" TextWrapping="Wrap" Opacity="0.7" />
                 <WrapPanel Grid.Row="2" Grid.ColumnSpan="2" Margin="0,4,0,0">
                   <Button Content="Изменить" Click="EditClick" MinHeight="44" Margin="0,0,8,0" />
                   <Button Content="Удалить" Click="RemoveClick" MinHeight="44" />
