@@ -4,12 +4,18 @@
   <Grid ColumnDefinitions="*,Auto">
     <TextBox Name="TimeTextBox" PlaceholderText="ЧЧ:ММ" MaxLength="5" VerticalContentAlignment="Center" />
     <TimePicker Name="WheelPicker" Grid.Column="1" Width="44" MinWidth="44" MaxWidth="44"
-                Margin="6,0,0,0" ClockIdentifier="24HourClock" UseSeconds="False">
+                Margin="6,0,0,0" VerticalAlignment="Stretch" ClockIdentifier="24HourClock" UseSeconds="False">
       <TimePicker.Template>
         <ControlTemplate>
-          <Grid>
-            <Button Name="PART_FlyoutButton" Content="◷" MinWidth="44"
-                    AutomationProperties.Name="Открыть выбор времени" />
+          <Grid VerticalAlignment="Stretch">
+            <!-- A drawn clock instead of the «◷» glyph: larger, exactly centred, in the button's text colour. -->
+            <Button Name="PART_FlyoutButton" MinWidth="44" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" Padding="0"
+                    HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                    AutomationProperties.Name="Открыть выбор времени">
+              <Path Width="20" Height="20" Stretch="Uniform" StrokeThickness="2" StrokeLineCap="Round" StrokeJoin="Round"
+                    Stroke="{Binding $parent[Button].Foreground}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                    Data="M 12,2 A 10,10 0 1 1 11.99,2 Z M 12,6 L 12,12 L 16,14" />
+            </Button>
             <Popup Name="PART_Popup" PlacementTarget="{TemplateBinding}" Placement="Bottom"
                    IsLightDismissEnabled="True">
               <TimePickerPresenter Name="PART_PickerPresenter" />

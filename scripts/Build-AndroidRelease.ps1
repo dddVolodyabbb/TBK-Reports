@@ -55,7 +55,24 @@ try {
     Pop-Location
 }
 
-Get-ChildItem (Join-Path $projectRoot 'src/TbkReport.Android/bin/Release') `
-    -Filter '*-Signed.apk' -Recurse |
+# The signed APK is copied next to the Windows installer under a name with the version from Version.props,
+# like TBK-Report-v2.0-Android.apk («-test» at the end for a labelled build), the same way as the Setup.exe name.
+[xml]$versionProps = Get-Content -LiteralPath (Join-Path $projectRoot 'Version.props') -Encoding UTF8
+$versionGroup = $versionProps.Project.PropertyGroup
+$appVersion = ([string]$versionGroup.TbkVersion).Trim()
+if ($appVersion -notmatch '^\d+\.\d+\.\d+$') { throw "Version.props: TbkVersion must look like 2.0.0, not '$appVersion'." }
+$parts = $appVersion.Split('.')
+$appVersionShort = if ($parts[2] -eq '0') { "$($parts[0]).$($parts[1])" } else { $appVersion }
+$apkSuffix = if (([string]$versionGroup.TbkVersionLabel).Trim()) { '-test' } else { '' }
+
+$signedApk = Get-ChildItem (Join-Path $projectRoot 'src/TbkReport.Android/bin/Release/net10.0-android36.0/android-arm64') `
+    -Filter '*-Signed.apk' |
     Sort-Object LastWriteTime -Descending |
-    Select-Object -First 1 FullName, Length, LastWriteTime
+    Select-Object -First 1
+if (-not $signedApk) { throw 'The signed APK was not found after the build.' }
+
+$outputDirectory = Join-Path $projectRoot 'artifacts/installer'
+[IO.Directory]::CreateDirectory($outputDirectory) | Out-Null
+$namedApk = Join-Path $outputDirectory "TBK-Report-v$appVersionShort-Android$apkSuffix.apk"
+Copy-Item -LiteralPath $signedApk.FullName -Destination $namedApk -Force
+Get-Item -LiteralPath $namedApk | Select-Object FullName, Length, LastWriteTime
