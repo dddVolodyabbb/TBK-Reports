@@ -91,19 +91,17 @@
       <TabItem Header="Вторая смена"><views:ShiftView DataContext="{Binding Second}" /></TabItem>
       <TabItem x:Name="ReportDataTab" Header="Данные отчёта">
         <DockPanel Margin="0,4">
-        <StackPanel DockPanel.Dock="Top" Margin="8,4" Spacing="6">
+        <!-- «Шапка отчёта», «Проблемы» and «Оборудование» save themselves; only the opening data has a button. -->
+        <StackPanel DockPanel.Dock="Top" Margin="8,4" Spacing="6" IsVisible="{Binding IsMonthlyOpeningSectionSelected}">
           <StackPanel Orientation="Horizontal">
-            <Button Content="Сохранить данные" Command="{Binding SaveReportDataCommand}" IsVisible="{Binding !IsMonthlyOpeningSectionSelected}" />
-            <Button Content="Сохранить начальные данные" Command="{Binding SaveMonthlyOpeningCommand}" IsVisible="{Binding IsMonthlyOpeningSectionSelected}" />
+            <Button Content="Сохранить начальные данные" Command="{Binding SaveMonthlyOpeningCommand}" />
           </StackPanel>
-          <TextBlock Text="Эта кнопка сохраняет только начальные данные. Данные вкладок «Шапка отчёта», «Проблемы» и «Оборудование» она не сохраняет."
-                     IsVisible="{Binding IsMonthlyOpeningSectionSelected}" TextWrapping="Wrap" Opacity="0.75" />
         </StackPanel>
         <TabControl x:Name="ReportSections" SelectedIndex="{Binding SelectedReportDataSectionIndex, Mode=TwoWay}">
           <TabItem Header="Проблемы"><views:ProblemsView DataContext="{Binding Problems}" /></TabItem>
           <TabItem Header="Оборудование"><views:EquipmentView DataContext="{Binding Equipment}" /></TabItem>
           <TabItem x:Name="HeaderTab" Header="Шапка отчёта">
-            <ScrollViewer x:Name="HeaderScrollViewer">
+            <ScrollViewer x:Name="HeaderScrollViewer" LostFocus="ReportDataFieldLostFocus">
               <StackPanel Margin="16" Spacing="10">
                 <TextBlock Text="Шапка этого отчёта" FontSize="18" FontWeight="Bold" />
                 <TextBlock Text="Заполните данные, которые будут напечатаны в верхней части Excel-отчёта." TextWrapping="Wrap" Opacity="0.75" />
@@ -113,13 +111,12 @@
                   <TextBlock Grid.Row="2" Text="Участок" VerticalAlignment="Center" /><TextBox Grid.Row="2" Grid.Column="1" Text="{Binding Header.Site}" PlaceholderText="Участок или цех" />
                   <TextBlock Grid.Row="3" Text="Комплекс" VerticalAlignment="Center" /><TextBox Grid.Row="3" Grid.Column="1" Text="{Binding Header.Complex}" PlaceholderText="Альфа, PCW-300+XG-95" />
                   <TextBlock Grid.Row="4" Text="Труба" VerticalAlignment="Center" /><TextBox Grid.Row="4" Grid.Column="1" Text="{Binding Header.Pipe}" PlaceholderText="Например, 426х12" />
-                  <TextBlock Grid.Row="5" Text="№ трубы" VerticalAlignment="Center" />
+                  <TextBlock Grid.Row="5" Text="№ Газового коллектора" VerticalAlignment="Center" />
                   <StackPanel Grid.Row="5" Grid.Column="1" Orientation="Horizontal" Spacing="8">
                     <TextBlock Text="ГК" VerticalAlignment="Center" />
                     <TextBox Width="120"
                              Text="{Binding Header.CollectorNumberText, Mode=TwoWay}"
-                             MaxLength="3"
-                             AutomationProperties.Name="Номер коллектора" />
+                             AutomationProperties.Name="Номер газового коллектора" />
                   </StackPanel>
                 </Grid>
                 <TextBlock Text="Техники по сменам" FontSize="15" FontWeight="Bold" Margin="0,8,0,0" />

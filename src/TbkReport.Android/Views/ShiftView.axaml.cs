@@ -1,3 +1,4 @@
+using TbkReport.SharedViews;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
@@ -12,6 +13,7 @@ public partial class ShiftView : UserControl
     {
         InitializeComponent();
         keyboardScroll = new KeyboardAwareScrollController(this, ReportScrollViewer);
+        SearchDropDown.Attach(SpareSearchBox, SpareChoiceList);
     }
 
     private void RemoveCommentClick(object? sender, RoutedEventArgs e)

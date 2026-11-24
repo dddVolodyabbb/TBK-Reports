@@ -18,6 +18,8 @@ void FillRequiredHeader(MainViewModel editor, bool includeSecondShift = false)
     editor.Header.Site = "Участок";
     editor.Header.Complex = "Комплекс";
     editor.Header.Pipe = "426x12";
+    // The collector is required; tests that compare collectors set their own number afterwards.
+    if (editor.Header.CollectorNumber is null && !editor.IsEditingHistoryReport) editor.Header.CollectorNumberText = "1";
     editor.Header.FirstShiftTechnician1 = "Техник первой смены";
     editor.Header.FirstShiftSignature = "[[[0.1,0.5],[0.9,0.5]]]";
     if (!includeSecondShift) return;
@@ -110,11 +112,63 @@ Check(File.ReadAllText(draftStore.FilePath).Contains("Проверка черн�
 restoredDraft.Second.NewCommentText = "";
 FillRequiredHeader(restoredDraft);
 restoredDraft.SaveHistoryCommand.Execute(null);
-Check(draftHistory.Load(draftDate) is not null && !File.Exists(draftStore.FilePath),
+Check(draftHistory.Load(draftDate, 1) is not null && !File.Exists(draftStore.FilePath),
     "successful history save deletes the draft");
 var cleanAfterSave = new MainViewModel(draftHistory, draftDefaults, draftStore);
 Check(cleanAfterSave.First.StartTime is null && cleanAfterSave.First.FirstJoint == "" &&
       cleanAfterSave.First.Comments.Count == 0, "startup is clean after the draft was saved to history");
+
+// «Данные отчёта» have no save button: header fields save on focus loss, lists on add/change/remove.
+var autoDataRoot = Path.Combine(Path.GetTempPath(), $"tbk-auto-data-{Guid.NewGuid():N}");
+var autoDataDefaults = new ReportDefaultsStore(Path.Combine(autoDataRoot, "settings.json"));
+var autoDataEditor = new MainViewModel(new ReportHistoryStore(Path.Combine(autoDataRoot, "History")), autoDataDefaults,
+    new ReportDraftStore(Path.Combine(autoDataRoot, "draft.json")));
+autoDataEditor.Header.Customer = "Заказчик-авто";
+Check(autoDataDefaults.Load()?.Header?.Customer != "Заказчик-авто", "typing in a header field does not save it yet");
+autoDataEditor.SaveReportDataIfChanged();
+Check(autoDataDefaults.Load()?.Header?.Customer == "Заказчик-авто", "leaving a header field saves the header");
+autoDataEditor.Problems.DraftText = "Проблема-авто";
+Check(autoDataDefaults.Load()?.Problems.Length is null or 0, "a typed but not added problem is not saved");
+autoDataEditor.Problems.AddOrSaveCommand.Execute(null);
+Check(autoDataDefaults.Load()?.Problems.SequenceEqual(new[] { "Проблема-авто" }) == true, "adding a problem saves it");
+autoDataEditor.Problems.BeginEdit(autoDataEditor.Problems.Items[0]);
+autoDataEditor.Problems.DraftText = "Проблема-изменена";
+autoDataEditor.Problems.AddOrSaveCommand.Execute(null);
+Check(autoDataDefaults.Load()?.Problems.SequenceEqual(new[] { "Проблема-изменена" }) == true, "changing a problem saves it");
+autoDataEditor.Equipment.DraftName = "Генератор-авто";
+autoDataEditor.Equipment.DraftInWork = "2";
+autoDataEditor.Equipment.AddOrSaveCommand.Execute(null);
+Check(autoDataDefaults.Load()?.Equipment.SingleOrDefault()?.Name == "Генератор-авто", "adding equipment saves it");
+autoDataEditor.Equipment.Remove(autoDataEditor.Equipment.Items[0]);
+autoDataEditor.Problems.Remove(autoDataEditor.Problems.Items[0]);
+Check(autoDataDefaults.Load() is { Equipment.Length: 0, Problems.Length: 0 }, "removing equipment or a problem saves the lists");
+autoDataEditor.Header.FirstShiftTechnician1 = "Иванов";
+autoDataEditor.Header.ShowFirstShiftSignatureEditorCommand.Execute(null);
+autoDataEditor.Header.FirstShiftSignature = "auto-signature";
+autoDataEditor.Header.CloseFirstShiftSignatureEditorCommand.Execute(null);
+Check(autoDataDefaults.Load()?.Header?.FirstShiftSignature == "auto-signature", "closing the signature editor saves the signature");
+
+// «№ Газового коллектора» is required to save a report; any whole number, negative and zero included, is accepted.
+var collectorRoot = Path.Combine(Path.GetTempPath(), $"tbk-collector-required-{Guid.NewGuid():N}");
+var collectorStore = new ReportHistoryStore(Path.Combine(collectorRoot, "History"));
+var collectorEditor = new MainViewModel(collectorStore, new ReportDefaultsStore(Path.Combine(collectorRoot, "settings.json")));
+FillRequiredHeader(collectorEditor);
+collectorEditor.Header.CollectorNumberText = "";
+var collectorDate = new DateTime(2035, 5, 5);
+collectorEditor.ReportDate = new DateTimeOffset(collectorDate);
+collectorEditor.First.NewCommentTime = new TimeSpan(9, 0, 0);
+collectorEditor.First.NewCommentText = "Сварки не было";
+collectorEditor.First.AddCommentCommand.Execute(null);
+collectorEditor.SaveHistoryCommand.Execute(null);
+Check(collectorStore.GetDates().Count == 0 && collectorEditor.ExportStatus.Contains("№ газового коллектора", StringComparison.Ordinal),
+    "a report without the gas collector number is not saved");
+collectorEditor.Header.CollectorNumberText = "-5";
+collectorEditor.SaveHistoryCommand.Execute(null);
+Check(new ReportHistoryStore(Path.Combine(collectorRoot, "History")).Load(collectorDate, -5) is not null,
+    "a negative gas collector number is saved and read back");
+collectorEditor.Header.CollectorNumberText = "0";
+collectorEditor.SaveHistoryCommand.Execute(null);
+Check(collectorStore.Load(collectorDate, 0) is not null, "gas collector number 0 is saved");
 
 vm.First.StartTime = new TimeSpan(7, 0, 0);
 vm.First.Repairs = "0";
@@ -374,6 +428,23 @@ try
     Check(merges.Contains("B28:C28") && merges.Contains("B29:C29") && merges.Contains($"B{followingCommentRow}:C{followingCommentRow}"),
         "comments remain in separate cells");
     Check(merges.Contains("F39:G39") && merges.Contains("I39:M39"), "comment overflow shifts lower report sections");
+    string? CellStyle(string reference) => (string?)sheet.Descendants(ns + "c")
+        .FirstOrDefault(c => (string?)c.Attribute("r") == reference)?.Attribute("s");
+    Check(new[] { "A", "B", "C", "D", "E", "F", "G", "H" }.All(column => CellStyle($"{column}38") == CellStyle($"{column}36")),
+        "inserted comment rows keep the borders of an ordinary template row");
+    var stylesEntry = archive.GetEntry("xl/styles.xml") ?? throw new Exception("styles missing");
+    using var stylesReader = new StreamReader(stylesEntry.Open());
+    var stylesheet = XDocument.Load(stylesReader);
+    string? BottomBorder(string reference)
+    {
+        var xf = stylesheet.Root!.Element(ns + "cellXfs")!.Elements(ns + "xf").ElementAt(int.Parse(CellStyle(reference) ?? "0"));
+        var border = stylesheet.Root!.Element(ns + "borders")!.Elements(ns + "border").ElementAt((int?)xf.Attribute("borderId") ?? 0);
+        return (string?)border.Element(ns + "bottom")?.Attribute("style");
+    }
+    var lastFirstShiftCommentRow = Enumerable.Range(28, 40).Last(row => CellValue($"A{row}") is not null);
+    Check(new[] { "A28", "B28", "C28" }.All(cell => BottomBorder(cell) == "dashed") &&
+          BottomBorder($"B{lastFirstShiftCommentRow}") != "dashed",
+        "a dashed line separates comments, none under the last one");
     Check(Enumerable.Range(28, 33).All(row => PairIsMergedAtRow(2, 3, row) && PairIsMergedAtRow(6, 7, row)),
         "all first- and second-shift comment rows stay merged in B:C and F:G");
     Check(CellValue("B30") == firstComments[2].Text && CellValue($"B{followingCommentRow}") == "Стоп СМР",
@@ -816,7 +887,7 @@ try
     commentOnlyEditor.First.NewCommentText = "Сварка не выполнялась: неисправно оборудование.";
     commentOnlyEditor.First.AddCommentCommand.Execute(null);
     await commentOnlyEditor.ExportCurrentToExcelCommand.ExecuteAsync(null);
-    var commentOnlyExport = Path.Combine(guardDirectory, $"Отчёт-{commentOnlyDate:dd-MM-yyyy}.xlsx");
+    var commentOnlyExport = Path.Combine(guardDirectory, $"Отчёт-{commentOnlyDate:dd-MM-yyyy}-ГК1.xlsx");
     Check(File.Exists(commentOnlyExport), "comment-only report can be exported without shift start times");
     commentOnlyEditor.SaveHistoryCommand.Execute(null);
     Check(commentOnlyStore.GetDates().Single() == commentOnlyDate,
@@ -829,7 +900,7 @@ try
     dateEditor.First.FirstJoint = "101";
     dateEditor.First.LastJoint = "104";
     dateEditor.ExportDirectory = historyDirectory;
-    var dateOutput = Path.Combine(historyDirectory, $"Отчёт-{chosenDate:dd-MM-yyyy}.xlsx");
+    var dateOutput = Path.Combine(historyDirectory, $"Отчёт-{chosenDate:dd-MM-yyyy}-ГК1.xlsx");
     await dateEditor.ExportCurrentToExcelCommand.ExecuteAsync(null);
     Check(!File.Exists(dateOutput), "Excel export is blocked when neither shift has a start time");
     dateEditor.First.StartTime = new TimeSpan(9, 0, 0);
@@ -839,7 +910,7 @@ try
     dateEditor.First.StopTime = new TimeSpan(18, 0, 0);
     dateEditor.ExportToExcel(dateOutput);
     Check(dateStore.GetDates().Count == 0 && File.Exists(dateOutput), "Excel export does not save or create a history record");
-    var datePdfOutput = Path.Combine(historyDirectory, $"Отчёт-{chosenDate:dd-MM-yyyy}.pdf");
+    var datePdfOutput = Path.Combine(historyDirectory, $"Отчёт-{chosenDate:dd-MM-yyyy}-ГК1.pdf");
     await dateEditor.ExportCurrentToPdfCommand.ExecuteAsync(null);
     Check(File.Exists(datePdfOutput) && dateStore.GetDates().Count == 0,
         "PDF command exports the current report without saving history");
@@ -870,7 +941,7 @@ try
     var replacementPromptShown = dateEditor.IsExportReplacePromptVisible;
     dateEditor.CancelExportReplacementCommand.Execute(null);
     Check(replacementPromptShown && new FileInfo(dateOutput).Length == originalLength &&
-          dateStore.Load(chosenDate)!.FirstShift.LastJoint == "104", "existing Excel shows replace prompt and cancel leaves Excel and history unchanged");
+          dateStore.Load(chosenDate, 1)!.FirstShift.LastJoint == "104", "existing Excel shows replace prompt and cancel leaves Excel and history unchanged");
     await dateEditor.ExportCurrentToExcelCommand.ExecuteAsync(null);
     await dateEditor.ConfirmExportReplacementCommand.ExecuteAsync(null);
     dateEditor.SaveHistoryCommand.Execute(null);
@@ -884,7 +955,7 @@ try
             .Element(replacedNs + "v")?.Value;
     }
     Check(!dateEditor.IsExportReplacePromptVisible && replacedWeldCount == "5" &&
-          dateStore.GetDates().Count == 1 && dateStore.Load(chosenDate)!.FirstShift.LastJoint == "104",
+          dateStore.GetDates().Count == 1 && dateStore.Load(chosenDate, 1)!.FirstShift.LastJoint == "104",
         "confirmed Excel replacement exports only and duplicate history save leaves the original report unchanged");
     dateEditor.SelectHistoryMonthCommand.Execute(dateEditor.HistoryMonths.Single());
     dateEditor.SelectHistoryDayCommand.Execute(dateEditor.HistoryDays.Single());
@@ -996,7 +1067,7 @@ var countEditor = new MainViewModel(countHistory, countDefaults, countDraft);
 FillRequiredHeader(countEditor);
 var countDate = new DateTime(2034, 4, 2);
 countEditor.ReportDate = new DateTimeOffset(countDate);
-countHistory.SaveMonthlyOpeningData(countDate, new MonthlyOpeningData(100, 0, 0));
+countHistory.SaveMonthlyOpeningData(countDate, new MonthlyOpeningData(100, 0, 0), 1);
 countEditor.ReportDate = new DateTimeOffset(countDate.AddDays(1));
 countEditor.ReportDate = new DateTimeOffset(countDate);
 Check(countEditor.CalculateByNumbers, "test editor can retain explicit legacy number-calculation default");
@@ -1024,7 +1095,7 @@ countEditor.First.StartTime = new TimeSpan(7, 0, 0);
 countEditor.First.Repairs = "0";
 countEditor.First.StopTime = new TimeSpan(18, 0, 0);
 countEditor.SaveHistoryCommand.Execute(null);
-Check(countEditor.First.IsWeldedCountInvalid && countHistory.Load(countDate) is null,
+Check(countEditor.First.IsWeldedCountInvalid && countHistory.Load(countDate, 1) is null,
     "started count-mode shift requires a count and highlights its input");
 countEditor.First.StartTime = null;
 countEditor.First.Repairs = "0";
@@ -1071,13 +1142,13 @@ restoredCount.Second.Repairs = "0";
 restoredCount.Second.StopTime = new TimeSpan(23, 0, 0);
 restoredCount.ExportDirectory = Path.Combine(countRoot, "Exports");
 await restoredCount.ExportCurrentToExcelCommand.ExecuteAsync(null);
-var countExcel = Path.Combine(restoredCount.ExportDirectory, $"Отчёт-{countDate:dd-MM-yyyy}.xlsx");
+var countExcel = Path.Combine(restoredCount.ExportDirectory, $"Отчёт-{countDate:dd-MM-yyyy}-ГК1.xlsx");
 Check(File.Exists(countExcel), "count mode exports Excel through the shared exporter");
 await restoredCount.ExportCurrentToPdfCommand.ExecuteAsync(null);
 Check(File.Exists(Path.ChangeExtension(countExcel, ".pdf")), "count mode exports PDF through the shared exporter");
 restoredCount.SaveHistoryCommand.Execute(null);
-Check(countHistory.Load(countDate)?.FirstShift.LastJoint == "105" &&
-      countHistory.Load(countDate)?.SecondShift.LastJoint == "108" && !File.Exists(countDraft.FilePath),
+Check(countHistory.Load(countDate, 1)?.FirstShift.LastJoint == "105" &&
+      countHistory.Load(countDate, 1)?.SecondShift.LastJoint == "108" && !File.Exists(countDraft.FilePath),
     "count mode saves canonical joint numbers and clears draft on history save");
 restoredCount.CalculateByNumbers = true;
 restoredCount.CalculateByCount = true;
@@ -1085,6 +1156,8 @@ Check(!File.Exists(countDraft.FilePath), "changing mode on an unchanged saved re
 restoredCount.NewReportCommand.Execute(null);
 Check(restoredCount.First.WeldedCountText == "" && restoredCount.Second.WeldedCountText == "" && restoredCount.CalculateByCount,
     "new report clears counts but retains selected calculation mode");
+// The test never left a header field, so the saved header has no collector; continue on the same collector.
+restoredCount.Header.CollectorNumberText = "1";
 restoredCount.ReportDate = new DateTimeOffset(countDate.AddMonths(1));
 restoredCount.Second.WeldedCountText = "1";
 Check(restoredCount.Second.FirstJoint == "109" && restoredCount.Second.LastJoint == "109",
@@ -1114,7 +1187,7 @@ try
     openingEditor.MonthlyOpeningWelded = "20";
     openingEditor.MonthlyOpeningRepairs = "11";
     openingEditor.SaveMonthlyOpeningCommand.Execute(null);
-    Check(openingHistory.LoadMonthlyOpeningData(openingDate)?.Welded == 20,
+    Check(openingHistory.LoadMonthlyOpeningData(openingDate, 1)?.Welded == 20,
         "monthly opening UI command persists entered 20 joints");
     openingEditor.First.StartTime = TimeSpan.FromHours(7);
     openingEditor.First.Repairs = "0";
@@ -1130,7 +1203,7 @@ try
         "history preview adds opening 20 to today's 3 joints");
     Check(openingEditor.SelectedHistoryReport?.MonthlyTotals?.First == new ShiftTotals(23, 13),
         "history first shift includes opening welded and repair counts");
-    var savedOpeningReport = openingHistory.Load(openingDate)!;
+    var savedOpeningReport = openingHistory.Load(openingDate, 1)!;
     var noShift = new ShiftReportData("", "", null, null, null, Array.Empty<ReportComment>());
     var openingSecondOnly = savedOpeningReport with { FirstShift = noShift, SecondShift = savedOpeningReport.FirstShift };
     var secondTotals = openingHistory.GetMonthlyTotals(openingSecondOnly);
@@ -1144,7 +1217,7 @@ try
         SecondShift = savedOpeningReport.FirstShift with { FirstJoint = "104", LastJoint = "105", Repairs = 1 } });
     var nextDay = openingHistory.GetMonthlyTotals(savedOpeningReport with { Date = openingDate.AddDays(2) });
     Check(nextDay.First == new ShiftTotals(28, 16), "following day includes both earlier shifts and opening once");
-    Check(openingHistory.LoadMonthlyOpeningData(openingDate.AddMonths(1)) is null,
+    Check(openingHistory.LoadMonthlyOpeningData(openingDate.AddMonths(1), 1) is null,
         "opening remains confined to the configured report month");
     var openingExcel = Path.Combine(openingCheckRoot, "opening.xlsx");
     openingEditor.ExportToExcel(openingExcel);
@@ -1174,7 +1247,7 @@ try
     openingEditor.ExportDirectory = Path.Combine(openingCheckRoot, "Exports");
     await openingEditor.ExportCurrentToExcelCommand.ExecuteAsync(null);
     await openingEditor.ExportCurrentToPdfCommand.ExecuteAsync(null);
-    var selectedExport = Path.Combine(openingEditor.ExportDirectory, $"Отчёт-{openingDate:dd-MM-yyyy}.xlsx");
+    var selectedExport = Path.Combine(openingEditor.ExportDirectory, $"Отчёт-{openingDate:dd-MM-yyyy}-ГК1.xlsx");
     Check(File.Exists(selectedExport) && File.Exists(Path.ChangeExtension(selectedExport, ".pdf")),
         "both history export commands use selected history date for filenames");
     await openingEditor.ExportCurrentToExcelCommand.ExecuteAsync(null);
@@ -1217,7 +1290,7 @@ try
     repairsEditor.SaveHistoryCommand.Execute(null);
     Check(repairsStore.GetDates().SequenceEqual(new[] { weldingDate }), "a started shift with zero repairs is saved");
 
-    var saved = repairsStore.Load(weldingDate)!;
+    var saved = repairsStore.Load(weldingDate, 1)!;
     var zeroExport = Path.Combine(repairsRoot, "zero-repairs.xlsx");
     new ExcelReportExporter().Export(FindTemplate(), zeroExport, saved with { MonthlyTotals = repairsStore.GetMonthlyTotals(saved) });
     using (var archive = ZipFile.OpenRead(zeroExport))
@@ -1365,8 +1438,8 @@ try
     mailEditor.First.StopTime = new TimeSpan(12, 0, 0);
     mailEditor.First.Repairs = "0";
     await mailEditor.SaveHistoryCommand.ExecuteAsync(null);
-    Check(mailHistory.Load(mailDay) is not null && transport.Sent.Count == 1 &&
-          transport.Sent[0].To.SequenceEqual(new[] { "director@company.ru" }) && transport.Sent[0].AttachmentName == "Отчёт-16-11-2026.pdf" &&
+    Check(mailHistory.Load(mailDay, 1) is not null && transport.Sent.Count == 1 &&
+          transport.Sent[0].To.SequenceEqual(new[] { "director@company.ru" }) && transport.Sent[0].AttachmentName == "Отчёт-16-11-2026-ГК1.pdf" &&
           transport.SentAttachmentLengths[0] > 0 && mailEditor.ExportStatus.Contains("отправлен на почту", StringComparison.Ordinal),
         "saving with automatic sending exports and e-mails the PDF");
     Check(!Directory.EnumerateFiles(Path.Combine(TbkReport.Common.TemporaryDirectory, "Mail")).Any(),

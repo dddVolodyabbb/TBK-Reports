@@ -22,10 +22,10 @@
         </ItemsControl.ItemTemplate>
       </ItemsControl>
       <TextBox Text="{Binding DraftText, Mode=TwoWay}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="110" VerticalContentAlignment="Top" PlaceholderText="Опишите проблему" />
-      <WrapPanel>
-        <Button Content="{Binding ActionText}" Command="{Binding AddOrSaveCommand}" Margin="0,0,8,8" />
-        <Button Content="Отмена" Command="{Binding CancelEditCommand}" IsVisible="{Binding IsEditing}" />
-      </WrapPanel>
+      <Grid ColumnDefinitions="Auto,Auto" ColumnSpacing="8" HorizontalAlignment="Left">
+        <Button Content="{Binding ActionText}" Command="{Binding AddOrSaveCommand}" />
+        <Button Grid.Column="1" Content="Отмена" Command="{Binding CancelEditCommand}" IsVisible="{Binding IsEditing}" />
+      </Grid>
     </StackPanel>
   </ScrollViewer>
 </UserControl>

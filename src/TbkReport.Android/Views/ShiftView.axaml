@@ -134,10 +134,10 @@
         <TextBlock Text="В наличии нет ЗИП. Заполните раздел «В наличии» в меню «ЗИП»." TextWrapping="Wrap"
                    IsVisible="{Binding Spares.IsStockEmpty}" Foreground="OrangeRed" />
         <TextBlock Name="SpareFormTitle" Text="{Binding Spares.ActionText}" FontSize="16" FontWeight="SemiBold" />
-        <TextBox Text="{Binding Spares.ChoiceSearch, Mode=TwoWay}" PlaceholderText="{Binding Spares.SearchPlaceholder}" MinHeight="48" />
+        <TextBox Name="SpareSearchBox" Text="{Binding Spares.ChoiceSearch, Mode=TwoWay}" PlaceholderText="{Binding Spares.SearchPlaceholder}" MinHeight="48" />
         <TextBlock Text="Ничего не найдено." IsVisible="{Binding Spares.HasNoMatches}" Foreground="OrangeRed" />
         <Grid>
-          <ComboBox ItemsSource="{Binding Spares.Choices}" SelectedItem="{Binding Spares.SelectedChoice, Mode=TwoWay}"
+          <ComboBox Name="SpareChoiceList" ItemsSource="{Binding Spares.Choices}" SelectedItem="{Binding Spares.SelectedChoice, Mode=TwoWay}"
                     PlaceholderText="{Binding Spares.ChoicePlaceholder}" HorizontalAlignment="Stretch" MinHeight="48" MaxDropDownHeight="420">
             <ComboBox.ItemTemplate>
               <DataTemplate x:DataType="vm:SpareChoice"><TextBlock Text="{Binding Label}" TextWrapping="Wrap" /></DataTemplate>
@@ -146,7 +146,7 @@
           <Border IsVisible="{Binding Spares.IsPartInvalid}" BorderBrush="Red" BorderThickness="2" CornerRadius="4" IsHitTestVisible="False" />
         </Grid>
         <TextBlock Text="Количество, шт." />
-        <Grid><TextBox Text="{Binding Spares.DraftQuantity, Mode=TwoWay}" MinHeight="48" />
+        <Grid><TextBox Text="{Binding Spares.DraftQuantity, Mode=TwoWay}" MinHeight="48" TextInputOptions.ContentType="Digits" TextInputOptions.ReturnKeyType="Done" VerticalContentAlignment="Center" />
           <Border IsVisible="{Binding Spares.IsQuantityInvalid}" BorderBrush="Red" BorderThickness="2" CornerRadius="4" IsHitTestVisible="False" /></Grid>
         <TextBlock Text="{Binding Spares.Validation}" Foreground="OrangeRed" TextWrapping="Wrap"
                    IsVisible="{Binding Spares.Validation, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />

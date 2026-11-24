@@ -116,7 +116,6 @@ public partial class MainViewModel : ObservableObject
     public bool IsHeaderVisible => CurrentSection == "Шапка отчёта";
     public bool IsMonthlyOpeningVisible => CurrentSection == "Приём начатого коллектора";
     public bool IsDataSectionVisible => IsProblemsVisible || IsEquipmentVisible || IsHeaderVisible || IsMonthlyOpeningVisible;
-    public bool IsRegularDataSectionVisible => IsDataSectionVisible && !IsMonthlyOpeningVisible;
     public bool IsSpareStockVisible => CurrentSection == "В наличии";
     public bool IsSparePartsVisible => CurrentSection == "Комплектующие";
     public bool IsSparesSectionVisible => IsSpareStockVisible || IsSparePartsVisible;
@@ -130,6 +129,8 @@ public partial class MainViewModel : ObservableObject
 
     partial void OnCurrentSectionChanged(string value)
     {
+        // A swipe away from «Шапка отчёта» may leave the typed field focused: save the header here too.
+        Report.SaveReportDataIfChanged();
         OnPropertyChanged(nameof(IsFirstShiftVisible));
         OnPropertyChanged(nameof(IsSecondShiftVisible));
         OnPropertyChanged(nameof(IsShiftGalleryVisible));
@@ -139,7 +140,6 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(IsHeaderVisible));
         OnPropertyChanged(nameof(IsMonthlyOpeningVisible));
         OnPropertyChanged(nameof(IsDataSectionVisible));
-        OnPropertyChanged(nameof(IsRegularDataSectionVisible));
         OnPropertyChanged(nameof(IsSpareStockVisible));
         OnPropertyChanged(nameof(IsSparePartsVisible));
         OnPropertyChanged(nameof(IsSparesSectionVisible));

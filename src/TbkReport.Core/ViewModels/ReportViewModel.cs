@@ -214,6 +214,7 @@ public partial class ReportViewModel : ViewModelBase
     {
         OnPropertyChanged(nameof(IsHistoryReportVisible));
         OnPropertyChanged(nameof(SelectedHistoryProblems));
+        LoadSelectedHistorySpares(value);
         NotifySendEmailAvailability();
     }
     partial void OnIsHistoryViewVisibleChanged(bool value)
@@ -261,6 +262,8 @@ public partial class ReportViewModel : ViewModelBase
     private bool isDraftTrackingReady;
     private string savedShiftSnapshot = "";
     private string savedReportDataSnapshot = "";
+    // Header, problems and equipment as last written to (or read from) the defaults store.
+    private string savedDefaultsSnapshot = "";
     private string? pendingExportPath;
     private ReportExportData? pendingExportData;
     private bool pendingExportIsPdf;
@@ -342,6 +345,16 @@ public partial class ReportViewModel : ViewModelBase
         }
         catch (Exception ex) { ShowStatus(ex.Message, isError: true); }
         MarkCurrentStateSaved();
+        savedDefaultsSnapshot = savedReportDataSnapshot;
+        Problems.ItemsChanged += SaveReportDataIfChanged;
+        Equipment.ItemsChanged += SaveReportDataIfChanged;
+        Header.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName is nameof(ReportHeaderViewModel.IsFirstShiftSignatureEditorVisible)
+                    or nameof(ReportHeaderViewModel.IsSecondShiftSignatureEditorVisible) &&
+                !Header.IsFirstShiftSignatureEditorVisible && !Header.IsSecondShiftSignatureEditorVisible)
+                SaveReportDataIfChanged();
+        };
         try
         {
             RefreshHistory();
@@ -452,6 +465,10 @@ public partial class ReportViewModel : ViewModelBase
         if (string.IsNullOrWhiteSpace(Header.Site)) missing.Add("участок");
         if (string.IsNullOrWhiteSpace(Header.Complex)) missing.Add("комплекс");
         if (string.IsNullOrWhiteSpace(Header.Pipe)) missing.Add("труба");
+        // Required for every new report. An older history report saved without a collector stays editable:
+        // its collector cannot be changed while editing, so demanding one would make it impossible to save.
+        if (Header.CollectorNumber is null && !(IsEditingHistoryReport && editingHistoryCollector is null))
+            missing.Add("№ газового коллектора");
         if (missing.Count > 0)
             throw new InvalidOperationException($"Заполните обязательные поля шапки отчёта: {string.Join(", ", missing)}.");
 
@@ -564,18 +581,24 @@ public partial class ReportViewModel : ViewModelBase
         }
     }
 
-    [RelayCommand]
-    private async System.Threading.Tasks.Task SaveReportDataAsync()
+    /// <summary>
+    /// Saves the header, problems and equipment for the next reports, if they changed since the last save.
+    /// There is no save button: Core calls this after a problem or equipment is added, changed or removed
+    /// and after a signature editor closes; views call it when a header field loses focus and when the app
+    /// is closed or sent to the background. Typed but not added problem/equipment drafts are not saved.
+    /// While a history report is edited its data belongs to that report and is not saved here.
+    /// </summary>
+    public void SaveReportDataIfChanged()
     {
+        if (!isDraftTrackingReady || isApplyingReport || IsEditingHistoryReport || isReportDataSaveBlockedByImport) return;
+        var snapshot = ReportDataSnapshot();
+        if (snapshot == savedDefaultsSnapshot) return;
         try
         {
-            if (Problems.HasDraft)
-                throw new InvalidOperationException("Сначала добавьте проблему или сохраните её изменения.");
-            if (Equipment.HasDraft)
-                throw new InvalidOperationException("Сначала добавьте оборудование или сохраните его изменения.");
             defaults.Save(Header.ToData(), Equipment.ToData(), Problems.ToData(), ExportDirectory);
-            savedReportDataSnapshot = ReportDataSnapshot();
-            await ShowStatusAsync("Данные сохранены.");
+            savedDefaultsSnapshot = snapshot;
+            savedReportDataSnapshot = snapshot;
+            ShowStatus("Данные отчёта сохранены.");
         }
         catch (Exception ex) { ShowStatus($"Не удалось сохранить данные отчёта: {ex.Message}", isError: true); }
     }
@@ -631,7 +654,7 @@ public partial class ReportViewModel : ViewModelBase
         SelectedHistoryReport = null;
         HistoryDays.Clear();
         if (month is null) return;
-        foreach (var day in history.GetReports(month.Year, month.Month).Select(key => new HistoryDayItem(key.Date, key.CollectorNumber)))
+        foreach (var day in history.GetReports(month.Year, month.Month).Select(key => new HistoryDayItem(key.Date, key.CollectorNumber, key.IdleDisplay)))
             HistoryDays.Add(day);
     }
 
@@ -996,7 +1019,14 @@ public partial class ReportViewModel : ViewModelBase
 
     private DataTransferViewModel? dataTransfer;
     public DataTransferViewModel DataTransfer => dataTransfer ??= new(
-        new DataTransferService(history, defaults, spareStore), RefreshHistory);
+        new DataTransferService(history, defaults, spareStore), () =>
+        {
+            // The import may have replaced the stored header, problems and equipment while the screen still
+            // shows the old ones until the restart it asks for: saving them now would undo the import.
+            isReportDataSaveBlockedByImport = true;
+            RefreshHistory();
+        });
+    private bool isReportDataSaveBlockedByImport;
 
     private void RefreshHistory()
     {
@@ -1084,8 +1114,9 @@ public sealed record HistoryMonthItem(int Year, int Month, int ReportCount)
     }
 }
 
-public sealed record HistoryDayItem(DateTime Date, int? CollectorNumber = null)
+public sealed record HistoryDayItem(DateTime Date, int? CollectorNumber = null, string IdleDisplay = "")
 {
+    public bool HasIdle => IdleDisplay.Length > 0;
     public string Label => Date.ToString("dd MMMM yyyy, dddd", CultureInfo.GetCultureInfo("ru-RU")) +
         (CollectorNumber is { } number ? $" · ГК {number}" : "");
 }

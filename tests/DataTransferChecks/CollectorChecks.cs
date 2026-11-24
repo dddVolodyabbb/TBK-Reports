@@ -31,10 +31,17 @@ internal static class CollectorChecks
         Check(history.Load(firstDate, 1)!.FirstShift.FirstJoint == "1001", "Collector opening did not rebase its report.");
         var current = first with { Date = firstDate.AddDays(4) };
         var totals = history.GetMonthlyTotals(current);
-        Check(totals.Total.Welded == 40 && totals.Total.Repairs == 6, "Collector 1 totals lost its opening or report.");
+        // The month counts every collector: openings 100+20+30 and 5+2+3, reports 10+20, current 10.
+        Check(totals.Total.Welded == 190 && totals.Total.Repairs == 16, "Monthly totals did not add up all collectors.");
         var thirdCollectorTotals = history.GetMonthlyTotals(current with { Header = header with { CollectorNumber = 3 } });
-        Check(thirdCollectorTotals.Total.Welded == 10 && thirdCollectorTotals.Total.Repairs == 2,
-            "A collector used another collector's opening or reports.");
+        Check(thirdCollectorTotals.Total.Welded == 190 && thirdCollectorTotals.Total.Repairs == 16,
+            "A new collector restarted the monthly totals.");
+        var nextMonthTotals = history.GetMonthlyTotals(current with { Date = firstDate.AddMonths(1) });
+        Check(nextMonthTotals.Total.Welded == 10 && nextMonthTotals.Total.Repairs == 2,
+            "Monthly totals did not restart with the new month.");
+        var sameDayLater = history.GetMonthlyTotals(first with { Date = firstDate.AddDays(1), Header = header with { CollectorNumber = 3 } });
+        Check(sameDayLater.Total.Welded == 150 + 10 + 20 + 10,
+            "A same-day report of a lower collector number was not counted before a higher one.");
         Check(history.LoadMonthlyOpeningData(firstDate, 1) == new MonthlyOpeningData(1000, 20, 2) &&
             history.LoadMonthlyOpeningData(firstDate, 2) == new MonthlyOpeningData(2000, 30, 3) &&
             history.LoadMonthlyOpeningData(firstDate) == new MonthlyOpeningData(900, 100, 5),
@@ -58,10 +65,21 @@ internal static class CollectorChecks
             viewModel.Header.CollectorNumberText = "2";
             Check(viewModel.First.FirstJoint == "2021" && viewModel.First.LastJoint == "2025", "First shift not rebased.");
             Check(viewModel.Second.FirstJoint == "2026" && viewModel.Second.LastJoint == "2028", "Second shift not rebased.");
-            viewModel.Header.CollectorNumberText = "1234";
-            Check(viewModel.Header.CollectorNumber == 2, "Four digits accepted.");
+            viewModel.Header.CollectorNumberText = "1,5";
+            Check(viewModel.Header.CollectorNumber == 2, "Fraction with a comma accepted.");
+            viewModel.Header.CollectorNumberText = "1.5";
+            Check(viewModel.Header.CollectorNumber == 2, "Fraction with a dot accepted.");
             viewModel.Header.CollectorNumberText = "a";
             Check(viewModel.Header.CollectorNumber == 2, "Non-digit accepted.");
+            viewModel.Header.CollectorNumberText = "-";
+            Check(viewModel.Header.CollectorNumberText == "-" && viewModel.Header.CollectorNumber is null, "A lone minus refused while typing.");
+            viewModel.Header.CollectorNumberText = "-7";
+            Check(viewModel.Header.CollectorNumber == -7, "Negative collector refused.");
+            viewModel.Header.CollectorNumberText = "0";
+            Check(viewModel.Header.CollectorNumber == 0, "Zero collector refused.");
+            viewModel.Header.CollectorNumberText = "1234";
+            Check(viewModel.Header.CollectorNumber == 1234, "Four digits refused.");
+            viewModel.Header.CollectorNumberText = "2";
             Check(!File.ReadAllText(draft.FilePath).Contains("CollectorNumber"), "Draft contains collector.");
             defaults.Save(header with { CollectorNumber = 3 }, Array.Empty<EquipmentData>(), Array.Empty<string>(), root);
             var restored = new ReportViewModel(history, defaults, draft, root, root, () => "unused", path => path);

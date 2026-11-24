@@ -11,9 +11,12 @@
             <ResourceDictionary.ThemeDictionaries>
                 <ResourceDictionary x:Key="Light">
                     <SolidColorBrush x:Key="AccentTextBrush" Color="#FF005A9E" />
+                    <!-- Green for spare parts already in stock, readable on the light background. -->
+                    <SolidColorBrush x:Key="InStockTextBrush" Color="#FF1B7F2A" />
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Dark">
                     <SolidColorBrush x:Key="AccentTextBrush" Color="#FF42A5F5" />
+                    <SolidColorBrush x:Key="InStockTextBrush" Color="#FF66BB6A" />
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
             <x:String x:Key="StringTimePickerHourText">часы</x:String>

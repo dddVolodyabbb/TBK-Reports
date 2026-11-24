@@ -20,22 +20,30 @@
           <TextBlock Text="{Binding StockFormTitle}" FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap" />
           <StackPanel Spacing="6" IsVisible="{Binding IsAddingStock}">
             <TextBlock Text="Комплектующая" />
-            <TextBox Text="{Binding StockChoiceSearch, Mode=TwoWay}" PlaceholderText="Найти в справочнике" MinHeight="48" />
+            <TextBox Name="StockChoiceSearchBox" Text="{Binding StockChoiceSearch, Mode=TwoWay}" PlaceholderText="Найти в справочнике" MinHeight="48" />
             <Grid>
-              <ComboBox ItemsSource="{Binding StockChoices}" SelectedItem="{Binding SelectedStockPart, Mode=TwoWay}"
+              <ComboBox Name="StockChoiceList" ItemsSource="{Binding StockChoices}" SelectedItem="{Binding SelectedStockPart, Mode=TwoWay}"
                         PlaceholderText="Выберите из справочника" HorizontalAlignment="Stretch" MinHeight="48" MaxDropDownHeight="420">
+                <!-- Parts already in stock are offered too, in green with their quantity. -->
+                <ComboBox.Styles>
+                  <Style Selector="TextBlock.InStock"><Setter Property="Foreground" Value="{DynamicResource InStockTextBrush}" /></Style>
+                </ComboBox.Styles>
                 <ComboBox.ItemTemplate>
-                  <DataTemplate x:DataType="data:SparePart"><TextBlock Text="{Binding Label}" TextWrapping="Wrap" /></DataTemplate>
+                  <DataTemplate x:DataType="vm:SpareStockChoice">
+                    <TextBlock Text="{Binding Label}" TextWrapping="Wrap" Classes.InStock="{Binding IsInStock}" />
+                  </DataTemplate>
                 </ComboBox.ItemTemplate>
               </ComboBox>
               <Border IsVisible="{Binding IsStockPartInvalid}" BorderBrush="Red" BorderThickness="2" CornerRadius="4" IsHitTestVisible="False" />
             </Grid>
+            <TextBlock Text="{Binding SelectedInStockText}" IsVisible="{Binding IsSelectedInStock}" TextWrapping="Wrap"
+                       Foreground="{DynamicResource InStockTextBrush}" />
             <TextBlock Text="{Binding StockHint}" IsVisible="{Binding HasStockHint}" TextWrapping="Wrap" Foreground="OrangeRed" />
           </StackPanel>
           <!-- While a row is edited its part cannot be changed, only the quantity. -->
           <TextBlock Text="{Binding EditingStockLabel}" IsVisible="{Binding IsEditingStock}" FontWeight="SemiBold" TextWrapping="Wrap" />
           <TextBlock Text="Количество, шт." />
-          <Grid><TextBox Name="StockQuantityTextBox" Text="{Binding StockQuantity, Mode=TwoWay}" MinHeight="48" />
+          <Grid><TextBox Name="StockQuantityTextBox" Text="{Binding StockQuantity, Mode=TwoWay}" MinHeight="48" TextInputOptions.ContentType="Digits" TextInputOptions.ReturnKeyType="Done" VerticalContentAlignment="Center" />
             <Border IsVisible="{Binding IsStockQuantityInvalid}" BorderBrush="Red" BorderThickness="2" CornerRadius="4" IsHitTestVisible="False" /></Grid>
           <TextBlock Text="{Binding StockValidation}" Foreground="OrangeRed" TextWrapping="Wrap"
                      IsVisible="{Binding StockValidation, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />

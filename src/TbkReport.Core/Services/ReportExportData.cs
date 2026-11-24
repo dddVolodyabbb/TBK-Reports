@@ -19,6 +19,13 @@ public sealed record ShiftReportData(
     public string WeldedDisplay => int.TryParse(FirstJoint, out var first) && int.TryParse(LastJoint, out var last) && first > 0 && last >= first
         ? (last - first + 1).ToString(System.Globalization.CultureInfo.InvariantCulture) : "—";
     public string RepairsDisplay => Repairs?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "—";
+
+    /// <summary>The shift worked: it has a start time (saving then requires its joints, stop time and repairs).</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool IsWorked => StartTime is not null;
+    /// <summary>Downtime: no start time, only comments explaining why there was no welding.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool IsIdle => StartTime is null && Comments is { Count: > 0 };
 }
 
 public sealed record ReportExportData(
@@ -31,7 +38,23 @@ public sealed record ReportExportData(
         Add(WeldedCount(FirstShift), WeldedCount(SecondShift)),
         Add(FirstShift.Repairs, SecondShift.Repairs));
     public ReportHeaderData? Header { get; init; }
-    public string CollectorDisplay => Header?.CollectorNumber is { } number ? $"№ трубы: ГК {number}" : "";
+    /// <summary>
+    /// History badge for downtime. A shift is worked, idle (only comments) or absent (empty).
+    /// No worked shift and at least one idle → the whole report is downtime («Простой»);
+    /// one worked and the other idle → only the idle shift is named; otherwise empty (no badge).
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string IdleDisplay =>
+        (FirstShift.IsWorked, SecondShift.IsWorked) switch
+        {
+            (false, false) when FirstShift.IsIdle || SecondShift.IsIdle => "Простой",
+            (false, true) when FirstShift.IsIdle => "Простой 1-й смены",
+            (true, false) when SecondShift.IsIdle => "Простой 2-й смены",
+            _ => ""
+        };
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool HasIdle => IdleDisplay.Length > 0;
+    public string CollectorDisplay => Header?.CollectorNumber is { } number ? $"№ Газового коллектора: ГК {number}" : "";
 
     /// <summary>Export file name; the collector is part of it because one date may have a report per collector.</summary>
     public string FileName(string extension) =>

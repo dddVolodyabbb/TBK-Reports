@@ -66,8 +66,8 @@ public sealed class ReportHistoryStore
         .Select(report => report.Date.Date).OrderByDescending(date => date).ToArray();
 
     /// <summary>Reports of one month as date and collector, newest first; a date may hold one report per collector.</summary>
-    public IReadOnlyList<HistoryReportKey> GetReports(int year, int month) => ReadMonth(new DateTime(year, month, 1))
-        .Select(report => new HistoryReportKey(report.Date.Date, report.Header?.CollectorNumber))
+    public IReadOnlyList<HistoryReportEntry> GetReports(int year, int month) => ReadMonth(new DateTime(year, month, 1))
+        .Select(report => new HistoryReportEntry(report.Date.Date, report.Header?.CollectorNumber, report.IdleDisplay))
         .OrderByDescending(key => key.Date).ThenBy(key => key.CollectorNumber ?? -1).ToArray();
 
     /// <summary>Every stored report as date and collector.</summary>
@@ -131,7 +131,6 @@ public sealed class ReportHistoryStore
 
     public string GetNextJointNumber(DateTime reportDate, int? collectorNumber = null)
     {
-        if (collectorNumber is < 0 or > 999) throw new ArgumentOutOfRangeException(nameof(collectorNumber));
         var month = ReadMonthFile(reportDate);
         var opening = FindOpening(month, collectorNumber);
         if (opening?.LastJoint is > 0)
@@ -225,7 +224,6 @@ public sealed class ReportHistoryStore
 
     public void SaveMonthlyOpeningData(DateTime date, MonthlyOpeningData? opening, int? collectorNumber = null)
     {
-        if (collectorNumber is < 0 or > 999) throw new ArgumentOutOfRangeException(nameof(collectorNumber));
         if (opening is not null &&
             (opening.LastJoint is <= 0 || opening.Welded is < 0 || opening.Repairs is < 0))
             throw new ArgumentOutOfRangeException(nameof(opening), "Начальный номер стыка должен быть положительным, а количества — неотрицательными.");
@@ -265,13 +263,17 @@ public sealed class ReportHistoryStore
 
     public MonthlyReportTotals GetMonthlyTotals(ReportExportData current)
     {
-        // Use the current form in place of a saved record, and exclude later dates.
+        // Monthly totals belong to the month, not to a collector: a new collector restarts
+        // joint numbering only, the month keeps counting. All collectors' reports and opening
+        // data of the month are added up. The current form replaces its saved record; later
+        // reports (later dates, or the same date after it in history order) are excluded.
         var month = ReadMonthFile(current.Date);
-        var collectorNumber = current.Header?.CollectorNumber;
-        var opening = FindOpening(month, collectorNumber);
-        var earlier = month.Reports.Where(report => report.Date.Date < current.Date.Date &&
-            report.Header?.CollectorNumber == collectorNumber);
-        var baseline = AddTotals(new ShiftTotals(opening?.Welded, opening?.Repairs),
+        var order = current.Header?.CollectorNumber ?? -1;
+        var earlier = month.Reports.Where(report => report.Date.Date < current.Date.Date ||
+            report.Date.Date == current.Date.Date && (report.Header?.CollectorNumber ?? -1) < order);
+        var opening = month.Openings.Aggregate(new ShiftTotals(null, null),
+            (total, item) => AddTotals(total, new ShiftTotals(item.Data.Welded, item.Data.Repairs)));
+        var baseline = AddTotals(opening,
             Sum(earlier.SelectMany(report => new[] { report.FirstShift, report.SecondShift })));
         var afterFirst = AddTotals(baseline, Sum(new[] { current.FirstShift }));
         var afterSecond = AddTotals(afterFirst, Sum(new[] { current.SecondShift }));
@@ -345,8 +347,8 @@ public sealed class ReportHistoryStore
                     : new[] { new MonthlyOpeningEntry(null, document.Opening) }
                 : document.StoredOpenings ?? throw new InvalidDataException("В истории отсутствуют начальные данные по ГК.");
             if (document.Reports.Any(report => report is null || report.Date.Year != month.Year || report.Date.Month != month.Month ||
-                    !ValidShift(report.FirstShift) || !ValidShift(report.SecondShift) || report.Header?.CollectorNumber is < 0 or > 999) ||
-                openings.Any(item => item is null || item.CollectorNumber is < 0 or > 999 || item.Data is null ||
+                    !ValidShift(report.FirstShift) || !ValidShift(report.SecondShift)) ||
+                openings.Any(item => item is null || item.Data is null ||
                     item.Data.LastJoint is <= 0 || item.Data.Welded is < 0 || item.Data.Repairs is < 0 ||
                     item.Data is { LastJoint: null, Welded: null, Repairs: null }) ||
                 openings.Select(item => item.CollectorNumber).Distinct().Count() != openings.Length ||
@@ -380,4 +382,6 @@ public sealed class ReportHistoryStore
 }
 
 public sealed record HistoryReportKey(DateTime Date, int? CollectorNumber);
+/// <summary>A report in the history day list; <see cref="IdleDisplay"/> is its downtime badge text, empty when none.</summary>
+public sealed record HistoryReportEntry(DateTime Date, int? CollectorNumber, string IdleDisplay);
 public sealed record HistoryMonthSnapshot(DateTime Month, ReportExportData[] Reports, MonthlyOpeningEntry[] Openings);

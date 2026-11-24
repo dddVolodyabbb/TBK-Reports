@@ -47,7 +47,7 @@ public sealed class ReportDefaultsStore
         {
             using var stream = File.OpenRead(FilePath);
             var data = JsonSerializer.Deserialize<ReportDefaultsData>(stream);
-            if (data is null || data.Version != 1 || data.Equipment is null || data.Problems is null || data.Header?.CollectorNumber is < 0 or > 999 ||
+            if (data is null || data.Version != 1 || data.Equipment is null || data.Problems is null ||
                 data.Equipment.Any(item => item is null || string.IsNullOrWhiteSpace(item.Name) || item.InWork < 0 || item.InReserve < 0) ||
                 data.Problems.Any(problem => problem is null))
                 throw new InvalidDataException("Файл постоянных данных отчёта имеет неверный формат.");
@@ -102,7 +102,7 @@ public sealed class ReportDefaultsStore
     public void SaveData(ReportDefaultsData data)
     {
         ArgumentNullException.ThrowIfNull(data);
-        if (data.Equipment is null || data.Problems is null || data.Header?.CollectorNumber is < 0 or > 999 ||
+        if (data.Equipment is null || data.Problems is null ||
             data.Equipment.Any(item => item is null || string.IsNullOrWhiteSpace(item.Name) || item.InWork < 0 || item.InReserve < 0) ||
             data.Problems.Any(problem => problem is null))
             throw new InvalidDataException("Некорректные постоянные данные отчёта.");

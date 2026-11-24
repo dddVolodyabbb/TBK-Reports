@@ -1,6 +1,23 @@
 <UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:TbkReport.ViewModels" xmlns:models="using:TbkReport.Models" xmlns:data="using:TbkReport.Services"
         x:Class="TbkReport.Views.HistoryView" x:DataType="vm:MainViewModel">
+  <UserControl.Styles>
+    <!-- Each group of the report preview sits in a thin frame; the grey reads well in light and dark themes. -->
+    <Style Selector="Border.HistoryGroup">
+      <Setter Property="BorderBrush" Value="#7771808C" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="Padding" Value="12,8" />
+    </Style>
+    <!-- Marks a downtime report (only comments, no welding in either shift); black on amber reads in both themes. -->
+    <Style Selector="Border.IdleBadge">
+      <Setter Property="Background" Value="#FFFFC107" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="Padding" Value="8,2" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="HorizontalAlignment" Value="Left" />
+    </Style>
+  </UserControl.Styles>
   <!-- The buttons stay at the top of the window; only the content below them scrolls. -->
   <Grid RowDefinitions="Auto,*" Margin="16">
     <StackPanel Spacing="8" Margin="0,0,0,8">
@@ -54,7 +71,10 @@
                       <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="vm:HistoryDayItem">
                           <Button Tag="{Binding .}" Click="HistoryDayClick" HorizontalAlignment="Left" Margin="0,0,0,6" Padding="12,8">
-                            <TextBlock Text="{Binding Label}" />
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                              <TextBlock Text="{Binding Label}" VerticalAlignment="Center" />
+                              <Border Classes="IdleBadge" IsVisible="{Binding HasIdle}"><TextBlock Text="{Binding IdleDisplay}" Foreground="Black" /></Border>
+                            </StackPanel>
                           </Button>
                         </DataTemplate>
                       </ItemsControl.ItemTemplate>
@@ -63,6 +83,10 @@
                   <StackPanel IsVisible="{Binding IsHistoryReportVisible}" Spacing="8">
                     <TextBlock Text="{Binding SelectedHistoryReport.CollectorDisplay}" />
                     <TextBlock Text="Отчёт за" FontSize="17" /><TextBlock Text="{Binding SelectedHistoryDay.Label}" FontSize="17" />
+                    <Border Classes="IdleBadge" IsVisible="{Binding SelectedHistoryReport.HasIdle, FallbackValue=False}">
+                      <TextBlock Text="{Binding SelectedHistoryReport.IdleDisplay}" Foreground="Black" />
+                    </Border>
+                    <Border Classes="HistoryGroup">
                     <Grid ColumnDefinitions="Auto,*,*,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" ColumnSpacing="16" RowSpacing="5">
                       <TextBlock Grid.Row="0" Grid.Column="1" Text="Первая смена" FontWeight="Bold" />
                       <TextBlock Grid.Row="0" Grid.Column="2" Text="Вторая смена" FontWeight="Bold" />
@@ -77,7 +101,10 @@
                       <TextBlock Grid.Row="8" Text="Ремонтов за месяц" /><TextBlock Grid.Row="8" Grid.Column="1" Text="{Binding SelectedHistoryReport.MonthlyTotals.First.RepairsDisplay}" /><TextBlock Grid.Row="8" Grid.Column="2" Text="{Binding SelectedHistoryReport.MonthlyTotals.Second.RepairsDisplay}" /><TextBlock Grid.Row="8" Grid.Column="3" Text="{Binding SelectedHistoryReport.MonthlyTotals.Total.RepairsDisplay}" />
                       <TextBlock Grid.Row="9" Text="Ремонты / стыки за месяц" /><TextBlock Grid.Row="9" Grid.Column="1" Text="{Binding SelectedHistoryReport.MonthlyTotals.First.RepairPercentDisplay}" /><TextBlock Grid.Row="9" Grid.Column="2" Text="{Binding SelectedHistoryReport.MonthlyTotals.Second.RepairPercentDisplay}" /><TextBlock Grid.Row="9" Grid.Column="3" Text="{Binding SelectedHistoryReport.MonthlyTotals.Total.RepairPercentDisplay}" />
                     </Grid>
-                    <TextBlock Text="Комментарии" FontSize="15" FontWeight="Bold" Margin="0,8,0,0" />
+                    </Border>
+                    <Border Classes="HistoryGroup">
+                    <StackPanel Spacing="6">
+                    <TextBlock Text="Комментарии" FontSize="15" FontWeight="Bold" />
                     <Grid ColumnDefinitions="*,*" ColumnSpacing="16" Grid.IsSharedSizeScope="True">
                       <ItemsControl ItemsSource="{Binding SelectedHistoryReport.FirstShift.Comments}">
                         <ItemsControl.ItemTemplate>
@@ -108,10 +135,54 @@
                         </ItemsControl.ItemTemplate>
                       </ItemsControl>
                     </Grid>
+                    </StackPanel>
+                    </Border>
+                    <!-- Spare parts used in each shift, side by side like the comments; hidden when none were used. -->
+                    <Border Classes="HistoryGroup" IsVisible="{Binding HasSelectedHistorySpares}">
+                    <StackPanel Spacing="4">
+                      <TextBlock Text="Расход ЗИП" FontSize="15" FontWeight="Bold" />
+                      <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
+                        <StackPanel>
+                          <TextBlock Text="Первая смена" FontWeight="SemiBold" Margin="0,0,0,2" />
+                          <TextBlock Text="—" IsVisible="{Binding IsSelectedHistoryFirstSparesEmpty}" />
+                          <ItemsControl ItemsSource="{Binding SelectedHistoryFirstSpares}">
+                            <ItemsControl.ItemTemplate>
+                              <DataTemplate x:DataType="vm:HistorySpareLine">
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" Margin="0,2">
+                                  <TextBlock Text="{Binding Label}" TextWrapping="Wrap" />
+                                  <TextBlock Grid.Column="1" Text="{Binding Quantity}" />
+                                </Grid>
+                              </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                          </ItemsControl>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1">
+                          <TextBlock Text="Вторая смена" FontWeight="SemiBold" Margin="0,0,0,2" />
+                          <TextBlock Text="—" IsVisible="{Binding IsSelectedHistorySecondSparesEmpty}" />
+                          <ItemsControl ItemsSource="{Binding SelectedHistorySecondSpares}">
+                            <ItemsControl.ItemTemplate>
+                              <DataTemplate x:DataType="vm:HistorySpareLine">
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" Margin="0,2">
+                                  <TextBlock Text="{Binding Label}" TextWrapping="Wrap" />
+                                  <TextBlock Grid.Column="1" Text="{Binding Quantity}" />
+                                </Grid>
+                              </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                          </ItemsControl>
+                        </StackPanel>
+                      </Grid>
+                    </StackPanel>
+                    </Border>
+                    <Border Classes="HistoryGroup">
+                    <StackPanel Spacing="6">
                     <TextBlock Text="Проблемные вопросы" FontSize="15" FontWeight="Bold" />
                     <ItemsControl ItemsSource="{Binding SelectedHistoryProblems}">
                       <ItemsControl.ItemTemplate><DataTemplate x:DataType="x:String"><TextBlock Text="{Binding .}" TextWrapping="Wrap" Margin="0,2" /></DataTemplate></ItemsControl.ItemTemplate>
                     </ItemsControl>
+                    </StackPanel>
+                    </Border>
+                    <Border Classes="HistoryGroup">
+                    <StackPanel Spacing="6">
                     <TextBlock Text="Оборудование" FontSize="15" FontWeight="Bold" />
                     <Grid ColumnDefinitions="*,100,100"><TextBlock Text="Название" /><TextBlock Grid.Column="1" Text="В работе" /><TextBlock Grid.Column="2" Text="В резерве" /></Grid>
                     <ItemsControl ItemsSource="{Binding SelectedHistoryReport.Equipment}">
@@ -119,6 +190,8 @@
                         <Grid ColumnDefinitions="*,100,100" Margin="0,2"><TextBlock Text="{Binding Name}" TextWrapping="Wrap" /><TextBlock Grid.Column="1" Text="{Binding InWork}" /><TextBlock Grid.Column="2" Text="{Binding InReserve}" /></Grid>
                       </DataTemplate></ItemsControl.ItemTemplate>
                     </ItemsControl>
+                    </StackPanel>
+                    </Border>
                   </StackPanel>
                 </StackPanel>
               </ScrollViewer>

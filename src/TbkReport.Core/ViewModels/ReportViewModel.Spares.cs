@@ -62,6 +62,41 @@ public partial class ReportViewModel
         RefreshSpareChoices();
     }
 
+    /// <summary>Spare parts used in the first shift of the report opened in history (from the usage saved with it).</summary>
+    [ObservableProperty] private HistorySpareLine[] selectedHistoryFirstSpares = Array.Empty<HistorySpareLine>();
+    [ObservableProperty] private HistorySpareLine[] selectedHistorySecondSpares = Array.Empty<HistorySpareLine>();
+    public bool HasSelectedHistorySpares => SelectedHistoryFirstSpares.Length > 0 || SelectedHistorySecondSpares.Length > 0;
+    public bool IsSelectedHistoryFirstSparesEmpty => SelectedHistoryFirstSpares.Length == 0;
+    public bool IsSelectedHistorySecondSparesEmpty => SelectedHistorySecondSpares.Length == 0;
+    partial void OnSelectedHistoryFirstSparesChanged(HistorySpareLine[] value)
+    {
+        OnPropertyChanged(nameof(HasSelectedHistorySpares));
+        OnPropertyChanged(nameof(IsSelectedHistoryFirstSparesEmpty));
+    }
+    partial void OnSelectedHistorySecondSparesChanged(HistorySpareLine[] value)
+    {
+        OnPropertyChanged(nameof(HasSelectedHistorySpares));
+        OnPropertyChanged(nameof(IsSelectedHistorySecondSparesEmpty));
+    }
+
+    private void LoadSelectedHistorySpares(ReportExportData? report)
+    {
+        HistorySpareLine[] Lines(int shift) => report is null || spareStore is null
+            ? Array.Empty<HistorySpareLine>()
+            : spareStore.GetUsage(report.Date, report.Header?.CollectorNumber, shift).Select(HistorySpareLine.From).ToArray();
+        try
+        {
+            SelectedHistoryFirstSpares = Lines(1);
+            SelectedHistorySecondSpares = Lines(2);
+        }
+        catch (Exception ex)
+        {
+            SelectedHistoryFirstSpares = Array.Empty<HistorySpareLine>();
+            SelectedHistorySecondSpares = Array.Empty<HistorySpareLine>();
+            ShowStatus($"Не удалось прочитать расход ЗИП: {ex.Message}", isError: true);
+        }
+    }
+
     private static int Used(ShiftViewModel shift, string partId) =>
         shift.Spares.Items.Where(item => item.PartId == partId).Sum(item => item.Quantity);
 
@@ -116,4 +151,12 @@ public partial class ReportViewModel
         }
         IsSparesViewVisible = false;
     }
+}
+
+/// <summary>One line of «Расход ЗИП» in the history preview: the part as it was named then and the pieces used.</summary>
+public sealed record HistorySpareLine(string Label, string Quantity)
+{
+    public static HistorySpareLine From(SpareUsage usage) => new(
+        string.IsNullOrEmpty(usage.Article) ? usage.Name : $"{usage.Name} · {usage.Article}",
+        $"{usage.Quantity} шт.");
 }

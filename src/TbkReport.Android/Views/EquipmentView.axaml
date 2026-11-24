@@ -8,15 +8,17 @@
       <ItemsControl ItemsSource="{Binding Items}">
         <ItemsControl.ItemTemplate>
           <DataTemplate x:DataType="data:EquipmentData">
-            <Grid ColumnDefinitions="*,Auto,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="8" Margin="0,4">
-              <TextBlock Text="{Binding Name}" TextWrapping="Wrap" />
-              <TextBlock Grid.Column="1" Text="{Binding InWork, StringFormat='Рб: {0}'}" />
-              <TextBlock Grid.Column="2" Text="{Binding InReserve, StringFormat='Рз: {0}'}" />
-              <WrapPanel Grid.Row="1" Grid.ColumnSpan="3" Margin="0,8,0,0" HorizontalAlignment="Left">
-                <Button Margin="0,0,8,0" Content="Изменить" Click="EditClick" Padding="8,4" />
-                <Button Content="Удалить" Click="RemoveClick" Padding="8,4" />
-              </WrapPanel>
-            </Grid>
+            <Border BorderBrush="#40808080" BorderThickness="0,0,0,1" Padding="4,8">
+              <Grid ColumnDefinitions="*,Auto,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="8">
+                <TextBlock Text="{Binding Name}" TextWrapping="Wrap" />
+                <TextBlock Grid.Column="1" Text="{Binding InWork, StringFormat='Рб: {0}'}" />
+                <TextBlock Grid.Column="2" Text="{Binding InReserve, StringFormat='Рз: {0}'}" />
+                <WrapPanel Grid.Row="1" Grid.ColumnSpan="3" Margin="0,8,0,0" HorizontalAlignment="Left">
+                  <Button Margin="0,0,8,0" Content="Изменить" Click="EditClick" Padding="8,4" />
+                  <Button Content="Удалить" Click="RemoveClick" Padding="8,4" />
+                </WrapPanel>
+              </Grid>
+            </Border>
           </DataTemplate>
         </ItemsControl.ItemTemplate>
       </ItemsControl>
@@ -27,10 +29,10 @@
             <Grid><TextBox Name="EquipmentNameTextBox" Text="{Binding DraftName, Mode=TwoWay}" />
               <Border IsVisible="{Binding IsNameInvalid}" BorderBrush="Red" BorderThickness="2" CornerRadius="4" IsHitTestVisible="False" /></Grid></StackPanel>
           <StackPanel Grid.Row="1" Spacing="4"><TextBlock Text="В работе (Рб)" />
-            <Grid><TextBox Text="{Binding DraftInWork, Mode=TwoWay}" />
+            <Grid><TextBox Text="{Binding DraftInWork, Mode=TwoWay}" TextInputOptions.ContentType="Digits" TextInputOptions.ReturnKeyType="Done" VerticalContentAlignment="Center" />
               <Border IsVisible="{Binding IsInWorkInvalid}" BorderBrush="Red" BorderThickness="2" CornerRadius="4" IsHitTestVisible="False" /></Grid></StackPanel>
           <StackPanel Grid.Row="1" Grid.Column="1" Spacing="4"><TextBlock Text="В резерве (Рз)" />
-            <Grid><TextBox Text="{Binding DraftInReserve, Mode=TwoWay}" />
+            <Grid><TextBox Text="{Binding DraftInReserve, Mode=TwoWay}" TextInputOptions.ContentType="Digits" TextInputOptions.ReturnKeyType="Done" VerticalContentAlignment="Center" />
               <Border IsVisible="{Binding IsInReserveInvalid}" BorderBrush="Red" BorderThickness="2" CornerRadius="4" IsHitTestVisible="False" /></Grid></StackPanel>
         </Grid>
         <Grid ColumnDefinitions="Auto,Auto" ColumnSpacing="8" HorizontalAlignment="Left">

@@ -140,17 +140,15 @@ public sealed class DataTransferService(ReportHistoryStore history, ReportDefaul
             if (report is null || report.Date == default || !ValidShift(report.FirstShift) || !ValidShift(report.SecondShift))
                 throw new InvalidDataException("В файле есть некорректный отчёт.");
             ValidateLists(report.Equipment, report.Problems);
-            ValidateHeader(report.Header, "Номер коллектора в отчёте должен содержать не более трёх цифр.");
         }
         if (document.Reports.Select(r => (r.Date.Date, r.Header?.CollectorNumber)).Distinct().Count() != document.Reports.Length)
             throw new InvalidDataException("В файле повторяются отчёты с одинаковыми датой и номером ГК.");
         if (document.Defaults is { } data) ValidateLists(data.Equipment, data.Problems);
-        ValidateHeader(document.Defaults?.Header, "Некорректный номер коллектора в шапке.");
 
         var openings = document.Openings ?? Array.Empty<TransferOpening>();
         if (document.Version == 1 && openings.Length > 0)
             throw new InvalidDataException("Начальные данные требуют второй версии файла переноса.");
-        if (openings.Any(item => item is null || item.Month == default || item.Month.Day != 1 || item.CollectorNumber is < 0 or > 999 ||
+        if (openings.Any(item => item is null || item.Month == default || item.Month.Day != 1 ||
                 item.Data is null || item.Data.LastJoint is <= 0 || item.Data.Welded is < 0 || item.Data.Repairs is < 0 ||
                 item.Data is { LastJoint: null, Welded: null, Repairs: null }) ||
             openings.Select(item => (item.Month.Date, item.CollectorNumber)).Distinct().Count() != openings.Length)
@@ -171,7 +169,6 @@ public sealed class DataTransferService(ReportHistoryStore history, ReportDefaul
             throw new InvalidDataException("Состав файла переноса не совпадает с выбранными разделами.");
         if (selection.Equipment || selection.Problems)
             ValidateLists(document.Equipment ?? Array.Empty<EquipmentData>(), document.Problems ?? Array.Empty<string>());
-        ValidateHeader(document.Header, "Некорректный номер коллектора в шапке.");
         ValidateSpares(document, selection);
     }
 
@@ -192,19 +189,10 @@ public sealed class DataTransferService(ReportHistoryStore history, ReportDefaul
             throw new InvalidDataException("В файле некорректный список ЗИП в наличии.");
         if ((document.SpareHistory ?? Array.Empty<SpareHistoryEntry>()).Any(entry => entry is null ||
                 string.IsNullOrWhiteSpace(entry.PartId) || entry.Name is null || entry.Quantity <= 0 ||
-                entry.Shift is not (1 or 2) || entry.Date == default || entry.CollectorNumber is < 0 or > 999))
+                entry.Shift is not (1 or 2) || entry.Date == default))
             throw new InvalidDataException("В файле некорректная история расхода ЗИП.");
     }
 
-    private static void ValidateHeader(ReportHeaderData? header, string message)
-    {
-        if (header?.CollectorNumber is < 0 or > 999) throw new InvalidDataException(message);
-    }
-
-    private static void ValidateHeader(TransferHeader? header, string message)
-    {
-        if (header?.CollectorNumber is < 0 or > 999) throw new InvalidDataException(message);
-    }
 
     private static bool ValidShift(ShiftReportData? shift) => shift is not null &&
         shift.FirstJoint is not null && shift.LastJoint is not null && shift.Repairs is not < 0 &&

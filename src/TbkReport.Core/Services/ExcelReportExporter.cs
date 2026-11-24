@@ -27,7 +27,14 @@ public sealed class ExcelReportExporter
     private const int EquipmentStartRow = 29;
     private const double DefaultRowHeight = 22.8;
 
-    public void Export(string templatePath, string outputPath, ReportExportData data)
+    public void Export(string templatePath, string outputPath, ReportExportData data) =>
+        Export(templatePath, outputPath, data, null);
+
+    /// <param name="columnPoints">
+    /// Width of a 1-based column in points as the PDF renderer of this device sees it;
+    /// comments then wrap into exactly as many rows as the PDF shows. Null for a plain Excel file.
+    /// </param>
+    public void Export(string templatePath, string outputPath, ReportExportData data, Func<int, double>? columnPoints)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(templatePath);
         ArgumentException.ThrowIfNullOrWhiteSpace(outputPath);
@@ -50,6 +57,14 @@ public sealed class ExcelReportExporter
                 var legacySignatures = FindTemplateSignatureDrawings(source);
                 var signatures = PrepareSignatures(source, data.Header);
                 var equipmentNameStyle = PrepareWrappedEquipmentStyle(source, out var styles);
+                // The sheet is filled before any part is written: filling may add styles.
+                XDocument? sheet = null;
+                if (source.GetEntry("xl/worksheets/sheet1.xml") is { } sheetEntry)
+                {
+                    using var sheetInput = sheetEntry.Open();
+                    sheet = XDocument.Load(sheetInput);
+                    PopulateSheet(sheet, data, equipmentNameStyle, styles, columnPoints);
+                }
                 foreach (var entry in source.Entries)
                 {
                     if (entry.FullName == "xl/calcChain.xml") continue;
@@ -57,11 +72,9 @@ public sealed class ExcelReportExporter
                     var newEntry = destination.CreateEntry(entry.FullName, CompressionLevel.Optimal);
                     using var input = entry.Open();
                     using var target = newEntry.Open();
-                    if (entry.FullName == "xl/worksheets/sheet1.xml")
+                    if (entry.FullName == "xl/worksheets/sheet1.xml" && sheet is not null)
                     {
                         worksheetFound = true;
-                        var sheet = XDocument.Load(input);
-                        PopulateSheet(sheet, data, equipmentNameStyle);
                         sheet.Save(target, SaveOptions.DisableFormatting);
                     }
                     else if (entry.FullName == "xl/styles.xml" && styles is not null)
@@ -294,12 +307,13 @@ public sealed class ExcelReportExporter
         return formats.Count.ToString(CultureInfo.InvariantCulture);
     }
 
-    private static void PopulateSheet(XDocument sheet, ReportExportData data, string? equipmentNameStyle = null)
+    private static void PopulateSheet(XDocument sheet, ReportExportData data, string? equipmentNameStyle = null,
+        XDocument? styles = null, Func<int, double>? columnPoints = null)
     {
         var root = sheet.Root ?? throw new InvalidDataException("В шаблоне отсутствует лист отчёта.");
         var sheetData = root.Element(MainNs + "sheetData") ?? throw new InvalidDataException("В шаблоне отсутствуют строки отчёта.");
-        var firstCommentCapacity = CommentLineCapacity(root, 2);
-        var secondCommentCapacity = CommentLineCapacity(root, 6);
+        var firstCommentCapacity = CommentLineCapacity(root, 2, columnPoints);
+        var secondCommentCapacity = CommentLineCapacity(root, 6, columnPoints);
         var firstRows = LayoutComments(data.FirstShift, firstCommentCapacity);
         var secondRows = LayoutComments(data.SecondShift, secondCommentCapacity);
         var overflow = Math.Max(0, Math.Max(firstRows, secondRows) - ReservedCommentRows);
@@ -343,10 +357,14 @@ public sealed class ExcelReportExporter
         SetRepairCount(sheetData, "K24", monthly?.Total.Repairs);
         foreach (var cell in new[] { "C25", "G25", "K25" })
             ClearCachedFormulaValue(sheetData, cell);
-        PopulateComments(root, sheetData, data.FirstShift, 1, 2, firstCommentCapacity);
-        PopulateComments(root, sheetData, data.SecondShift, 5, 6, secondCommentCapacity);
+        var firstSeparators = PopulateComments(root, sheetData, data.FirstShift, 1, 2, firstCommentCapacity);
+        var secondSeparators = PopulateComments(root, sheetData, data.SecondShift, 5, 6, secondCommentCapacity);
         var reportEndRow = PopulateProblems(root, sheetData, data, overflow, equipmentNameStyle);
         EnsureCommentTextColumnsMerged(root, reportEndRow);
+        var borderStyles = BorderStyles.From(styles);
+        SeparateComments(sheetData, borderStyles, firstSeparators, 1, 2);
+        SeparateComments(sheetData, borderStyles, secondSeparators, 5, 6);
+        UnifyCommentRightBorders(sheetData, borderStyles, reportEndRow);
         CenterReportOnPrintedPage(root);
         SortAndValidateMerges(root);
     }
@@ -462,29 +480,35 @@ public sealed class ExcelReportExporter
         printOptions.SetAttributeValue("horizontalCentered", "1");
     }
 
-    private static int LayoutComments(ShiftReportData shift, int charactersPerLine)
+    private static int LayoutComments(ShiftReportData shift, Func<string, int> lineCount) =>
+        OrderedComments(shift).Sum(comment => Math.Max(1, lineCount(comment.Text)));
+
+    // Share of the cell width filled with text. With the PDF renderer's own column width
+    // (measured where the PDF is made) the cell padding is small; for a plain Excel file the
+    // width is computed here and the share also covers differences between spreadsheet apps.
+    private const double RendererWidthShare = 0.975;
+    private const double EstimatedWidthShare = 0.93;
+
+    private static Func<string, int> CommentLineCapacity(XElement root, int textColumn, Func<int, double>? columnPoints)
     {
-        var rows = 0;
-        foreach (var comment in OrderedComments(shift))
-        {
-            var lineCount = WrappedLineCount(comment.Text, charactersPerLine);
-            rows += Math.Max(1, lineCount);
-        }
-        return rows;
+        // Comment text always fills its own column and the next one (B:C, F:G).
+        var endColumn = textColumn + 1;
+        var limit = columnPoints is null
+            ? EstimatedWidthShare * Enumerable.Range(textColumn, 2)
+                .Sum(column => ReportTextMeasure.ColumnWidthPoints(ColumnSpanWidth(root, column, column)))
+            : RendererWidthShare * Enumerable.Range(textColumn, 2).Sum(columnPoints);
+        // Without the font, count characters: the report's 18 pt serif fits about
+        // 0.56 characters per Excel width unit on the narrowest renderer.
+        var characters = Math.Max(1, (int)Math.Floor(ColumnSpanWidth(root, textColumn, endColumn) * 0.56));
+        return text => RowsForLines(ReportTextMeasure.LineCount(text, limit) ?? WrappedLineCount(text, characters));
     }
 
-    private static int CommentLineCapacity(XElement root, int textColumn)
-    {
-        var merges = root.Element(MainNs + "mergeCells")?.Elements(MainNs + "mergeCell") ?? Enumerable.Empty<XElement>();
-        var merge = merges.Select(element => ParseMerge((string)element.Attribute("ref")!))
-            .FirstOrDefault(bounds => bounds.StartColumn == textColumn && bounds.StartRow == FirstCommentRow);
-        var endColumn = merge.EndColumn >= textColumn ? merge.EndColumn : textColumn;
-        var widthInCharacters = ColumnSpanWidth(root, textColumn, endColumn);
-
-        // Excel column width is expressed in the width of the default font's "0".
-        // Reserve a small amount for cell padding so wrapping follows the visible width.
-        return Math.Max(1, (int)Math.Floor(widthInCharacters - 1));
-    }
+    // A printed line of the 18 pt comment text is lower than a 22.8 pt sheet row. Giving a
+    // comment one row per line left almost a whole empty row around an 11-line comment, so
+    // the gaps between comments differed. The rows a comment gets follow its text height;
+    // a small reserve keeps the text off the cell edges.
+    private const double LineHeightInRows = 0.875;
+    private static int RowsForLines(int lines) => Math.Max(1, (int)Math.Ceiling(lines * LineHeightInRows + 0.05));
 
     // Equipment names (I:K) use the same font as the problem text (I:M), whose line length was
     // matched to the printed report; scale it by the share of the width the names get.
@@ -549,6 +573,81 @@ public sealed class ExcelReportExporter
         merges.SetAttributeValue("count", merges.Elements(MainNs + "mergeCell").Count());
     }
 
+    /// <summary>
+    /// The template gives the right edge of the comment columns (C, G) two different borders:
+    /// a grey thin line in most rows and a black thin line in a few. The renderer drops the
+    /// line where they meet and beside merged comments, so the frame broke. Every edge cell
+    /// of the comment rows gets the same black thin right border.
+    /// </summary>
+    private static void UnifyCommentRightBorders(XElement sheetData, BorderStyles? borders, int lastRow)
+    {
+        if (borders is null) return;
+        var right = new XElement(MainNs + "right", new XAttribute("style", "thin"),
+            new XElement(MainNs + "color", new XAttribute("auto", "1")));
+        foreach (var edge in new[] { "C", "G" })
+        for (var row = FirstCommentRow; row <= lastRow; row++)
+            borders.Apply(sheetData, $"{edge}{row}", right, createMissing: false);
+    }
+
+    /// <summary>A thin dashed line under every comment except the last one of the shift.</summary>
+    private static void SeparateComments(XElement sheetData, BorderStyles? borders, IEnumerable<int> rows,
+        int timeColumn, int textColumn)
+    {
+        if (borders is null) return;
+        var bottom = new XElement(MainNs + "bottom", new XAttribute("style", "dashed"),
+            new XElement(MainNs + "color", new XAttribute("auto", "1")));
+        foreach (var row in rows)
+        foreach (var column in new[] { timeColumn, textColumn, textColumn + 1 })
+            borders.Apply(sheetData, CellName(column, row), bottom, createMissing: true);
+    }
+
+    /// <summary>Copies of cell styles that differ from the original only in one border side.</summary>
+    private sealed class BorderStyles(XElement cellFormats, XElement borders)
+    {
+        private static readonly string[] SideOrder = { "left", "right", "top", "bottom", "diagonal" };
+        private readonly Dictionary<(string Style, string Side), string> copies = new();
+
+        public static BorderStyles? From(XDocument? styles) =>
+            styles?.Root?.Element(MainNs + "cellXfs") is { } formats && styles.Root.Element(MainNs + "borders") is { } borders
+                ? new BorderStyles(formats, borders)
+                : null;
+
+        public void Apply(XElement sheetData, string address, XElement side, bool createMissing)
+        {
+            var cell = sheetData.Descendants(MainNs + "c").FirstOrDefault(c => (string?)c.Attribute("r") == address);
+            if (cell is null)
+            {
+                if (!createMissing) return;
+                SetValue(sheetData, address, null);
+                cell = sheetData.Descendants(MainNs + "c").First(c => (string?)c.Attribute("r") == address);
+            }
+            var style = (string?)cell.Attribute("s") ?? "0";
+            var key = (style, side.ToString(SaveOptions.DisableFormatting));
+            if (!copies.TryGetValue(key, out var copy))
+            {
+                var formats = cellFormats.Elements(MainNs + "xf").ToList();
+                if (!int.TryParse(style, out var index) || index < 0 || index >= formats.Count) return;
+                var borderId = (int?)formats[index].Attribute("borderId") ?? 0;
+                var border = new XElement(borders.Elements(MainNs + "border").ElementAtOrDefault(borderId)
+                    ?? new XElement(MainNs + "border"));
+                border.Element(side.Name)?.Remove();
+                var position = Array.IndexOf(SideOrder, side.Name.LocalName);
+                var next = border.Elements().FirstOrDefault(e => Array.IndexOf(SideOrder, e.Name.LocalName) > position);
+                if (next is null) border.Add(new XElement(side)); else next.AddBeforeSelf(new XElement(side));
+                borders.Add(border);
+                borders.SetAttributeValue("count", borders.Elements(MainNs + "border").Count());
+                var format = new XElement(formats[index]);
+                format.SetAttributeValue("borderId", borders.Elements(MainNs + "border").Count() - 1);
+                format.SetAttributeValue("applyBorder", "1");
+                cellFormats.Add(format);
+                cellFormats.SetAttributeValue("count", cellFormats.Elements(MainNs + "xf").Count());
+                copy = (cellFormats.Elements(MainNs + "xf").Count() - 1).ToString(CultureInfo.InvariantCulture);
+                copies[key] = copy;
+            }
+            cell.SetAttributeValue("s", copy);
+        }
+    }
+
     private static void EnsureCommentTextColumnsMerged(XElement root, int lastRow)
     {
         var merges = root.Element(MainNs + "mergeCells");
@@ -587,14 +686,16 @@ public sealed class ExcelReportExporter
         return Math.Max(1, lines);
     }
 
-    private static void PopulateComments(XElement root, XElement sheetData, ShiftReportData shift,
-        int timeColumn, int textColumn, int charactersPerLine)
+    /// <returns>The last row of every comment except the last one: a separator goes under it.</returns>
+    private static IReadOnlyList<int> PopulateComments(XElement root, XElement sheetData, ShiftReportData shift,
+        int timeColumn, int textColumn, Func<string, int> lineCount)
     {
         var mergeCells = root.Element(MainNs + "mergeCells");
         var row = FirstCommentRow;
+        var commentEnds = new List<int>();
         foreach (var comment in OrderedComments(shift))
         {
-            var span = Math.Max(1, WrappedLineCount(comment.Text, charactersPerLine));
+            var span = Math.Max(1, lineCount(comment.Text));
             var end = row + span - 1;
             var timeCell = CellName(timeColumn, row);
             var textCell = CellName(textColumn, row);
@@ -609,8 +710,11 @@ public sealed class ExcelReportExporter
                 AddMerge(mergeCells, $"{textCell}:{CellName(textColumn + 1, end)}");
             }
             else AddMerge(mergeCells, $"{textCell}:{CellName(textColumn + 1, row)}");
+            commentEnds.Add(end);
             row = end + 1;
         }
+        if (commentEnds.Count > 0) commentEnds.RemoveAt(commentEnds.Count - 1);
+        return commentEnds;
     }
 
     private static IEnumerable<ReportComment> OrderedComments(ShiftReportData shift) => shift.Comments
@@ -619,6 +723,11 @@ public sealed class ExcelReportExporter
     private static void InsertOverflowRows(XElement root, XElement sheetData, int count,
         int startRow = FirstCommentRow + ReservedCommentRows, XElement? rowStyle = null)
     {
+        // Inserted rows repeat an ordinary row of the template, so borders and fonts
+        // stay those of the current template instead of fixed style numbers.
+        rowStyle ??= sheetData.Elements(MainNs + "row").FirstOrDefault(e => (int)e.Attribute("r")! == startRow) is { } template
+            ? new XElement(template)
+            : null;
         foreach (var row in sheetData.Elements(MainNs + "row").Where(e => (int)e.Attribute("r")! >= startRow).ToList())
         {
             var old = (int)row.Attribute("r")!;
@@ -662,6 +771,8 @@ public sealed class ExcelReportExporter
                     cell.SetAttributeValue("r", Regex.Replace((string)cell.Attribute("r")!, @"\d+$", row.ToString(CultureInfo.InvariantCulture)));
                     cell.RemoveNodes();
                     cell.Attribute("t")?.Remove();
+                    cell.Attribute("cm")?.Remove();
+                    cell.Attribute("vm")?.Remove();
                 }
             }
             var next = sheetData.Elements(MainNs + "row").FirstOrDefault(e => (int)e.Attribute("r")! > row);

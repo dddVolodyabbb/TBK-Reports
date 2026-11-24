@@ -11,11 +11,11 @@
       <TextBlock Text="Заполняйте этот раздел, только если принимаете коллектор, который уже начали варить другие техники, и их отчётов нет в программе." TextWrapping="Wrap" />
       <TextBlock Text="Значения возьмите из последнего отчёта техника, которого меняете. Они сохраняются для месяца из даты отчёта и для ГК из шапки." TextWrapping="Wrap" Opacity="0.7" />
       <TextBlock Text="Последний номер стыка" />
-      <TextBox Text="{Binding MonthlyOpeningLastJoint, Mode=TwoWay}" PlaceholderText="Например, 274" />
+      <TextBox Text="{Binding MonthlyOpeningLastJoint, Mode=TwoWay}" PlaceholderText="Например, 274" TextInputOptions.ContentType="Digits" TextInputOptions.ReturnKeyType="Done" VerticalContentAlignment="Center" />
       <TextBlock Text="Сварено стыков за месяц" />
-      <TextBox Text="{Binding MonthlyOpeningWelded, Mode=TwoWay}" PlaceholderText="Например, 21" />
+      <TextBox Text="{Binding MonthlyOpeningWelded, Mode=TwoWay}" PlaceholderText="Например, 21" TextInputOptions.ContentType="Digits" TextInputOptions.ReturnKeyType="Done" VerticalContentAlignment="Center" />
       <TextBlock Text="Ремонтов за месяц" />
-      <TextBox Text="{Binding MonthlyOpeningRepairs, Mode=TwoWay}" PlaceholderText="Например, 3" />
+      <TextBox Text="{Binding MonthlyOpeningRepairs, Mode=TwoWay}" PlaceholderText="Например, 3" TextInputOptions.ContentType="Digits" TextInputOptions.ReturnKeyType="Done" VerticalContentAlignment="Center" />
       <TextBlock Text="Если какое-то значение неизвестно, оставьте поле пустым. Чтобы удалить ошибочные данные, очистите все три поля и нажмите «Сохранить начальные данные»." TextWrapping="Wrap" Opacity="0.7" />
     </StackPanel>
   </ScrollViewer>

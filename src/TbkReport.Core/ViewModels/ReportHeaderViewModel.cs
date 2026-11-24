@@ -19,7 +19,10 @@ public partial class ReportHeaderViewModel : ViewModelBase
         set
         {
             value ??= "";
-            if (value.Length > 3 || System.Linq.Enumerable.Any(value, character => character < '0' || character > '9'))
+            // Any whole number, negative and zero included; fractions and other characters are refused.
+            // A lone minus is kept while the user is still typing a negative number.
+            if (value.Length > 0 && value != "-" && !int.TryParse(value, System.Globalization.NumberStyles.AllowLeadingSign,
+                    System.Globalization.CultureInfo.InvariantCulture, out _))
             {
                 OnPropertyChanged();
                 return;
@@ -27,7 +30,8 @@ public partial class ReportHeaderViewModel : ViewModelBase
             if (SetProperty(ref collectorNumberText, value)) OnPropertyChanged(nameof(CollectorNumber));
         }
     }
-    public int? CollectorNumber => int.TryParse(CollectorNumberText, out var number) ? number : null;
+    public int? CollectorNumber => int.TryParse(CollectorNumberText, System.Globalization.NumberStyles.AllowLeadingSign,
+        System.Globalization.CultureInfo.InvariantCulture, out var number) ? number : null;
     [ObservableProperty] private string firstShiftTechnician1 = "";
     [ObservableProperty] private string firstShiftTechnician2 = "";
     [ObservableProperty] private string secondShiftTechnician1 = "";

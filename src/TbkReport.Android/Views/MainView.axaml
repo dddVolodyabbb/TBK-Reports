@@ -151,16 +151,14 @@
           <Grid IsVisible="{Binding IsFirstShiftVisible}"><views:ShiftView DataContext="{Binding Report.First}" /></Grid>
           <Grid IsVisible="{Binding IsSecondShiftVisible}"><views:ShiftView DataContext="{Binding Report.Second}" /></Grid>
           <Grid IsVisible="{Binding IsDataSectionVisible}" RowDefinitions="Auto,*">
-            <StackPanel Margin="16,0,16,8" Spacing="6">
-              <Button Content="Сохранить данные" Command="{Binding Report.SaveReportDataCommand}" IsVisible="{Binding IsRegularDataSectionVisible}" HorizontalAlignment="Stretch" />
-              <Button Content="Сохранить начальные данные" Command="{Binding Report.SaveMonthlyOpeningCommand}" IsVisible="{Binding IsMonthlyOpeningVisible}" HorizontalAlignment="Stretch" />
-              <TextBlock Text="Эта кнопка сохраняет только начальные данные. Данные вкладок «Шапка отчёта», «Проблемы» и «Оборудование» она не сохраняет."
-                         IsVisible="{Binding IsMonthlyOpeningVisible}" TextWrapping="Wrap" Opacity="0.75" />
+            <!-- «Шапка отчёта», «Проблемы» and «Оборудование» save themselves; only the opening data has a button. -->
+            <StackPanel Margin="16,0,16,8" Spacing="6" IsVisible="{Binding IsMonthlyOpeningVisible}">
+              <Button Content="Сохранить начальные данные" Command="{Binding Report.SaveMonthlyOpeningCommand}" HorizontalAlignment="Stretch" />
             </StackPanel>
             <Grid Grid.Row="1">
               <Grid IsVisible="{Binding IsProblemsVisible}"><views:ProblemsView DataContext="{Binding Report.Problems}" /></Grid>
               <Grid IsVisible="{Binding IsEquipmentVisible}"><views:EquipmentView DataContext="{Binding Report.Equipment}" /></Grid>
-              <Grid IsVisible="{Binding IsHeaderVisible}"><views:HeaderView DataContext="{Binding Report.Header}" /></Grid>
+              <Grid IsVisible="{Binding IsHeaderVisible}" LostFocus="ReportDataFieldLostFocus"><views:HeaderView DataContext="{Binding Report.Header}" /></Grid>
               <Grid IsVisible="{Binding IsMonthlyOpeningVisible}"><views:MonthlyOpeningView DataContext="{Binding Report}" /></Grid>
             </Grid>
           </Grid>

@@ -19,9 +19,16 @@ public sealed class App : Application
         Resources["StringTimePickerMinuteText"] = "минуты";
         // Accent-coloured text readable on both backgrounds: darker blue in the light theme.
         Resources.ThemeDictionaries[ThemeVariant.Light] = new ResourceDictionary
-            { ["AccentTextBrush"] = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#FF005A9E")) };
+            {
+                ["AccentTextBrush"] = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#FF005A9E")),
+                // Green for spare parts already in stock, readable on the light background.
+                ["InStockTextBrush"] = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#FF1B7F2A"))
+            };
         Resources.ThemeDictionaries[ThemeVariant.Dark] = new ResourceDictionary
-            { ["AccentTextBrush"] = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#FF42A5F5")) };
+            {
+                ["AccentTextBrush"] = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#FF42A5F5")),
+                ["InStockTextBrush"] = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#FF66BB6A"))
+            };
         Styles.Add(new FluentTheme());
         Styles.Add(new Style(selector => selector.Is<Button>())
         {

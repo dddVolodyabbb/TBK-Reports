@@ -12,6 +12,17 @@ namespace TbkReport.ViewModels;
 public sealed record SpareStockRow(string PartId, string Name, string Article, int Quantity);
 
 /// <summary>
+/// A catalogue part offered when adding to «В наличии». A part already in stock is offered too, marked (green on
+/// screen) with its quantity; choosing it updates that one stock row instead of adding a second one.
+/// </summary>
+public sealed record SpareStockChoice(SparePart Part, int? InStock)
+{
+    public string Id => Part.Id;
+    public bool IsInStock => InStock is not null;
+    public string Label => InStock is { } quantity ? $"{Part.Label} — в наличии {quantity} шт." : Part.Label;
+}
+
+/// <summary>
 /// The «ЗИП» section: the parts catalogue («Комплектующие») and the stock («В наличии»).
 /// Both lists work the same way: a search field, the list with «Изменить» / «Удалить», and an entry form that
 /// opens with «Добавить» or «Изменить» and closes after saving or «Отмена». Every change is written to the file at once.
@@ -46,10 +57,14 @@ public partial class SparesViewModel : ViewModelBase
     public ObservableCollection<SpareStockRow> StockRows { get; } = new();
     [ObservableProperty] private string stockSearch = "";
     [ObservableProperty] private bool isStockFormOpen;
-    /// <summary>Catalogue parts that are not in the stock list yet and match <see cref="StockChoiceSearch"/>.</summary>
-    public ObservableCollection<SparePart> StockChoices { get; } = new();
+    /// <summary>Catalogue parts matching <see cref="StockChoiceSearch"/>; those already in stock are marked.</summary>
+    public ObservableCollection<SpareStockChoice> StockChoices { get; } = new();
     [ObservableProperty] private string stockChoiceSearch = "";
-    [ObservableProperty] private SparePart? selectedStockPart;
+    [ObservableProperty] private SpareStockChoice? selectedStockPart;
+    /// <summary>Shown under the list when the chosen part is already in stock.</summary>
+    public string SelectedInStockText => SelectedStockPart?.InStock is { } quantity
+        ? $"Уже в наличии: {quantity} шт. Новое количество заменит прежнее." : "";
+    public bool IsSelectedInStock => SelectedStockPart?.IsInStock == true;
     [ObservableProperty] private string stockQuantity = "";
     [ObservableProperty] private string stockValidation = "";
     [ObservableProperty] private SpareStockRow? editingStock;
@@ -69,9 +84,7 @@ public partial class SparesViewModel : ViewModelBase
         : $"Найдено: {StockRows.Count} из {store.Stock.Count}";
     public string StockHint => store.Catalog.Count == 0
         ? "Справочник пуст. Сначала добавьте комплектующие в разделе «Комплектующие»."
-        : !IsEditingStock && store.Catalog.All(part => store.Stock.Any(item => item.PartId == part.Id))
-            ? "Все комплектующие из справочника уже есть в этом списке. Количество меняется кнопкой «Изменить»."
-            : !IsEditingStock && StockChoices.Count == 0 ? "Ничего не найдено." : "";
+        : !IsEditingStock && StockChoices.Count == 0 ? "Ничего не найдено." : "";
     public bool HasStockHint => StockHint.Length > 0;
 
     /// <summary>«Остатки на дату»: the day «В наличии» was counted; usage of reports from that day on is taken from it.</summary>
@@ -110,7 +123,16 @@ public partial class SparesViewModel : ViewModelBase
         OnPropertyChanged(nameof(PartActionText));
         OnPropertyChanged(nameof(PartFormTitle));
     }
-    partial void OnSelectedStockPartChanged(SparePart? value) { IsStockPartInvalid = false; if (value is not null) StockValidation = ""; }
+    partial void OnSelectedStockPartChanged(SpareStockChoice? value)
+    {
+        IsStockPartInvalid = false;
+        if (value is not null) StockValidation = "";
+        // A part already in stock starts from its current quantity, as if «Изменить» was pressed on its row.
+        if (value?.InStock is { } quantity && StockQuantity.Trim().Length == 0)
+            StockQuantity = quantity.ToString(CultureInfo.InvariantCulture);
+        OnPropertyChanged(nameof(SelectedInStockText));
+        OnPropertyChanged(nameof(IsSelectedInStock));
+    }
     partial void OnStockQuantityChanged(string value) { IsStockQuantityInvalid = false; StockValidation = ""; }
     partial void OnEditingStockChanged(SpareStockRow? value)
     {
@@ -144,12 +166,13 @@ public partial class SparesViewModel : ViewModelBase
                      .OrderBy(row => row!.Name, StringComparer.CurrentCultureIgnoreCase).ThenBy(row => row!.Article))
             StockRows.Add(row!);
         StockChoices.Clear();
+        // The whole catalogue is offered; parts already in stock carry their quantity and are shown in green.
         // The chosen part stays in the list even when the search no longer matches it.
         foreach (var part in store.Catalog
-                     .Where(part => store.Stock.All(item => item.PartId != part.Id) &&
-                         (part.Id == selected?.Id || SpareSearch.Matches(StockChoiceSearch, part.Name, part.Article)))
+                     .Where(part => part.Id == selected?.Id || SpareSearch.Matches(StockChoiceSearch, part.Name, part.Article))
                      .OrderBy(part => part.Name, StringComparer.CurrentCultureIgnoreCase).ThenBy(part => part.Article))
-            StockChoices.Add(part);
+            StockChoices.Add(new SpareStockChoice(part,
+                store.Stock.Any(item => item.PartId == part.Id) ? store.Available(part.Id) : null));
         SelectedStockPart = StockChoices.FirstOrDefault(part => part.Id == selected?.Id) ??
             (StockChoices.Count == 1 && StockChoiceSearch.Trim().Length > 0 ? StockChoices[0] : null);
         OnPropertyChanged(nameof(HasParts));

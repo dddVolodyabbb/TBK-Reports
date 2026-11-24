@@ -25,10 +25,11 @@
       <TextBlock Text="Участок" /><TextBox Text="{Binding Site, Mode=TwoWay}" PlaceholderText="Участок или цех" />
       <TextBlock Text="Комплекс" /><TextBox Text="{Binding Complex, Mode=TwoWay}" PlaceholderText="Альфа, PCW-300+XG-95" />
       <TextBlock Text="Труба" /><TextBox Text="{Binding Pipe, Mode=TwoWay}" PlaceholderText="Например, 426х12" />
-      <TextBlock Text="№ трубы" />
+      <TextBlock Text="№ Газового коллектора" />
       <StackPanel Orientation="Horizontal" Spacing="8">
         <TextBlock Text="ГК" VerticalAlignment="Center" />
-        <TextBox Text="{Binding CollectorNumberText, Mode=TwoWay}" MaxLength="3" Width="90" MinWidth="0" AutomationProperties.Name="Номер коллектора" TextInputOptions.ContentType="Digits" />
+        <!-- Number, not Digits: the keyboard must offer a minus; fractions are refused by the view model. -->
+        <TextBox Text="{Binding CollectorNumberText, Mode=TwoWay}" Width="120" MinWidth="0" AutomationProperties.Name="Номер газового коллектора" TextInputOptions.ContentType="Number" />
       </StackPanel>
       <TextBlock Text="Техники первой смены" FontWeight="SemiBold" Margin="0,12,0,0" />
       <TextBlock Text="Техник 1" /><TextBox Text="{Binding FirstShiftTechnician1, Mode=TwoWay}" PlaceholderText="Фамилия и инициалы" />

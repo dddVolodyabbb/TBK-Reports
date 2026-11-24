@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:TbkReport.Mobile.ViewModels"
+             xmlns:services="using:TbkReport.Services"
              x:Class="TbkReport.Mobile.Views.SettingsView" x:DataType="vm:MainViewModel">
   <UserControl.Styles>
     <Style Selector="ToggleSwitch">
@@ -142,6 +143,7 @@
       <Border Background="Black" CornerRadius="18" Padding="16,10" IsVisible="{Binding Report.DataTransfer.HasStatus}">
         <TextBlock Text="{Binding Report.DataTransfer.Status}" Foreground="{Binding Report.DataTransfer.StatusForeground}" TextWrapping="Wrap" TextAlignment="Center" />
       </Border>
+      <TextBlock Text="{x:Static services:AppVersion.AboutText}" Opacity="0.6" HorizontalAlignment="Center" Margin="0,16,0,8" />
     </StackPanel>
   </ScrollViewer>
 </UserControl>

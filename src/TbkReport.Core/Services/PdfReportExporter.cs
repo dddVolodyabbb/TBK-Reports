@@ -44,7 +44,11 @@ public sealed class PdfReportExporter
 
         try
         {
-            excelExporter.Export(templatePath, temporaryExcel, data);
+            // Column widths in points differ between platforms (Android draws the columns wider
+            // relative to the text), so comment wrapping is measured with this device's renderer.
+            var templateSheet = ExcelFile.Load(templatePath).Worksheets[0];
+            excelExporter.Export(templatePath, temporaryExcel, data,
+                column => templateSheet.Columns[column - 1].GetWidth(LengthUnit.Point));
             var workbook = ExcelFile.Load(temporaryExcel);
             workbook.Calculate();
             var sheet = workbook.Worksheets[0];

@@ -35,6 +35,10 @@ public partial class MainView : UserControl
     private readonly List<(ulong Time, double X)> swipeSamples = new();
     private readonly TranslateTransform sectionTranslate = new();
 
+    // Header fields save the report data when the user leaves them; LostFocus bubbles up from each field.
+    private void ReportDataFieldLostFocus(object? sender, RoutedEventArgs e) =>
+        (DataContext as MainViewModel)?.Report.SaveReportDataIfChanged();
+
     public MainView()
     {
         InitializeComponent();

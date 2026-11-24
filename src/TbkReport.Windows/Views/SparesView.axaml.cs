@@ -1,3 +1,4 @@
+using TbkReport.SharedViews;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using TbkReport.Services;

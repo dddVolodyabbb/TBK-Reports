@@ -22,6 +22,8 @@ public partial class ProblemsViewModel : ViewModelBase
     public bool IsEditing => EditingItem is not null;
     public string ActionText => IsEditing ? "Сохранить изменения" : "Добавить проблему";
     public bool HasDraft => IsEditing || !string.IsNullOrWhiteSpace(DraftText);
+    /// <summary>Raised after the user adds, changes or removes a problem (not on <see cref="Load"/>): the list is saved then.</summary>
+    public event System.Action? ItemsChanged;
     partial void OnEditingItemChanged(ProblemItem? value)
     {
         OnPropertyChanged(nameof(IsEditing));
@@ -36,6 +38,7 @@ public partial class ProblemsViewModel : ViewModelBase
         if (EditingItem is { } item) item.Text = text;
         else Items.Add(new ProblemItem { Number = Items.Count + 1, Text = text });
         CancelEdit();
+        ItemsChanged?.Invoke();
     }
 
     [RelayCommand]
@@ -53,6 +56,7 @@ public partial class ProblemsViewModel : ViewModelBase
         if (EditingItem == item) CancelEdit();
         Items.Remove(item);
         for (var i = 0; i < Items.Count; i++) Items[i].Number = i + 1;
+        ItemsChanged?.Invoke();
     }
 
     public string[] ToData() => Items.Select(item => item.Text).ToArray();

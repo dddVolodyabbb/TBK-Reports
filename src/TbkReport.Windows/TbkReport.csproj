@@ -23,6 +23,8 @@
     <Folder Include="Models\" />
     <AvaloniaResource Include="Assets\**" />
     <Content Include="..\..\templates\legacy-report-2026-09-15-scaled.xlsx" Link="templates\legacy-report-2026-09-15-scaled.xlsx" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Screen helpers shared with the Android app: one source file, compiled into each application. -->
+    <Compile Include="..\Shared\*.cs" Link="Shared\%(Filename)%(Extension)" />
   </ItemGroup>
 
   <ItemGroup>

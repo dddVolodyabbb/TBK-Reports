@@ -40,6 +40,15 @@ public sealed class MainActivity : AvaloniaMainActivity
         }
     }
 
+    // The app may be closed from the background without the typed header field ever losing focus.
+    protected override void OnPause()
+    {
+        if (Avalonia.Application.Current?.ApplicationLifetime is ISingleViewApplicationLifetime lifetime &&
+            lifetime.MainView?.DataContext is MainViewModel viewModel)
+            viewModel.Report.SaveReportDataIfChanged();
+        base.OnPause();
+    }
+
     protected override void OnDestroy()
     {
         if (keyboardLayoutListener is not null && Window?.DecorView.ViewTreeObserver is { } observer)

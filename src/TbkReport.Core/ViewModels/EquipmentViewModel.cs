@@ -27,6 +27,8 @@ public partial class EquipmentViewModel : ViewModelBase
     public bool IsEditing => EditingItem is not null;
     public string ActionText => IsEditing ? "Сохранить изменения" : "Добавить оборудование";
     public bool HasDraft => IsEditing || !string.IsNullOrWhiteSpace(DraftName) || DraftInWork != "0" || DraftInReserve != "0";
+    /// <summary>Raised after the user adds, changes or removes equipment (not on <see cref="Load"/>): the list is saved then.</summary>
+    public event Action? ItemsChanged;
     partial void OnEditingItemChanged(EquipmentData? value)
     {
         OnPropertyChanged(nameof(IsEditing));
@@ -54,6 +56,7 @@ public partial class EquipmentViewModel : ViewModelBase
         if (index >= 0) Items[index] = entry;
         else Items.Add(entry);
         CancelEdit();
+        ItemsChanged?.Invoke();
     }
 
     [RelayCommand]
@@ -81,7 +84,9 @@ public partial class EquipmentViewModel : ViewModelBase
     {
         if (ReferenceEquals(EditingItem, item)) CancelEdit();
         var index = IndexOf(item);
-        if (index >= 0) Items.RemoveAt(index);
+        if (index < 0) return;
+        Items.RemoveAt(index);
+        ItemsChanged?.Invoke();
     }
     public EquipmentData[] ToData() => Items.ToArray();
     public void Load(IReadOnlyList<EquipmentData>? entries)

@@ -29,12 +29,20 @@
                 <Grid>
                   <ComboBox x:Name="StockChoiceList" ItemsSource="{Binding StockChoices}" SelectedItem="{Binding SelectedStockPart, Mode=TwoWay}"
                             PlaceholderText="Выберите из справочника" HorizontalAlignment="Stretch" MaxDropDownHeight="320">
+                    <!-- Parts already in stock are offered too, in green with their quantity. -->
+                    <ComboBox.Styles>
+                      <Style Selector="TextBlock.InStock"><Setter Property="Foreground" Value="{DynamicResource InStockTextBrush}" /></Style>
+                    </ComboBox.Styles>
                     <ComboBox.ItemTemplate>
-                      <DataTemplate x:DataType="data:SparePart"><TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" /></DataTemplate>
+                      <DataTemplate x:DataType="vm:SpareStockChoice">
+                        <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" Classes.InStock="{Binding IsInStock}" />
+                      </DataTemplate>
                     </ComboBox.ItemTemplate>
                   </ComboBox>
                   <Border IsVisible="{Binding IsStockPartInvalid}" BorderBrush="Red" BorderThickness="2" CornerRadius="4" IsHitTestVisible="False" />
                 </Grid>
+                <TextBlock Text="{Binding SelectedInStockText}" IsVisible="{Binding IsSelectedInStock}" TextWrapping="Wrap"
+                           Foreground="{DynamicResource InStockTextBrush}" />
                 <TextBlock Text="{Binding StockHint}" IsVisible="{Binding HasStockHint}" TextWrapping="Wrap" Foreground="OrangeRed" />
               </StackPanel>
               <!-- While a row is edited its part cannot be changed, only the quantity. -->

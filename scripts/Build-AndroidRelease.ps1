@@ -71,8 +71,12 @@ $signedApk = Get-ChildItem (Join-Path $projectRoot 'src/TbkReport.Android/bin/Re
     Select-Object -First 1
 if (-not $signedApk) { throw 'The signed APK was not found after the build.' }
 
+$apkName = "TBK-Report-v$appVersionShort-Android$apkSuffix.apk"
 $outputDirectory = Join-Path $projectRoot 'artifacts/installer'
 [IO.Directory]::CreateDirectory($outputDirectory) | Out-Null
-$namedApk = Join-Path $outputDirectory "TBK-Report-v$appVersionShort-Android$apkSuffix.apk"
-Copy-Item -LiteralPath $signedApk.FullName -Destination $namedApk -Force
-Get-Item -LiteralPath $namedApk | Select-Object FullName, Length, LastWriteTime
+# One copy right in the build folder next to the *-Signed.apk, one next to the Windows installer.
+foreach ($directory in @($signedApk.DirectoryName, $outputDirectory)) {
+    $namedApk = Join-Path $directory $apkName
+    Copy-Item -LiteralPath $signedApk.FullName -Destination $namedApk -Force
+    Get-Item -LiteralPath $namedApk | Select-Object FullName, Length, LastWriteTime
+}

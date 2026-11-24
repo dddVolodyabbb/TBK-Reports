@@ -64,17 +64,31 @@ public static class SpareChecks
         section.CancelStockEditCommand.Execute(null);
         check(section.StockChoiceSearch == "" && section.SelectedStockPart is null && !section.IsStockFormOpen,
             "spares section: cancelling clears the stock form");
-        check(section.Parts.Count == 2 && section.StockRows.Count == 1 && section.StockChoices.Count == 1 &&
-              section.StockChoices[0].Id == nozzle.Id, "spares section: stock form offers only parts not in stock yet");
+        check(section.Parts.Count == 2 && section.StockRows.Count == 1 && section.StockChoices.Count == 2 &&
+              section.StockChoices.Single(choice => choice.Id == tip.Id) is { IsInStock: true } inStockTip &&
+              inStockTip.Label.EndsWith($"— в наличии {store.Available(tip.Id)} шт.", StringComparison.Ordinal) &&
+              !section.StockChoices.Single(choice => choice.Id == nozzle.Id).IsInStock,
+            "spares section: stock form offers the whole catalogue and marks parts already in stock");
         section.OpenStockFormCommand.Execute(null);
-        section.SelectedStockPart = section.StockChoices[0];
+        section.SelectedStockPart = section.StockChoices.Single(choice => choice.Id == nozzle.Id);
         section.StockQuantity = "x";
         section.AddOrSaveStockCommand.Execute(null);
         check(section.IsStockQuantityInvalid && section.StockRows.Count == 1, "spares section: wrong quantity is rejected");
         section.StockQuantity = "3";
         section.AddOrSaveStockCommand.Execute(null);
-        check(section.StockRows.Count == 2 && store.Available(nozzle.Id) == 3 && section.StockChoices.Count == 0,
+        check(section.StockRows.Count == 2 && store.Available(nozzle.Id) == 3 && section.StockChoices.All(choice => choice.IsInStock),
             "spares section: a part is added to stock");
+        section.OpenStockFormCommand.Execute(null);
+        section.SelectedStockPart = section.StockChoices.Single(choice => choice.Id == nozzle.Id);
+        check(section.IsSelectedInStock && section.StockQuantity == "3" && section.SelectedInStockText.Contains("Уже в наличии: 3 шт."),
+            "spares section: choosing a part already in stock starts from its quantity");
+        section.StockQuantity = "5";
+        section.AddOrSaveStockCommand.Execute(null);
+        check(section.StockRows.Count == 2 && store.Available(nozzle.Id) == 5 && !section.IsStockFormOpen,
+            "spares section: adding a part already in stock updates its row instead of adding another");
+        section.BeginEditStock(section.StockRows.First(row => row.PartId == nozzle.Id));
+        section.StockQuantity = "3";
+        section.AddOrSaveStockCommand.Execute(null);
         section.BeginEditStock(section.StockRows.First(row => row.PartId == nozzle.Id));
         section.StockQuantity = "4";
         section.AddOrSaveStockCommand.Execute(null);
@@ -97,7 +111,8 @@ public static class SpareChecks
         section.BeginEditPart(section.Parts.First(part => part.Id == diffuser.Id));
         check(section.PartManufacturer == "Технотрон", "spares section: editing shows the manufacturer");
         section.CancelPartEditCommand.Execute(null);
-        check(section.Parts.Count == 3 && section.PartName == "" && section.StockChoices.Count == 1,
+        check(section.Parts.Count == 3 && section.PartName == "" && section.StockChoices.Count == 3 &&
+              section.StockChoices.Count(choice => !choice.IsInStock) == 1,
             "spares section: a catalogue part is added");
         section.RemovePart(section.Parts.First(part => part.Id == tip.Id));
         check(section.Parts.Count == 3 && section.PartValidation.Length > 0, "spares section: removing a part in stock explains why not");
@@ -171,13 +186,13 @@ public static class SpareChecks
 
         first.DraftQuantity = "1";
         editor.SaveHistoryCommand.Execute(null);
-        check(history.Load(date) is null && editor.IsErrorStatus, "spares: an unfinished usage line blocks saving the report");
+        check(history.Load(date, 1) is null && editor.IsErrorStatus, "spares: an unfinished usage line blocks saving the report");
         first.CancelEditCommand.Execute(null);
         editor.SaveHistoryCommand.Execute(null);
-        check(history.Load(date) is not null, "spares: report with usage is saved");
+        check(history.Load(date, 1) is not null, "spares: report with usage is saved");
         check(store.Available(tip.Id) == 2, "spares: saving the report takes the usage from stock");
         var entry = store.History.Single();
-        check(entry.Date == date && entry.CollectorNumber is null && entry.Shift == 1 && entry.PartId == tip.Id &&
+        check(entry.Date == date && entry.CollectorNumber == 1 && entry.Shift == 1 && entry.PartId == tip.Id &&
               entry.Name == "Наконечник сварочный" && entry.Article == "KP-1" && entry.Quantity == 3,
             "spares: usage history is tied to the report date, collector and shift");
         check(File.ReadAllText(zipFile).Contains("Наконечник сварочный"), "spares: history is written as readable JSON");
@@ -187,6 +202,10 @@ public static class SpareChecks
         editor.OpenHistoryCommand.Execute(null);
         editor.SelectHistoryMonthCommand.Execute(editor.HistoryMonths.Single());
         editor.SelectHistoryDayCommand.Execute(editor.HistoryDays.Single());
+        check(editor.HasSelectedHistorySpares && editor.SelectedHistoryFirstSpares.Length == 1 &&
+              editor.SelectedHistoryFirstSpares[0] == new HistorySpareLine("Наконечник сварочный · KP-1", "3 шт.") &&
+              editor.IsSelectedHistorySecondSparesEmpty && !editor.IsSelectedHistoryFirstSparesEmpty,
+            "spares: the history preview shows the usage of each shift");
         editor.EditHistoryReportCommand.Execute(null);
         check(editor.IsEditingHistoryReport && first.Items.Count == 1 && first.Items[0].Quantity == 3,
             "spares: editing a saved report loads its usage");
@@ -212,8 +231,8 @@ public static class SpareChecks
         check(!editor.IsEditingHistoryReport, "spares: edited report is saved");
         check(store.Available(tip.Id) == 4 && store.Available(nozzle.Id) == 0,
             "spares: saving an edited report corrects the stock by the difference");
-        check(store.History.Count == 2 && store.GetUsage(date, null, 1).Single().Quantity == 1 &&
-              store.GetUsage(date, null, 2).Single().PartId == nozzle.Id,
+        check(store.History.Count == 2 && store.GetUsage(date, 1, 1).Single().Quantity == 1 &&
+              store.GetUsage(date, 1, 2).Single().PartId == nozzle.Id,
             "spares: saving an edited report replaces its history lines");
         check(editor.First.Spares.Items.Count == 0 && editor.Second.Spares.Items.Count == 0,
             "spares: the editor is clean after a history edit");
@@ -221,10 +240,14 @@ public static class SpareChecks
         editor.OpenHistoryCommand.Execute(null);
         editor.SelectHistoryMonthCommand.Execute(editor.HistoryMonths.Single());
         editor.SelectHistoryDayCommand.Execute(editor.HistoryDays.Single());
+        check(editor.SelectedHistoryFirstSpares.Single().Quantity == "1 шт." &&
+              editor.SelectedHistorySecondSpares.Single().Quantity == "4 шт." && !editor.IsSelectedHistorySecondSparesEmpty,
+            "spares: the history preview shows the usage as saved after an edit");
         editor.DeleteHistoryReportCommand.Execute(null);
         editor.ConfirmHistoryDeletionCommand.Execute(null);
-        check(history.Load(date) is null && store.History.Count == 0 && store.Available(tip.Id) == 5 &&
+        check(history.Load(date, 1) is null && store.History.Count == 0 && store.Available(tip.Id) == 5 &&
               store.Available(nozzle.Id) == 4, "spares: deleting a report returns its spare parts to stock");
+        check(!editor.HasSelectedHistorySpares, "spares: no usage is shown once the report is deleted");
 
         // Accounting off: any catalogue part, no check, nothing taken from the stock; switching it on recounts from the date.
         editor.SparesAccounting = false;
@@ -245,7 +268,7 @@ public static class SpareChecks
         check(first.Items.Count == 1 && first.Items[0].Quantity == 100 && !first.IsQuantityInvalid,
             "spares off: any quantity is accepted");
         editor.SaveHistoryCommand.Execute(null);
-        check(history.Load(offDate) is not null && store.GetUsage(offDate, null, 1).Single().Quantity == 100 &&
+        check(history.Load(offDate, 1) is not null && store.GetUsage(offDate, 1, 1).Single().Quantity == 100 &&
               store.Available(tip.Id) == 5, "spares off: the usage is recorded with the report but the stock stays");
         store.SetStockDate(new DateTime(2026, 3, 12));
         store.AccountingEnabled = true;

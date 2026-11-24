@@ -34,6 +34,8 @@
   <ItemGroup>
     <ProjectReference Include="../TbkReport.Core/TbkReport.Core.csproj" GlobalPropertiesToRemove="RuntimeIdentifier;RuntimeIdentifiers" />
     <AndroidAsset Include="../../templates/legacy-report-2026-09-15-scaled.xlsx" Link="templates/legacy-report-2026-09-15-scaled.xlsx" />
+    <!-- Screen helpers shared with the Windows app: one source file, compiled into each application. -->
+    <Compile Include="../Shared/*.cs" Link="Shared/%(Filename)%(Extension)" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Avalonia.Android" Version="12.1.2" />

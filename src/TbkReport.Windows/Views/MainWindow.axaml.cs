@@ -16,7 +16,13 @@ public partial class MainWindow : Window
         AddHandler(KeyDownEvent, WindowKeyDown, RoutingStrategies.Tunnel);
         AddHandler(KeyUpEvent, WindowKeyUp, RoutingStrategies.Tunnel);
         Deactivated += (_, _) => activeSignaturePad?.FinishKeyboardDrawing();
+        // A header field still being typed in when the window closes has not lost focus yet.
+        Closing += (_, _) => (DataContext as TbkReport.ViewModels.MainViewModel)?.SaveReportDataIfChanged();
     }
+
+    // Header fields save the report data when the user leaves them; LostFocus bubbles up from each field.
+    private void ReportDataFieldLostFocus(object? sender, RoutedEventArgs e) =>
+        (DataContext as TbkReport.ViewModels.MainViewModel)?.SaveReportDataIfChanged();
     private void ExitClick(object? sender, RoutedEventArgs e) => Close();
 
     private void OpenFirstSignatureClick(object? sender, RoutedEventArgs e) =>

@@ -1,3 +1,4 @@
+using TbkReport.SharedViews;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
@@ -11,6 +12,7 @@ public partial class SpareStockView : UserControl
     {
         InitializeComponent();
         keyboardScroll = new KeyboardAwareScrollController(this, FormScrollViewer);
+        SearchDropDown.Attach(StockChoiceSearchBox, StockChoiceList);
     }
     private void FormGotFocus(object? sender, RoutedEventArgs e) => keyboardScroll.HandleGotFocus(e);
     private void FormLostFocus(object? sender, RoutedEventArgs e) => keyboardScroll.HandleLostFocus();
