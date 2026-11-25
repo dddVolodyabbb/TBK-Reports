@@ -44,6 +44,13 @@
         <Button Grid.Column="2" Content="Отмена" Command="{Binding CancelSendEmailCommand}" />
       </Grid>
     </Border>
+    <Border DockPanel.Dock="Top" IsVisible="{Binding IsCollectorChangePromptVisible}" Padding="12,8" Background="#FFFFC107">
+      <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+        <TextBlock Text="{Binding CollectorChangePrompt}" Foreground="Black" VerticalAlignment="Center" TextWrapping="Wrap" />
+        <Button Grid.Column="1" Content="Сохранить" Command="{Binding ConfirmCollectorChangeCommand}" />
+        <Button Grid.Column="2" Content="Не сохранять" Command="{Binding CancelCollectorChangeCommand}" />
+      </Grid>
+    </Border>
     <Border DockPanel.Dock="Top" IsVisible="{Binding IsNewReportConfirmPromptVisible}" Padding="12,8" Background="#FFFFC107">
       <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
         <TextBlock Text="Текущий отчёт не сохранён. Создать новый и удалить несохранённые изменения?" VerticalAlignment="Center" TextWrapping="Wrap" />

@@ -26,6 +26,8 @@ public partial class MainViewModel : ObservableObject
             spares: new SpareStore(Path.Combine(storagePaths.DataDirectory, "zip.json"), StandardSpares.Catalog));
         ExportService = exportService;
         Report.AutoExportSavedReport = AutoExportSavedReportAsync;
+        // «Отчёт за месяц» writes its PDF into the export folder chosen in the settings (Android storage access).
+        if (Report.Spares?.Month is { } monthReport) monthReport.SaveFile = SaveMonthReportAsync;
         // Mail is switched off until the sign-in method is chosen: the screens have no mail controls, and without
         // Report.Mail nothing is ever sent. To bring it back, restore this line and the controls in the views.
         // Report.Mail = new ReportMailService(new MailSettingsStore(Path.Combine(storagePaths.DataDirectory, "mail.json")),
@@ -84,7 +86,7 @@ public partial class MainViewModel : ObservableObject
     private static readonly string[] ShiftGallery = ["Первая смена", "Вторая смена"];
     private static readonly string[] DataGallery =
         ["Проблемы", "Оборудование", "Шапка отчёта", "Приём начатого коллектора"];
-    private static readonly string[] SparesGallery = ["В наличии", "Комплектующие"];
+    private static readonly string[] SparesGallery = ["В наличии", "Комплектующие", "Отчёт за месяц"];
 
     private string[]? CurrentGallery =>
         Array.IndexOf(ShiftGallery, CurrentSection) >= 0 ? ShiftGallery :
@@ -118,7 +120,8 @@ public partial class MainViewModel : ObservableObject
     public bool IsDataSectionVisible => IsProblemsVisible || IsEquipmentVisible || IsHeaderVisible || IsMonthlyOpeningVisible;
     public bool IsSpareStockVisible => CurrentSection == "В наличии";
     public bool IsSparePartsVisible => CurrentSection == "Комплектующие";
-    public bool IsSparesSectionVisible => IsSpareStockVisible || IsSparePartsVisible;
+    public bool IsSpareMonthVisible => CurrentSection == "Отчёт за месяц";
+    public bool IsSparesSectionVisible => IsSpareStockVisible || IsSparePartsVisible || IsSpareMonthVisible;
     public bool IsReportVisible => CurrentSection is not ("История отчётов" or "Настройки") && !IsSparesSectionVisible;
     public bool IsHistoryVisible => CurrentSection == "История отчётов";
     public bool IsSettingsVisible => CurrentSection == "Настройки";
@@ -142,7 +145,10 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(IsDataSectionVisible));
         OnPropertyChanged(nameof(IsSpareStockVisible));
         OnPropertyChanged(nameof(IsSparePartsVisible));
+        OnPropertyChanged(nameof(IsSpareMonthVisible));
         OnPropertyChanged(nameof(IsSparesSectionVisible));
+        // Reports may have been saved or deleted since the tab was last shown.
+        if (IsSpareMonthVisible) Report.Spares?.Month?.Refresh();
         OnPropertyChanged(nameof(IsReportVisible));
         OnPropertyChanged(nameof(IsHistoryVisible));
         OnPropertyChanged(nameof(IsSettingsVisible));
@@ -276,6 +282,14 @@ public partial class MainViewModel : ObservableObject
         catch (Exception ex) { SetStatus($"Не удалось экспортировать отчёт: {ex.Message}", isError: true); }
     }
 
+    private async Task<bool> SaveMonthReportAsync(string name, Action<string> write, bool overwrite)
+    {
+        var result = await ExportService.ExportFileAsync(Report.ExportDirectory, name, "application/pdf", write, overwrite);
+        if (result.RequiresReplacement) return false;
+        if (!result.Completed) throw new IOException(result.Message);
+        return true;
+    }
+
     private async Task AutoExportSavedReportAsync(ReportExportData data, bool excel, bool pdf)
     {
         if (excel)
@@ -313,6 +327,12 @@ public partial class MainViewModel : ObservableObject
             return true;
         }
 
+        if (Report.Spares?.Month is { IsReplacePromptVisible: true } monthReport)
+        {
+            monthReport.CancelReplaceCommand.Execute(null);
+            return true;
+        }
+
         if (Report.IsSendEmailPromptVisible)
         {
             Report.CancelSendEmailCommand.Execute(null);
@@ -322,6 +342,12 @@ public partial class MainViewModel : ObservableObject
         if (Report.IsNewReportConfirmPromptVisible)
         {
             Report.CancelNewReportCommand.Execute(null);
+            return true;
+        }
+
+        if (Report.IsCollectorChangePromptVisible)
+        {
+            Report.CancelCollectorChangeCommand.Execute(null);
             return true;
         }
 

@@ -1,0 +1,33 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:TbkReport.ViewModels"
+             x:Class="TbkReport.Mobile.Views.SpareMonthView" x:DataType="vm:SpareMonthReportViewModel">
+  <!-- Same as the Windows «Отчёт за месяц» tab: choose a month, it is checked at once, then «Создать отчёт» → PDF. -->
+  <ScrollViewer>
+    <StackPanel Margin="16" Spacing="12">
+      <TextBlock Text="Расход ЗИП за месяц" FontSize="20" FontWeight="SemiBold" />
+      <TextBlock Text="В отчёт попадает весь ЗИП, списанный в отчётах за выбранный месяц. Отчёт сохраняется в PDF в папку экспорта."
+                 TextWrapping="Wrap" Opacity="0.75" />
+      <TextBlock Text="Месяц" FontWeight="SemiBold" />
+      <ComboBox ItemsSource="{Binding Months}" SelectedItem="{Binding SelectedMonth, Mode=TwoWay}" PlaceholderText="Выберите месяц"
+                HorizontalAlignment="Stretch" MinHeight="48" IsVisible="{Binding HasMonths}">
+        <ComboBox.ItemTemplate>
+          <DataTemplate x:DataType="vm:SpareMonthOption"><TextBlock Text="{Binding Label}" /></DataTemplate>
+        </ComboBox.ItemTemplate>
+      </ComboBox>
+      <TextBlock Text="{Binding MonthStatus}" TextWrapping="Wrap" IsVisible="{Binding CanCreate}"
+                 Foreground="{DynamicResource AccentTextBrush}" />
+      <TextBlock Text="{Binding MonthStatus}" TextWrapping="Wrap" IsVisible="{Binding !CanCreate}" Foreground="OrangeRed" />
+      <Button Content="Создать отчёт" Command="{Binding CreateCommand}" IsEnabled="{Binding CanCreate}"
+              HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" MinHeight="56" />
+      <Border IsVisible="{Binding IsReplacePromptVisible}" Background="#FFFFC107" Padding="12" CornerRadius="4">
+        <StackPanel Spacing="8">
+          <TextBlock Text="Отчёт за этот месяц уже есть в папке экспорта. Заменить?" Foreground="Black" TextWrapping="Wrap" />
+          <WrapPanel>
+            <Button Content="Заменить" Command="{Binding ConfirmReplaceCommand}" MinHeight="48" Margin="0,0,8,0" />
+            <Button Content="Отмена" Command="{Binding CancelReplaceCommand}" MinHeight="48" />
+          </WrapPanel>
+        </StackPanel>
+      </Border>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

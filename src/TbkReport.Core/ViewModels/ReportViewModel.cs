@@ -292,6 +292,8 @@ public partial class ReportViewModel : ViewModelBase
         Header.PropertyChanged += (_, args) =>
         {
             if (args.PropertyName != nameof(ReportHeaderViewModel.CollectorNumber)) return;
+            // A confirmation shown for another number no longer applies.
+            IsCollectorChangePromptVisible = false;
             OnPropertyChanged(nameof(MonthlyOpeningScope));
             NotifySendEmailAvailability();
             if (!isDraftTrackingReady || isApplyingReport) return;
@@ -465,8 +467,8 @@ public partial class ReportViewModel : ViewModelBase
         if (string.IsNullOrWhiteSpace(Header.Site)) missing.Add("участок");
         if (string.IsNullOrWhiteSpace(Header.Complex)) missing.Add("комплекс");
         if (string.IsNullOrWhiteSpace(Header.Pipe)) missing.Add("труба");
-        // Required for every new report. An older history report saved without a collector stays editable:
-        // its collector cannot be changed while editing, so demanding one would make it impossible to save.
+        // Required for every new report. An older history report saved without a collector may stay without one
+        // (or get a number while it is edited); a report that has a number cannot lose it.
         if (Header.CollectorNumber is null && !(IsEditingHistoryReport && editingHistoryCollector is null))
             missing.Add("№ газового коллектора");
         if (missing.Count > 0)
@@ -494,6 +496,8 @@ public partial class ReportViewModel : ViewModelBase
     private async System.Threading.Tasks.Task SaveHistoryAsync()
     {
         ReportExportData savedReport;
+        var savedStatus = "Отчёт сохранён.";
+        IsCollectorChangePromptVisible = false;
         try
         {
             ValidateReport();
@@ -502,21 +506,44 @@ public partial class ReportViewModel : ViewModelBase
             var secondSpares = Second.Spares.ToData();
             if (IsEditingHistoryReport)
             {
-                // A changed report may be sent to the management again.
-                if (editingHistoryDate is { } changedDate && Header.CollectorNumber == editingHistoryCollector)
-                    ForgetSentReport(changedDate, editingHistoryCollector);
                 if (editingHistoryDate is not { } editedDate)
                     throw new InvalidOperationException("Не выбран редактируемый отчёт.");
                 if (CurrentReportDate != editedDate.Date)
                     throw new InvalidOperationException("Дату отчёта при редактировании истории изменять нельзя.");
-                if (Header.CollectorNumber != editingHistoryCollector)
-                    throw new InvalidOperationException("Номер ГК при редактировании истории изменять нельзя.");
+                var previousCollector = editingHistoryCollector;
+                var newCollector = Header.CollectorNumber;
+                var collectorChanged = newCollector != previousCollector;
+                if (collectorChanged && history.Load(editedDate, newCollector) is not null)
+                    throw new InvalidOperationException($"Отчёт за {editedDate:dd-MM-yyyy} для {CollectorName(newCollector)} уже есть в истории. Сначала удалите его или укажите другой номер ГК.");
                 // The stock is checked before the report is written and changed right after it.
-                spareStore?.EnsureAvailable(editedDate, editingHistoryCollector, firstSpares, secondSpares);
-                history.Update(savedReport);
-                spareStore?.ApplyReportUsage(editedDate, editingHistoryCollector, firstSpares, secondSpares);
-                RestoreDraftAfterHistoryEdit();
+                spareStore?.EnsureAvailable(editedDate, previousCollector, firstSpares, secondSpares);
+                if (collectorChanged && !isCollectorChangeConfirmed)
+                {
+                    CollectorChangePrompt = $"Номер ГК отчёта за {editedDate.ToString("dd MMMM yyyy", CultureInfo.GetCultureInfo("ru-RU"))} " +
+                        $"меняется: {CollectorName(previousCollector)} → {CollectorName(newCollector)}. Номера стыков будут пересчитаны " +
+                        $"в этом отчёте, в следующих отчётах {CollectorName(previousCollector)} и в отчётах {CollectorName(newCollector)} " +
+                        "с этой даты. Время, количество стыков, комментарии и ЗИП не изменятся. Сохранить?";
+                    IsCollectorChangePromptVisible = true;
+                    return;
+                }
+                // A changed report may be sent to the management again; a moved one is a new report for the new collector.
+                ForgetSentReport(editedDate, previousCollector);
+                if (collectorChanged)
+                {
+                    history.ChangeCollector(savedReport, previousCollector);
+                    spareStore?.RemoveReportUsage(editedDate, previousCollector);
+                    spareStore?.ApplyReportUsage(editedDate, newCollector, firstSpares, secondSpares);
+                    // The joint numbers were re-chained: export and mail the report as it is stored now.
+                    savedReport = history.Load(editedDate, newCollector) ?? savedReport;
+                }
+                else
+                {
+                    history.Update(savedReport);
+                    spareStore?.ApplyReportUsage(editedDate, previousCollector, firstSpares, secondSpares);
+                }
+                RestoreDraftAfterHistoryEdit(collectorChanged ? new[] { previousCollector, newCollector } : null);
                 RefreshHistory();
+                if (collectorChanged) savedStatus = "Отчёт сохранён. Номер ГК изменён, номера стыков пересчитаны.";
             }
             else
             {
@@ -531,7 +558,7 @@ public partial class ReportViewModel : ViewModelBase
                 MarkCurrentStateSaved();
                 RefreshHistory();
             }
-            ShowStatus("Отчёт сохранён.");
+            ShowStatus(savedStatus);
         }
         catch (Exception ex)
         {
@@ -689,12 +716,36 @@ public partial class ReportViewModel : ViewModelBase
         ShowStatus("Редактирование отчёта из истории отменено.");
     }
 
-    private void RestoreDraftAfterHistoryEdit()
+    // Saving a history report under another collector renumbers joints in other reports, so it is confirmed first.
+    [ObservableProperty] private bool isCollectorChangePromptVisible;
+    [ObservableProperty] private string collectorChangePrompt = "";
+    private bool isCollectorChangeConfirmed;
+
+    [RelayCommand]
+    private async System.Threading.Tasks.Task ConfirmCollectorChangeAsync()
+    {
+        if (!IsCollectorChangePromptVisible) return;
+        isCollectorChangeConfirmed = true;
+        try { await SaveHistoryAsync(); }
+        finally { isCollectorChangeConfirmed = false; }
+    }
+
+    [RelayCommand]
+    private void CancelCollectorChange() => IsCollectorChangePromptVisible = false;
+
+    private static string CollectorName(int? collectorNumber) => collectorNumber is { } number ? $"ГК {number}" : "без ГК";
+
+    /// <param name="renumberedCollectors">
+    /// Collectors whose joint numbers were just re-chained: a restored draft of one of them gets its shifts
+    /// moved to the new continuation, keeping its counts, like after changing the collector in the editor.
+    /// </param>
+    private void RestoreDraftAfterHistoryEdit(IReadOnlyCollection<int?>? renumberedCollectors = null)
     {
         var storedDraft = draft.Load();
         editingHistoryDate = null;
         editingHistoryCollector = null;
         IsEditingHistoryReport = false;
+        IsCollectorChangePromptVisible = false;
         EditingHistoryNotice = "";
         var empty = new ShiftReportData("", "", null, null, null, Array.Empty<ReportComment>());
         var storedDefaults = defaults.Load();
@@ -704,7 +755,21 @@ public partial class ReportViewModel : ViewModelBase
             Problems = storedDefaults?.Problems ?? Array.Empty<string>(),
             Equipment = storedDefaults?.Equipment ?? Array.Empty<EquipmentData>()
         });
-        if (storedDraft is not null) ApplyDraft(storedDraft);
+        if (storedDraft is not null)
+        {
+            ApplyDraft(storedDraft);
+            if (renumberedCollectors?.Contains(Header.CollectorNumber) == true)
+            {
+                isApplyingReport = true;
+                try
+                {
+                    First.ChangeCollectorStart(reservedNextJointNumber);
+                    Second.ChangeCollectorStart(GetNextSecondJoint());
+                }
+                finally { isApplyingReport = false; }
+                SaveDraftIfReady();
+            }
+        }
         else
         {
             draft.Delete();
@@ -1031,6 +1096,8 @@ public partial class ReportViewModel : ViewModelBase
     private void RefreshHistory()
     {
         CancelHistoryDeletion();
+        // Saved, edited or deleted reports change the months and usage of «Отчёт за месяц».
+        Spares?.Month?.Refresh();
         var entries = history.GetDates().Select(date => new HistoryReportItem(date)).ToArray();
         History.Clear();
         foreach (var entry in entries) History.Add(entry);

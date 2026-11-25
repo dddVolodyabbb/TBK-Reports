@@ -28,6 +28,7 @@ void FillRequiredHeader(MainViewModel editor, bool includeSecondShift = false)
 }
 Check(vm.First.Welded == 0 && vm.First.FirstJoint == "" && vm.Second.FirstJoint == "", "new report keeps joint fields empty until a shift starts");
 SpareChecks.Run(Check, editor => FillRequiredHeader(editor));
+await SpareMonthChecks.Run(Check);
 var newReportEditor = new MainViewModel(
     new ReportHistoryStore(Path.Combine(Path.GetTempPath(), $"tbk-new-report-check-{Guid.NewGuid():N}")),
     new ReportDefaultsStore(Path.Combine(Path.GetTempPath(), $"tbk-new-report-settings-{Guid.NewGuid():N}.json")));
@@ -1357,13 +1358,78 @@ try
         "history lists both collectors of the day");
     sameDayEditor.SelectHistoryDayCommand.Execute(sameDayEditor.HistoryDays.Single(item => item.CollectorNumber == 1));
     sameDayEditor.EditHistoryReportCommand.Execute(null);
+    sameDayEditor.Header.CollectorNumberText = "2";
+    sameDayEditor.SaveHistoryCommand.Execute(null);
+    Check(sameDayStore.Load(day, 1) is not null && sameDayEditor.IsEditingHistoryReport && !sameDayEditor.IsCollectorChangePromptVisible &&
+          sameDayEditor.ExportStatus.Contains("для ГК 2 уже есть в истории", StringComparison.Ordinal),
+        "a report cannot move to a collector that already has a report for that date");
     sameDayEditor.Header.CollectorNumberText = "3";
     sameDayEditor.SaveHistoryCommand.Execute(null);
-    Check(sameDayStore.Load(day, 3) is null && sameDayEditor.IsEditingHistoryReport &&
-          sameDayEditor.ExportStatus.Contains("Номер ГК при редактировании", StringComparison.Ordinal),
-        "editing a saved report cannot move it to another collector");
+    Check(sameDayStore.Load(day, 3) is null && sameDayStore.Load(day, 1) is not null &&
+          sameDayEditor.IsCollectorChangePromptVisible && sameDayEditor.CollectorChangePrompt.Contains("ГК 1 → ГК 3", StringComparison.Ordinal),
+        "moving a history report to another collector asks for confirmation first");
+    sameDayEditor.CancelCollectorChangeCommand.Execute(null);
+    Check(!sameDayEditor.IsCollectorChangePromptVisible && sameDayEditor.IsEditingHistoryReport && sameDayStore.Load(day, 3) is null,
+        "declining the collector change keeps the report and the edit");
+    sameDayEditor.SaveHistoryCommand.Execute(null);
+    sameDayEditor.ConfirmCollectorChangeCommand.Execute(null);
+    Check(sameDayStore.Load(day, 1) is null && sameDayStore.Load(day, 3) is not null && !sameDayEditor.IsEditingHistoryReport,
+        "a confirmed collector change moves the history report");
 }
 finally { if (Directory.Exists(sameDayRoot)) Directory.Delete(sameDayRoot, true); }
+
+// A technician forgot to change the collector: 21–23.03 were saved under ГК 1, 24.03 and 01.04 under ГК 2.
+// Moving 22.03 and then 23.03 to ГК 2 re-chains the joint numbers by date; counts stay.
+var moveRoot = Path.Combine(Path.GetTempPath(), $"tbk-collector-move-{Guid.NewGuid():N}");
+try
+{
+    var moveStore = new ReportHistoryStore(Path.Combine(moveRoot, "History"));
+    var moveEditor = new MainViewModel(moveStore, new ReportDefaultsStore(Path.Combine(moveRoot, "settings.json")));
+    FillRequiredHeader(moveEditor);
+    void SaveDay(DateTime date, string collector, int first, int last)
+    {
+        moveEditor.ReportDate = new DateTimeOffset(date);
+        moveEditor.Header.CollectorNumberText = collector;
+        moveEditor.First.StartTime = new TimeSpan(8, 0, 0);
+        moveEditor.First.FirstJoint = first.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        moveEditor.First.LastJoint = last.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        moveEditor.First.StopTime = new TimeSpan(17, 0, 0);
+        moveEditor.First.Repairs = "0";
+        moveEditor.SaveHistoryCommand.Execute(null);
+    }
+    var march = new DateTime(2031, 3, 21);
+    SaveDay(march, "1", 1, 10);
+    SaveDay(march.AddDays(1), "1", 11, 20);
+    SaveDay(march.AddDays(2), "1", 21, 30);
+    SaveDay(march.AddDays(3), "2", 1, 10);
+    SaveDay(new DateTime(2031, 4, 1), "2", 11, 15);
+    string Joints(DateTime date, int collector) => moveStore.Load(date, collector) is { } report
+        ? $"{report.FirstShift.FirstJoint}-{report.FirstShift.LastJoint}" : "нет";
+    void MoveToSecond(DateTime date)
+    {
+        moveEditor.OpenHistoryCommand.Execute(null);
+        moveEditor.SelectHistoryMonthCommand.Execute(moveEditor.HistoryMonths.Single(item => item.Year == date.Year && item.Month == date.Month));
+        moveEditor.SelectHistoryDayCommand.Execute(moveEditor.HistoryDays.Single(item => item.Date == date && item.CollectorNumber == 1));
+        moveEditor.EditHistoryReportCommand.Execute(null);
+        moveEditor.Header.CollectorNumberText = "2";
+        moveEditor.SaveHistoryCommand.Execute(null);
+        moveEditor.ConfirmCollectorChangeCommand.Execute(null);
+    }
+    Check(Joints(march.AddDays(3), 2) == "1-10" && Joints(new DateTime(2031, 4, 1), 2) == "11-15", "collector move scenario starts as saved");
+    MoveToSecond(march.AddDays(1));
+    Check(Joints(march, 1) == "1-10" && Joints(march.AddDays(2), 1) == "11-20" && Joints(march.AddDays(1), 1) == "нет",
+        "the old collector's later report continues from its earlier one after a report moved away");
+    Check(Joints(march.AddDays(1), 2) == "1-10" && Joints(march.AddDays(3), 2) == "11-20" && Joints(new DateTime(2031, 4, 1), 2) == "21-25",
+        "a moved report starts the new collector by date, its later reports follow, also in the next month");
+    MoveToSecond(march.AddDays(2));
+    Check(Joints(march, 1) == "1-10" && Joints(march.AddDays(1), 2) == "1-10" && Joints(march.AddDays(2), 2) == "11-20" &&
+          Joints(march.AddDays(3), 2) == "21-30" && Joints(new DateTime(2031, 4, 1), 2) == "31-35",
+        "a second moved report is placed by date in the new collector's chain");
+    var moved = moveStore.Load(march.AddDays(2), 2)!;
+    Check(moved.FirstShift.StartTime == new TimeSpan(8, 0, 0) && moved.FirstShift.StopTime == new TimeSpan(17, 0, 0) &&
+          moved.FirstShift.Repairs == 0, "a collector move keeps times and repairs");
+}
+finally { if (Directory.Exists(moveRoot)) Directory.Delete(moveRoot, true); }
 
 var dpapi = new TbkReport.WindowsSecretProtector();
 var dpapiSecret = System.Text.Encoding.UTF8.GetBytes("abcdefghijklmnop");

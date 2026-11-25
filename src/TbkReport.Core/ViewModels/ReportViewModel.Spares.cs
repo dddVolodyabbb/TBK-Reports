@@ -49,6 +49,17 @@ public partial class ReportViewModel
         spareStore = store;
         store.AccountingEnabled = SparesAccounting;
         Spares = new SparesViewModel(store);
+        // «Отчёт за месяц»: the equipment for «куда установили» falls back to the list saved now.
+        Spares.Month = new SpareMonthReportViewModel(history, store, () => defaults.Load()?.Equipment ?? Equipment.ToData(),
+            pdfFontDirectory)
+        {
+            SaveFile = SaveToExportFolderAsync,
+            ShowStatus = (message, isError) => ShowStatus(message, isError)
+        };
+        // The equipment's manufacturer is chosen from the manufacturers of the spare parts catalogue.
+        void OfferManufacturers() => Equipment.SetManufacturers(store.Catalog.Select(part => part.Manufacturer));
+        OfferManufacturers();
+        store.Changed += OfferManufacturers;
         foreach (var (shift, other) in new[] { (First, Second), (Second, First) })
         {
             shift.Spares.Store = store;
@@ -95,6 +106,22 @@ public partial class ReportViewModel
             SelectedHistorySecondSpares = Array.Empty<HistorySpareLine>();
             ShowStatus($"Не удалось прочитать расход ЗИП: {ex.Message}", isError: true);
         }
+    }
+
+    /// <summary>
+    /// Writes a generated file into the export folder (Windows; the Android shell replaces this with its storage
+    /// access). Returns false when the file exists and replacing was not allowed.
+    /// </summary>
+    private System.Threading.Tasks.Task<bool> SaveToExportFolderAsync(string name, Action<string> write, bool overwrite)
+    {
+        var directory = System.IO.Path.IsPathRooted(ExportDirectory)
+            ? System.IO.Path.GetFullPath(ExportDirectory)
+            : System.IO.Path.GetFullPath(System.IO.Path.Combine(rootDirectory, ExportDirectory));
+        System.IO.Directory.CreateDirectory(directory);
+        var path = System.IO.Path.Combine(directory, name);
+        if (System.IO.File.Exists(path) && !overwrite) return System.Threading.Tasks.Task.FromResult(false);
+        write(path);
+        return System.Threading.Tasks.Task.FromResult(true);
     }
 
     private static int Used(ShiftViewModel shift, string partId) =>

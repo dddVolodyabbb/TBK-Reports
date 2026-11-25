@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:TbkReport.Mobile.ViewModels"
              xmlns:views="using:TbkReport.Mobile.Views"
+             xmlns:services="using:TbkReport.Services"
              x:Class="TbkReport.Mobile.Views.MainView"
              x:DataType="vm:MainViewModel">
   <UserControl.Styles>
@@ -50,6 +51,8 @@
               <MenuItem Header="Экспортировать PDF" Command="{Binding ExportPdfReportCommand}" MinHeight="56" MinWidth="260" FontSize="18" Padding="16,12" />
               <Separator />
               <MenuItem Header="Настройки" Command="{Binding OpenSettingsCommand}" MinHeight="56" MinWidth="260" FontSize="18" Padding="16,12" />
+              <!-- The version, like Windows «Справка»: shown only, not a command. -->
+              <MenuItem Header="{x:Static services:AppVersion.AboutText}" IsEnabled="False" MinHeight="48" MinWidth="260" FontSize="15" Padding="16,8" />
             </MenuFlyout>
           </Button.Flyout>
         </Button>
@@ -83,6 +86,7 @@
               <StackPanel Spacing="8">
                 <Button Content="В наличии" Command="{Binding NavigateCommand}" CommandParameter="В наличии" HorizontalAlignment="Stretch" MinHeight="48" />
                 <Button Content="Комплектующие" Command="{Binding NavigateCommand}" CommandParameter="Комплектующие" HorizontalAlignment="Stretch" MinHeight="48" />
+                <Button Content="Отчёт за месяц" Command="{Binding NavigateCommand}" CommandParameter="Отчёт за месяц" HorizontalAlignment="Stretch" MinHeight="48" />
               </StackPanel>
             </Border>
             <Button Content="История отчётов" Command="{Binding NavigateCommand}" CommandParameter="История отчётов" HorizontalAlignment="Stretch" MinHeight="48" />
@@ -136,6 +140,13 @@
           <StackPanel Spacing="8">
             <TextBlock Text="{Binding Report.EditingHistoryNotice}" Foreground="Black" FontWeight="SemiBold" TextWrapping="Wrap" />
             <Button Content="Отмена" Command="{Binding CancelHistoryEditCommand}" HorizontalAlignment="Left" MinHeight="48" />
+            <StackPanel Spacing="8" IsVisible="{Binding Report.IsCollectorChangePromptVisible}">
+              <TextBlock Text="{Binding Report.CollectorChangePrompt}" Foreground="Black" TextWrapping="Wrap" />
+              <Grid ColumnDefinitions="Auto,Auto" ColumnSpacing="8" HorizontalAlignment="Left">
+                <Button Content="Сохранить" Command="{Binding Report.ConfirmCollectorChangeCommand}" MinHeight="48" />
+                <Button Grid.Column="1" Content="Не сохранять" Command="{Binding Report.CancelCollectorChangeCommand}" MinHeight="48" />
+              </Grid>
+            </StackPanel>
           </StackPanel>
         </Border>
         <Border Grid.Row="3" IsVisible="{Binding Report.IsNewReportConfirmPromptVisible}" Background="#FFFFC107" Padding="12">
@@ -164,6 +175,7 @@
           </Grid>
           <Grid IsVisible="{Binding IsSpareStockVisible}"><views:SpareStockView DataContext="{Binding Report.Spares}" /></Grid>
           <Grid IsVisible="{Binding IsSparePartsVisible}"><views:SparePartsView DataContext="{Binding Report.Spares}" /></Grid>
+          <Grid IsVisible="{Binding IsSpareMonthVisible}"><views:SpareMonthView DataContext="{Binding Report.Spares.Month}" /></Grid>
           <views:HistoryView IsVisible="{Binding IsHistoryVisible}" />
           <views:SettingsView IsVisible="{Binding IsSettingsVisible}" />
           <Border Name="SwipeInputBlocker" IsVisible="False" Background="Transparent" ZIndex="100" />

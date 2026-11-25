@@ -9,7 +9,10 @@
           <DataTemplate x:DataType="data:EquipmentData">
             <Border BorderBrush="#40808080" BorderThickness="0,0,0,1" Padding="4,8">
               <Grid ColumnDefinitions="*,100,100,Auto,Auto" ColumnSpacing="8">
-                <TextBlock Text="{Binding Name}" TextWrapping="Wrap" />
+                <StackPanel>
+                  <TextBlock Text="{Binding Name}" TextWrapping="Wrap" />
+                  <TextBlock Text="{Binding Details}" IsVisible="{Binding HasDetails}" TextWrapping="Wrap" Opacity="0.7" />
+                </StackPanel>
                 <TextBlock Grid.Column="1" Text="{Binding InWork, StringFormat='Рб: {0}'}" />
                 <TextBlock Grid.Column="2" Text="{Binding InReserve, StringFormat='Рз: {0}'}" />
                 <Button Grid.Column="3" Content="Изменить" Click="EditClick" Padding="8,4" />
@@ -30,6 +33,14 @@
         <StackPanel Grid.Column="2" Spacing="4"><TextBlock Text="В резерве (Рз)" />
           <Grid><TextBox Text="{Binding DraftInReserve, Mode=TwoWay}" />
             <Border IsVisible="{Binding IsInReserveInvalid}" BorderBrush="Red" BorderThickness="2" CornerRadius="4" IsHitTestVisible="False" /></Grid></StackPanel>
+      </Grid>
+      <!-- Numbers and manufacturer are used by the monthly spare parts report («куда установили»). -->
+      <Grid ColumnDefinitions="*,268" ColumnSpacing="8">
+        <StackPanel Spacing="4"><TextBlock Text="Номера" />
+          <TextBox Text="{Binding DraftNumbers, Mode=TwoWay}" PlaceholderText="Например, 10033, 10032" /></StackPanel>
+        <StackPanel Grid.Column="1" Spacing="4"><TextBlock Text="Производитель" />
+          <ComboBox ItemsSource="{Binding Manufacturers}" SelectedItem="{Binding DraftManufacturer, Mode=TwoWay}"
+                    PlaceholderText="Не указан" HorizontalAlignment="Stretch" /></StackPanel>
       </Grid>
       <!-- Shown only with an error: an empty line here left a gap between the fields and the button. -->
       <TextBlock Text="{Binding Validation}" Foreground="OrangeRed" TextWrapping="Wrap"

@@ -10,7 +10,10 @@
           <DataTemplate x:DataType="data:EquipmentData">
             <Border BorderBrush="#40808080" BorderThickness="0,0,0,1" Padding="4,8">
               <Grid ColumnDefinitions="*,Auto,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="8">
-                <TextBlock Text="{Binding Name}" TextWrapping="Wrap" />
+                <StackPanel>
+                  <TextBlock Text="{Binding Name}" TextWrapping="Wrap" />
+                  <TextBlock Text="{Binding Details}" IsVisible="{Binding HasDetails}" TextWrapping="Wrap" Opacity="0.7" />
+                </StackPanel>
                 <TextBlock Grid.Column="1" Text="{Binding InWork, StringFormat='Рб: {0}'}" />
                 <TextBlock Grid.Column="2" Text="{Binding InReserve, StringFormat='Рз: {0}'}" />
                 <WrapPanel Grid.Row="1" Grid.ColumnSpan="3" Margin="0,8,0,0" HorizontalAlignment="Left">
@@ -35,6 +38,13 @@
             <Grid><TextBox Text="{Binding DraftInReserve, Mode=TwoWay}" TextInputOptions.ContentType="Digits" TextInputOptions.ReturnKeyType="Done" VerticalContentAlignment="Center" />
               <Border IsVisible="{Binding IsInReserveInvalid}" BorderBrush="Red" BorderThickness="2" CornerRadius="4" IsHitTestVisible="False" /></Grid></StackPanel>
         </Grid>
+        <!-- Numbers and manufacturer are used by the monthly spare parts report («куда установили»). -->
+        <StackPanel Spacing="4"><TextBlock Text="Номера" />
+          <TextBox Text="{Binding DraftNumbers, Mode=TwoWay}" PlaceholderText="Например, 10033, 10032" MinHeight="48"
+                   VerticalContentAlignment="Center" /></StackPanel>
+        <StackPanel Spacing="4"><TextBlock Text="Производитель" />
+          <ComboBox ItemsSource="{Binding Manufacturers}" SelectedItem="{Binding DraftManufacturer, Mode=TwoWay}"
+                    PlaceholderText="Не указан" HorizontalAlignment="Stretch" MinHeight="48" /></StackPanel>
         <Grid ColumnDefinitions="Auto,Auto" ColumnSpacing="8" HorizontalAlignment="Left">
           <Button Content="{Binding ActionText}" Command="{Binding AddOrSaveCommand}" />
           <Button Grid.Column="1" Content="Отмена" Command="{Binding CancelEditCommand}" IsVisible="{Binding IsEditing}" />

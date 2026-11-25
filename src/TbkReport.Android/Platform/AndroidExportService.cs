@@ -71,24 +71,35 @@ public sealed class AndroidExportService
     {
         var extension = pdf ? "pdf" : "xlsx";
         var mimeType = pdf ? "application/pdf" : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-        var name = data.FileName(extension);
-        using var folder = await OpenExportFolderAsync(report.ExportDirectory);
+        var result = await ExportFileAsync(report.ExportDirectory, data.FileName(extension), mimeType, temporary =>
+        {
+            if (pdf) report.ExportToPdf(temporary, data);
+            else report.ExportToExcel(temporary, data);
+        }, overwrite);
+        return result.Completed ? result with { Message = pdf ? "PDF экспортирован." : "Экспорт выполнен." } : result;
+    }
+
+    /// <summary>
+    /// Writes a generated file into the export folder: <paramref name="write"/> fills a local temporary file, which is
+    /// then published under <paramref name="name"/>. Without <paramref name="overwrite"/> an existing file is kept and
+    /// the result asks whether to replace it.
+    /// </summary>
+    public async Task<AndroidExportResult> ExportFileAsync(string location, string name, string mimeType,
+        Action<string> write, bool overwrite)
+    {
+        using var folder = await OpenExportFolderAsync(location);
         using var existing = folder is null ? null : await folder.GetFileAsync(name);
         if (!overwrite && (folder is null ? await ExistsInDocumentsAsync(name) : existing is not null))
             return new AndroidExportResult(false, true, "Такой файл уже есть. Заменить?");
 
         Directory.CreateDirectory(paths.TempDirectory);
-        var temporary = Path.Combine(paths.TempDirectory, $"export-{Guid.NewGuid():N}.{extension}");
+        var temporary = Path.Combine(paths.TempDirectory, $"export-{Guid.NewGuid():N}{Path.GetExtension(name)}");
         try
         {
-            await Task.Run(() =>
-            {
-                if (pdf) report.ExportToPdf(temporary, data);
-                else report.ExportToExcel(temporary, data);
-            });
+            await Task.Run(() => write(temporary));
             if (folder is null) await PublishAsync(temporary, name, mimeType, overwrite);
             else await PublishToFolderAsync(folder, existing, temporary, name);
-            return new AndroidExportResult(true, false, pdf ? "PDF экспортирован." : "Экспорт выполнен.");
+            return new AndroidExportResult(true, false, "Файл сохранён.");
         }
         finally
         {

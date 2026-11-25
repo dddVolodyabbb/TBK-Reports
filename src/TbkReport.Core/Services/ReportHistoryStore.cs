@@ -197,6 +197,58 @@ public sealed class ReportHistoryStore
         WriteMonth(report.Date, reports, month.Openings);
     }
 
+    /// <summary>
+    /// Moves a saved report to another collector (the report keeps its date) and re-chains the joint numbers of
+    /// both collectors from that date on: the old collector's later reports close the gap, the new collector's
+    /// reports from that date on continue from its latest earlier report. Counts and everything else stay.
+    /// </summary>
+    public void ChangeCollector(ReportExportData report, int? previousCollector)
+    {
+        var newCollector = report.Header?.CollectorNumber;
+        if (newCollector == previousCollector) { Update(report); return; }
+        var month = ReadMonthFile(report.Date);
+        if (month.Reports.Any(item => IsReport(item, report.Date, newCollector)))
+            throw new InvalidOperationException($"{ReportName(report.Date, newCollector)} уже есть в истории. Сначала удалите его или укажите другой номер ГК.");
+        if (!month.Reports.Any(item => IsReport(item, report.Date, previousCollector)))
+            throw new InvalidOperationException($"{ReportName(report.Date, previousCollector)} отсутствует в истории.");
+        var reports = month.Reports.Where(item => !IsReport(item, report.Date, previousCollector))
+            .Append(SortCommentsByTime(report with { Date = report.Date.Date, MonthlyTotals = null }))
+            .OrderBy(item => item.Date).ThenBy(item => item.Header?.CollectorNumber ?? -1).ToArray();
+        WriteMonth(report.Date, reports, month.Openings);
+        RenumberJoints(report.Date, previousCollector);
+        RenumberJoints(report.Date, newCollector);
+    }
+
+    /// <summary>
+    /// Re-chains the joint numbers of one collector's reports dated from <paramref name="from"/> on, in date order
+    /// and across later months: each continues from the latest earlier report of that collector (or the month's
+    /// opening, or 1). Only the joint numbers change; the number of joints in each shift stays.
+    /// </summary>
+    public void RenumberJoints(DateTime from, int? collectorNumber)
+    {
+        var firstMonth = new DateTime(from.Year, from.Month, 1);
+        foreach (var monthKey in GetStoredMonthKeys().Where(item => item >= firstMonth).OrderBy(item => item))
+        {
+            var dates = ReadMonthFile(monthKey).Reports
+                .Where(item => item.Date.Date >= from.Date && item.Header?.CollectorNumber == collectorNumber)
+                .Select(item => item.Date.Date).OrderBy(date => date).ToArray();
+            foreach (var date in dates)
+            {
+                // Each step reads the month again: the next number depends on the reports renumbered before it.
+                var month = ReadMonthFile(monthKey);
+                var index = Array.FindIndex(month.Reports, item => IsReport(item, date, collectorNumber));
+                var report = month.Reports[index];
+                var next = long.Parse(GetNextJointNumber(date, collectorNumber), CultureInfo.InvariantCulture);
+                var first = RebaseShift(report.FirstShift, ref next);
+                var second = RebaseShift(report.SecondShift, ref next);
+                if (first == report.FirstShift && second == report.SecondShift) continue;
+                var reports = month.Reports.ToArray();
+                reports[index] = report with { FirstShift = first, SecondShift = second };
+                WriteMonth(monthKey, reports, month.Openings);
+            }
+        }
+    }
+
     private static string ReportName(DateTime date, int? collectorNumber) => collectorNumber is { } number
         ? $"Отчёт за {date:dd-MM-yyyy} для ГК {number}"
         : $"Отчёт за {date:dd-MM-yyyy}";

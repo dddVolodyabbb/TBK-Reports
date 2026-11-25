@@ -98,7 +98,7 @@ public sealed class PdfReportExporter
         }
     }
 
-    private static FontSettings CreateFontSettings(string fontCacheDirectory)
+    internal static FontSettings CreateFontSettings(string fontCacheDirectory)
     {
         ExtractEmbeddedFonts(fontCacheDirectory);
         var settings = new FontSettings { BaseDirectory = fontCacheDirectory };
@@ -141,7 +141,7 @@ public sealed class PdfReportExporter
         }
     }
 
-    private static void ConfigureLicense()
+    internal static void ConfigureLicense()
     {
         lock (LicenseLock)
         {

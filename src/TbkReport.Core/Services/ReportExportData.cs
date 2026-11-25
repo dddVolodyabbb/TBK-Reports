@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using TbkReport.Models;
 
 namespace TbkReport.Services;
@@ -70,7 +71,26 @@ public sealed record ReportExportData(
         ? null : checked((first ?? 0) + (second ?? 0));
 }
 
-public sealed record EquipmentData(string Name, int InWork, int InReserve);
+/// <summary>
+/// Equipment of a report. <see cref="Numbers"/> (serial numbers, e.g. «10033, 10032») and <see cref="Manufacturer"/>
+/// (chosen from the spare parts catalogue's manufacturers) are optional: older files have neither. The monthly spare
+/// parts report puts a part on the equipment of the same manufacturer («куда установили»).
+/// </summary>
+public sealed record EquipmentData(string Name, int InWork, int InReserve, string Numbers = "", string Manufacturer = "")
+{
+    /// <summary>«Name №numbers», as in the monthly spare parts report.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string Label => string.IsNullOrWhiteSpace(Numbers) ? Name : $"{Name} №{Numbers.Trim()}";
+    /// <summary>Second line in the equipment list: numbers and manufacturer, empty when neither is set.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string Details => string.Join(" · ", new[]
+    {
+        string.IsNullOrWhiteSpace(Numbers) ? "" : $"№{Numbers.Trim()}",
+        string.IsNullOrWhiteSpace(Manufacturer) ? "" : Manufacturer.Trim()
+    }.Where(part => part.Length > 0));
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool HasDetails => Details.Length > 0;
+}
 
 public sealed record ReportHeaderData(
     string Customer,

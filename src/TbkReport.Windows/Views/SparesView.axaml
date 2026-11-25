@@ -1,7 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:TbkReport.ViewModels" xmlns:data="using:TbkReport.Services"
              x:Class="TbkReport.Views.SparesView" x:DataType="vm:SparesViewModel">
-  <!-- Both tabs look the same: search, «Добавить», the entry form (only while adding or editing) and the list. -->
+  <!-- The first two tabs look the same: search, «Добавить», the entry form (only while adding or editing) and the list. -->
   <TabControl Margin="12,8,12,0">
     <TabItem Header="В наличии">
       <ScrollViewer>
@@ -140,6 +140,39 @@
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>
+        </StackPanel>
+      </ScrollViewer>
+    </TabItem>
+    <!-- «Отчёт за месяц»: choose a month; it is checked at once for written-off spare parts; then «Создать отчёт» → PDF. -->
+    <TabItem Header="Отчёт за месяц">
+      <ScrollViewer DataContext="{Binding Month}" x:DataType="vm:SpareMonthReportViewModel">
+        <StackPanel Margin="20" Spacing="12" MaxWidth="760" HorizontalAlignment="Left">
+          <TextBlock Text="Расход ЗИП за месяц" FontSize="20" FontWeight="SemiBold" />
+          <TextBlock Text="В отчёт попадает весь ЗИП, списанный в отчётах за выбранный месяц. Отчёт сохраняется в PDF в папку экспорта."
+                     TextWrapping="Wrap" Opacity="0.75" />
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <TextBlock Text="Месяц" VerticalAlignment="Center" FontWeight="SemiBold" />
+            <ComboBox ItemsSource="{Binding Months}" SelectedItem="{Binding SelectedMonth, Mode=TwoWay}" MinWidth="220"
+                      PlaceholderText="Выберите месяц" IsVisible="{Binding HasMonths}">
+              <ComboBox.ItemTemplate>
+                <DataTemplate x:DataType="vm:SpareMonthOption"><TextBlock Text="{Binding Label}" /></DataTemplate>
+              </ComboBox.ItemTemplate>
+            </ComboBox>
+          </StackPanel>
+          <TextBlock Text="{Binding MonthStatus}" TextWrapping="Wrap" IsVisible="{Binding CanCreate}"
+                     Foreground="{DynamicResource AccentTextBrush}" />
+          <TextBlock Text="{Binding MonthStatus}" TextWrapping="Wrap" IsVisible="{Binding !CanCreate}" Foreground="OrangeRed" />
+          <Button Content="Создать отчёт" Command="{Binding CreateCommand}" IsEnabled="{Binding CanCreate}"
+                  HorizontalAlignment="Left" MinHeight="40" Padding="16,8" />
+          <Border IsVisible="{Binding IsReplacePromptVisible}" Background="#FFFFC107" Padding="12" CornerRadius="4">
+            <StackPanel Spacing="8">
+              <TextBlock Text="Отчёт за этот месяц уже есть в папке экспорта. Заменить?" Foreground="Black" TextWrapping="Wrap" />
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button Content="Заменить" Command="{Binding ConfirmReplaceCommand}" />
+                <Button Content="Отмена" Command="{Binding CancelReplaceCommand}" />
+              </StackPanel>
+            </StackPanel>
+          </Border>
         </StackPanel>
       </ScrollViewer>
     </TabItem>

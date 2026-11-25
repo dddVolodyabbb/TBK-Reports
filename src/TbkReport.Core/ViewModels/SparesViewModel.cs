@@ -104,6 +104,9 @@ public partial class SparesViewModel : ViewModelBase
         ? "Учёт ЗИП включён: из количества вычитается расход из отчётов начиная с этой даты."
         : "Учёт ЗИП выключен: количество не уменьшается. Включается в «Параметрах» → «Учёт ЗИП».";
 
+    /// <summary>The «Отчёт за месяц» tab; set by the report editor, which owns the history it reads.</summary>
+    public SpareMonthReportViewModel? Month { get; set; }
+
     public SparesViewModel(SpareStore store)
     {
         this.store = store;

@@ -237,6 +237,22 @@ public static class SpareChecks
         check(editor.First.Spares.Items.Count == 0 && editor.Second.Spares.Items.Count == 0,
             "spares: the editor is clean after a history edit");
 
+        // Moving the report to another collector moves its usage lines with it; other reports and the stock stay.
+        editor.OpenHistoryCommand.Execute(null);
+        editor.SelectHistoryMonthCommand.Execute(editor.HistoryMonths.Single());
+        editor.SelectHistoryDayCommand.Execute(editor.HistoryDays.Single());
+        editor.EditHistoryReportCommand.Execute(null);
+        editor.Header.CollectorNumberText = "2";
+        editor.SaveHistoryCommand.Execute(null);
+        editor.ConfirmCollectorChangeCommand.Execute(null);
+        check(history.Load(date, 1) is null && history.Load(date, 2) is not null &&
+              store.History.Count == 2 && store.History.All(item => item.CollectorNumber == 2) &&
+              !store.GetUsage(date, 1, 1).Any() && !store.GetUsage(date, 1, 2).Any() &&
+              store.GetUsage(date, 2, 1).Single().Quantity == 1 && store.GetUsage(date, 2, 2).Single().PartId == nozzle.Id,
+            "spares: a collector change moves the report's usage to the new collector, nothing stays on the old one");
+        check(store.Available(tip.Id) == 4 && store.Available(nozzle.Id) == 0,
+            "spares: a collector change leaves the stock as it was");
+
         editor.OpenHistoryCommand.Execute(null);
         editor.SelectHistoryMonthCommand.Execute(editor.HistoryMonths.Single());
         editor.SelectHistoryDayCommand.Execute(editor.HistoryDays.Single());
