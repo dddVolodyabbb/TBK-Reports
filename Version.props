@@ -9,8 +9,8 @@
     TbkAndroidVersionCode must grow by 1 with every APK that is given to people, otherwise Android refuses to update.
   -->
   <PropertyGroup>
-    <TbkVersion>2.0.0</TbkVersion>
+    <TbkVersion>2.1.0</TbkVersion>
     <TbkVersionLabel></TbkVersionLabel>
-    <TbkAndroidVersionCode>7</TbkAndroidVersionCode>
+    <TbkAndroidVersionCode>8</TbkAndroidVersionCode>
   </PropertyGroup>
 </Project>

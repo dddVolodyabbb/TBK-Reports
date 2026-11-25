@@ -9,7 +9,7 @@ public static class SpareChecks
 {
     public static void Run(Action<bool, string> check, Action<MainViewModel> fillHeader)
     {
-        check(AppVersion.Number == "2.0" && AppVersion.Text.StartsWith("v2.0") && AppVersion.WindowTitle.StartsWith("ТБК Отчёт v2.0"),
+        check(AppVersion.Number == "2.1" && AppVersion.Text.StartsWith("v2.1") && AppVersion.WindowTitle.StartsWith("ТБК Отчёт v2.1"),
             "version: the window title is built from Version.props");
         var standard = StandardSpares.Catalog;
         check(standard.Length == 147 && standard.Select(part => part.Id).Distinct().Count() == standard.Length &&
