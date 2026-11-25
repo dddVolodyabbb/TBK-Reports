@@ -8,6 +8,8 @@
 $ErrorActionPreference = 'Stop'
 if (-not $FooterLabel) {
     $FooterLabel = if ($DocumentName -like '*руководство по установке*') { 'ТБК Отчёт' }
+        elseif ($DocumentName -like '*2.x*(Windows)*') { 'ТБК Отчёт · v2.x · Windows' }
+        elseif ($DocumentName -like '*2.x*(Android)*') { 'ТБК Отчёт · v2.x · Android' }
         elseif ($DocumentName -like '*2.x*') { 'ТБК Отчёт · v2.x' }
         else { 'ТБК Отчёт · v1.x' }
 }
