@@ -40,9 +40,7 @@
             <Border BorderBrush="#40808080" BorderThickness="0,0,0,1" Padding="0,10">
               <StackPanel Spacing="4">
                 <SelectableTextBlock Text="{Binding Name}" TextWrapping="Wrap" FontSize="16" FontWeight="SemiBold" />
-                <SelectableTextBlock Text="{Binding Article}" TextWrapping="Wrap" Opacity="0.7" />
-                <SelectableTextBlock Text="{Binding Manufacturer}" TextWrapping="Wrap" Opacity="0.7"
-                           IsVisible="{Binding Manufacturer, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                <SelectableTextBlock Text="{Binding Details}" IsVisible="{Binding HasDetails}" TextWrapping="Wrap" Opacity="0.7" />
                 <WrapPanel Margin="0,4,0,0">
                   <Button Content="Изменить" Click="EditClick" MinHeight="44" Margin="0,0,8,0" />
                   <Button Content="Удалить" Click="RemoveClick" MinHeight="44" />

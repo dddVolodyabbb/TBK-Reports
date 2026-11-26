@@ -12,7 +12,7 @@
       <TextBlock Text="{Binding AccountingText}" TextWrapping="Wrap"
                  Foreground="{DynamicResource AccentTextBrush}" IsVisible="{Binding IsAccountingEnabled}" />
       <TextBlock Text="{Binding AccountingText}" TextWrapping="Wrap" Foreground="OrangeRed" IsVisible="{Binding !IsAccountingEnabled}" />
-      <TextBox Text="{Binding StockSearch, Mode=TwoWay}" PlaceholderText="Поиск по наименованию или артикулу" MinHeight="48" />
+      <TextBox Text="{Binding StockSearch, Mode=TwoWay}" PlaceholderText="Поиск по наименованию, артикулу или производителю" MinHeight="48" />
       <Button Content="+ Добавить" Command="{Binding OpenStockFormCommand}" IsVisible="{Binding !IsStockFormOpen}"
               HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" MinHeight="56" />
       <Border Name="StockForm" IsVisible="{Binding IsStockFormOpen}" BorderBrush="#FF0078D4" BorderThickness="2" CornerRadius="8" Padding="12">
@@ -63,7 +63,7 @@
               <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="4">
                 <SelectableTextBlock Text="{Binding Name}" TextWrapping="Wrap" FontSize="16" FontWeight="SemiBold" />
                 <TextBlock Grid.Column="1" Text="{Binding Quantity, StringFormat='{}{0} шт.'}" FontSize="18" FontWeight="SemiBold" />
-                <SelectableTextBlock Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding Article}" TextWrapping="Wrap" Opacity="0.7" />
+                <SelectableTextBlock Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding Details}" IsVisible="{Binding HasDetails}" TextWrapping="Wrap" Opacity="0.7" />
                 <WrapPanel Grid.Row="2" Grid.ColumnSpan="2" Margin="0,4,0,0">
                   <Button Content="Изменить" Click="EditClick" MinHeight="44" Margin="0,0,8,0" />
                   <Button Content="Удалить" Click="RemoveClick" MinHeight="44" />

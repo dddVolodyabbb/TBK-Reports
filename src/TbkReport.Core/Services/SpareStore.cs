@@ -12,6 +12,11 @@ public sealed record SparePart(string Id, string Name, string Article, string Ma
 {
     [System.Text.Json.Serialization.JsonIgnore]
     public string Label => string.IsNullOrEmpty(Article) ? Name : $"{Name} · {Article}";
+    /// <summary>Second line in the catalogue list, as in the equipment list: article and manufacturer, empty when neither is set.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string Details => string.Join(" · ", new[] { Article?.Trim() ?? "", Manufacturer?.Trim() ?? "" }.Where(part => part.Length > 0));
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool HasDetails => Details.Length > 0;
 }
 
 /// <summary>

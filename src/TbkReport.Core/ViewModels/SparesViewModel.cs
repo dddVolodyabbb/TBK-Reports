@@ -9,7 +9,12 @@ using TbkReport.Services;
 namespace TbkReport.ViewModels;
 
 /// <summary>A row of the «В наличии» list: a catalogue part with its quantity in stock.</summary>
-public sealed record SpareStockRow(string PartId, string Name, string Article, int Quantity);
+public sealed record SpareStockRow(string PartId, string Name, string Article, int Quantity, string Manufacturer = "")
+{
+    /// <summary>Second line, as in the catalogue: article and manufacturer, empty when neither is set.</summary>
+    public string Details => string.Join(" · ", new[] { Article?.Trim() ?? "", Manufacturer?.Trim() ?? "" }.Where(part => part.Length > 0));
+    public bool HasDetails => Details.Length > 0;
+}
 
 /// <summary>
 /// A catalogue part offered when adding to «В наличии». A part already in stock is offered too, marked (green on
@@ -164,8 +169,8 @@ public partial class SparesViewModel : ViewModelBase
         }
         StockRows.Clear();
         foreach (var row in store.Stock
-                     .Select(item => store.FindPart(item.PartId) is { } part ? new SpareStockRow(part.Id, part.Name, part.Article, store.Available(part.Id)) : null)
-                     .Where(row => row is not null && SpareSearch.Matches(StockSearch, row.Name, row.Article))
+                     .Select(item => store.FindPart(item.PartId) is { } part ? new SpareStockRow(part.Id, part.Name, part.Article, store.Available(part.Id), part.Manufacturer) : null)
+                     .Where(row => row is not null && SpareSearch.Matches(StockSearch, row.Name, row.Article, row.Manufacturer))
                      .OrderBy(row => row!.Name, StringComparer.CurrentCultureIgnoreCase).ThenBy(row => row!.Article))
             StockRows.Add(row!);
         StockChoices.Clear();
